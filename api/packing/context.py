@@ -27,6 +27,7 @@ def build_context(db, trip: dict, user_id: str) -> dict:
 
     ctx = {
         "trip": {
+            "travel_mode": trip.get("travel_mode"),
             "title": trip["title"], "trip_type": trip.get("trip_type"),
             "start_date": trip["start_date"], "end_date": trip["end_date"],
             "duration_days": duration, "month": start.strftime("%B"),

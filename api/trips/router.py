@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from api.core.auth import current_user_id
 from api.core.db import get_db
-from api.trips.models import ActivityCreate, DestinationCreate, TripCreate
+from api.trips.models import TripPatch, ActivityCreate, DestinationCreate, TripCreate
 
 router = APIRouter(prefix="/v1/trips", tags=["trips"])
 
@@ -72,3 +72,35 @@ def add_activity(trip_id: str, body: ActivityCreate, user_id: str = Depends(curr
     return (
         db.table("activities").insert({"trip_id": trip_id, **body.model_dump()}).execute()
     ).data[0]
+
+
+@router.patch("/{trip_id}")
+def patch_trip(trip_id: str, body: TripPatch, user_id: str = Depends(current_user_id)):
+    db = get_db()
+    rows = db.table("trips").select("*").eq("id", trip_id).eq("owner_id", user_id).execute().data
+    if not rows:
+        raise HTTPException(404, "Trip not found")
+    changes = body.model_dump(mode="json", exclude_none=True)
+    if not changes:
+        return rows[0]
+    start = changes.get("start_date", rows[0]["start_date"])
+    end = changes.get("end_date", rows[0]["end_date"])
+    if end < start:
+        raise HTTPException(422, "end_date must be on or after start_date")
+    updated = db.table("trips").update(changes).eq("id", trip_id).execute().data[0]
+    if "start_date" in changes or "end_date" in changes:
+        # stale schedules die; the timeline lazily rebuilds on next open
+        db.table("notification_schedule").delete().eq("trip_id", trip_id) \
+            .eq("status", "pending").execute()
+        db.table("tasks").delete().eq("trip_id", trip_id).execute()
+    return updated
+
+
+@router.delete("/{trip_id}", status_code=204)
+def delete_trip(trip_id: str, user_id: str = Depends(current_user_id)):
+    db = get_db()
+    if not db.table("trips").select("id").eq("id", trip_id).eq("owner_id", user_id).execute().data:
+        raise HTTPException(404, "Trip not found")
+    db.table("notification_schedule").delete().eq("trip_id", trip_id).execute()
+    db.table("notification_log").delete().eq("trip_id", trip_id).execute()
+    db.table("trips").delete().eq("id", trip_id).execute()  # FK cascade takes the rest

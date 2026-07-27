@@ -28,6 +28,8 @@ export default function Wizard({ onDone, onCancel }: {
   const [place, setPlace] = useState('');
   const [country, setCountry] = useState('');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [mode, setMode] = useState('air');
+  const [stay, setStay] = useState('');
   const [hits, setHits] = useState<PlaceHit[]>([]);
   const [chosen, setChosen] = useState(false);
   const [start, setStart] = useState(defStart);
@@ -78,6 +80,7 @@ export default function Wizard({ onDone, onCancel }: {
         country_code: country ? country.toUpperCase().slice(0, 2) : null,
         lat: coords?.lat ?? null,
         lng: coords?.lng ?? null,
+        accommodation: stay.trim() ? { name: stay.trim() } : null,
       });
       for (const a of acts) {
         await addActivity(trip.id, { type: a });
@@ -115,6 +118,14 @@ export default function Wizard({ onDone, onCancel }: {
           {chosen && (
             <Text style={s.picked}>{flag(country)}  {place} · pinned ✓</Text>
           )}
+          <Text style={s.modeLabel}>HOW ARE YOU GETTING THERE?</Text>
+          <View style={s.chipWrap}>
+            {[['air', '✈ Air'], ['train', '🚆 Train'], ['ship', '🚢 Ship'], ['car', '🚗 Car']].map(([v, l]) => (
+              <Chip key={v} label={l} selected={mode === v} onPress={() => setMode(v)} />
+            ))}
+          </View>
+          <Field label="WHERE ARE YOU STAYING? (OPTIONAL)" value={stay} onChange={setStay}
+            placeholder="Hotel or area — tailors your guide" />
           {!chosen && place.trim().length >= 2 && (
             <Pressable onPress={() => { setChosen(true); setHits([]); }} style={s.hit}>
               <Text style={{ color: C.blue, fontWeight: '800' }}>Use “{place.trim()}” as a region ›</Text>
@@ -214,4 +225,5 @@ const s = StyleSheet.create({
   datePillOn: { backgroundColor: C.blueSoft },
   datePillLabel: { color: C.sub, fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
   datePillValue: { color: C.text, fontSize: 16, fontWeight: '800', marginTop: 2 },
+  modeLabel: { color: C.sub, fontSize: 12, marginBottom: 7, fontWeight: '800', letterSpacing: 0.6 },
 });

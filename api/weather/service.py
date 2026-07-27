@@ -42,7 +42,7 @@ def _upsert_snapshots(db, dest_id: str, days: list[dict]) -> int:
         "provider": d.get("provider", provider.PROVIDER),
         "temp_min": d["temp_min"], "temp_max": d["temp_max"],
         "precip_prob": d["precip_prob"], "wind_kph": d["wind_kph"],
-        "payload": {"uv": d["uv"], "ruleset": RULESET}, "fetched_at": now,
+        "payload": {"uv": d["uv"], "snow_cm": d.get("snow_cm"), "ruleset": RULESET}, "fetched_at": now,
     } for d in days]
     db.table("weather_snapshots").upsert(
         rows, on_conflict="destination_id,forecast_date").execute()
@@ -59,6 +59,7 @@ def load_snapshots(db, trip: dict) -> tuple[dict | None, list[dict]]:
     days = [{"date": r["forecast_date"], "temp_max": r["temp_max"], "temp_min": r["temp_min"],
              "precip_prob": r["precip_prob"], "wind_kph": r["wind_kph"],
              "uv": (r.get("payload") or {}).get("uv"),
+             "snow_cm": (r.get("payload") or {}).get("snow_cm"),
              "provider": r.get("provider")} for r in rows]
     return dest, days
 

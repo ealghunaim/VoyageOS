@@ -47,8 +47,8 @@ def _fetch_open_meteo(lat: float, lng: float) -> list[dict]:
             with httpx.Client(timeout=15, headers={"User-Agent": USER_AGENT}) as c:
                 r = c.get(FORECAST_URL, params={
                     "latitude": lat, "longitude": lng,
-                    "daily": "temperature_2m_max,temperature_2m_min,"
-                             "precipitation_probability_max,wind_speed_10m_max,uv_index_max",
+                    "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_max,"
+                             "wind_speed_10m_max,uv_index_max,snowfall_sum",
                     "timezone": "auto", "forecast_days": 16,
                 })
                 if r.status_code == 429:
@@ -74,7 +74,8 @@ def _fetch_open_meteo(lat: float, lng: float) -> list[dict]:
                          "temp_min": g("temperature_2m_min"),
                          "precip_prob": g("precipitation_probability_max"),
                          "wind_kph": g("wind_speed_10m_max"),
-                         "uv": g("uv_index_max"), "provider": "open-meteo"})
+                         "uv": g("uv_index_max"), "snow_cm": g("snowfall_sum"),
+                         "provider": "open-meteo"})
         return days
     print("[weather] open-meteo: rate-limited after retries — falling back")
     return []

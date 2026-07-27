@@ -55,17 +55,19 @@ def get_guide(db, trip: dict, user_id: str, *, regenerate: bool = False) -> dict
             return {"guide": rows[0]["payload"], "cached": True,
                     "model": rows[0].get("model"), "cost_usd": 0.0}
 
-    dests = db.table("destinations").select("place_name,country_code") \
+    dests = db.table("destinations").select("place_name,country_code,accommodation") \
         .eq("trip_id", trip["id"]).order("seq").limit(1).execute().data
     place = dests[0]["place_name"] if dests else trip["title"]
     country = (dests[0].get("country_code") if dests else None) or ""
     acts = [a["type"] for a in db.table("activities").select("type")
             .eq("trip_id", trip["id"]).execute().data]
+    accommodation = (dests[0].get("accommodation") or {}).get("name") if dests else None
 
     gateway.check_budget(db, user_id)
     ctx = {"destination": {"place": place, "country": country},
            "month": trip["start_date"][5:7], "start_date": trip["start_date"],
-           "duration_days": None, "activities": sorted(set(acts))}
+           "duration_days": None, "activities": sorted(set(acts)),
+           "accommodation": accommodation, "travel_mode": trip.get("travel_mode")}
     result = gateway.complete("guide_generate", GUIDE_SYSTEM_PROMPT,
                               json.dumps(ctx), db=db, user_id=user_id, max_tokens=2000)
     try:

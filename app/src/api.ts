@@ -7,6 +7,7 @@ let onAuthFail: (() => void) | null = null;
 export function setAuthFailHandler(fn: () => void) { onAuthFail = fn; }
 
 export type Trip = {
+  place?: string | null; country_code?: string | null; travel_mode?: string | null;
   id: string; title: string; start_date: string; end_date: string;
   trip_type?: string | null; status: string;
 };
@@ -112,7 +113,7 @@ export const deleteDocument = (id: string) =>
 export type WxDay = {
   date: string; temp_max: number | null; temp_min: number | null;
   precip_prob: number | null; wind_kph: number | null; uv: number | null;
-  provider?: string | null;
+  snow_cm?: number | null; provider?: string | null;
 };
 export const getTripWeather = (tripId: string): Promise<{ place: string | null; days: WxDay[] }> =>
   req(`/v1/trips/${tripId}/weather`);
@@ -160,3 +161,8 @@ export type Note = { id: string; body: string; created_at: string };
 export const listNotes = (tripId: string): Promise<Note[]> => req(`/v1/trips/${tripId}/notes`);
 export const addNote = (tripId: string, body: string): Promise<Note> =>
   req(`/v1/trips/${tripId}/notes`, { method: 'POST', body: JSON.stringify({ body }) });
+
+export const patchTrip = (id: string, b: { title?: string; start_date?: string; end_date?: string }): Promise<Trip> =>
+  req(`/v1/trips/${id}`, { method: 'PATCH', body: JSON.stringify(b) });
+export const deleteTrip = (id: string): Promise<void> =>
+  req(`/v1/trips/${id}`, { method: 'DELETE' });

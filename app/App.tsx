@@ -15,7 +15,8 @@ import Journal from './src/screens/Journal';
 import SOS from './src/screens/SOS';
 import TripHub from './src/screens/TripHub';
 import Wizard from './src/screens/Wizard';
-import { accentFor, C } from './src/theme';
+import Archive from './src/screens/Archive';
+import { accentForTrip, C } from './src/theme';
 
 type Route =
   | { name: 'home' }
@@ -29,7 +30,8 @@ type Route =
   | { name: 'debrief'; trip: Trip }
   | { name: 'kits' }
   | { name: 'documents' }
-  | { name: 'profile' };
+  | { name: 'profile' }
+  | { name: 'archive'; trips: Trip[] };
 
 export default function App() {
   const [route, setRoute] = useState<Route>({ name: 'home' });
@@ -78,6 +80,8 @@ export default function App() {
           onDocuments={() => setRoute({ name: 'documents' })}
           onNewTrip={() => setRoute({ name: 'wizard' })}
           onOpenTrip={(t: Trip) => setRoute({ name: 'hub', trip: t })}
+          onArchive={(past) => setRoute({ name: 'archive', trips: past })}
+          onHomeTap={goHome}
         />
       )}
       {route.name === 'wizard' && (
@@ -92,7 +96,12 @@ export default function App() {
           onGuide={(section) => setRoute({ name: 'guide', trip: route.trip, section })}
           onJournal={() => setRoute({ name: 'journal', trip: route.trip })}
           onSOS={() => setRoute({ name: 'sos', trip: route.trip })}
-          onDebrief={() => setRoute({ name: 'debrief', trip: route.trip })} />
+          onDebrief={() => setRoute({ name: 'debrief', trip: route.trip })}
+          onTripChanged={(t) => (t ? setRoute({ name: 'hub', trip: t }) : goHome())} />
+      )}
+      {route.name === 'archive' && (
+        <Archive trips={route.trips} onBack={goHome}
+          onOpen={(t) => setRoute({ name: 'hub', trip: t })} />
       )}
       {route.name === 'packing' && (
         <Packing tripId={route.trip.id} tripTitle={route.trip.title}
@@ -101,19 +110,20 @@ export default function App() {
       )}
       {route.name === 'guide' && (
         <Guide tripId={route.trip.id} tripTitle={route.trip.title} section={route.section}
-          accent={accentFor(route.trip.title)} place={route.trip.title.replace(/ trip$/i, '')}
-          country={null}
+          accent={accentForTrip(route.trip.country_code, route.trip.title)}
+          place={route.trip.place ?? route.trip.title.replace(/ trip$/i, '')}
+          country={route.trip.country_code ?? null}
           onBack={() => setRoute({ name: 'hub', trip: route.trip })} />
       )}
       {route.name === 'journal' && (
         <Journal tripId={route.trip.id} tripTitle={route.trip.title}
-          accent={accentFor(route.trip.title)}
+          accent={accentForTrip(route.trip.country_code, route.trip.title)}
           onBack={() => setRoute({ name: 'hub', trip: route.trip })} />
       )}
       {route.name === 'sos' && (
         <SOS tripId={route.trip.id} tripTitle={route.trip.title}
-          place={route.trip.title.replace(/ trip$/i, '')}
-          accent={accentFor(route.trip.title)}
+          place={route.trip.place ?? route.trip.title.replace(/ trip$/i, '')}
+          accent={accentForTrip(route.trip.country_code, route.trip.title)}
           onBack={() => setRoute({ name: 'hub', trip: route.trip })} />
       )}
       {route.name === 'debrief' && (

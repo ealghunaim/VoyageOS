@@ -8,6 +8,7 @@ class TripCreate(BaseModel):
     start_date: date
     end_date: date
     trip_type: str | None = None
+    travel_mode: str | None = Field(default=None, max_length=12)  # air|train|ship|car
 
     @model_validator(mode="after")
     def dates_ordered(self):
@@ -21,9 +22,17 @@ class DestinationCreate(BaseModel):
     country_code: str | None = Field(default=None, max_length=2)
     lat: float | None = None   # from autocomplete — stored at creation, geocoding retired
     lng: float | None = None
+    accommodation: dict | None = None   # {'name': ...} — tailors the guide by proximity
     seq: int = 1
 
 
 class ActivityCreate(BaseModel):
     type: str = Field(min_length=1, max_length=40)   # hiking, trail_running, business, ...
     title: str | None = None
+
+
+class TripPatch(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=120)
+    start_date: date | None = None
+    end_date: date | None = None
+    travel_mode: str | None = Field(default=None, max_length=12)
