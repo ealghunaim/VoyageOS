@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { addActivity, addDestination, createTrip, generateList, PlaceHit, searchPlaces } from '../api';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { addActivity, addDestination, createTrip, generateList, PlaceHit, searchPlaces, Trip } from '../api';
 import { Btn, Card, Chip, Field } from '../components/ui';
 import { C } from '../theme';
 
@@ -18,7 +19,7 @@ function plusDays(base: string, n: number) {
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export default function Wizard({ onDone, onCancel }: {
-  onDone: (tripId: string) => void; onCancel: () => void;
+  onDone: (trip: Trip) => void; onCancel: () => void;
 }) {
   const today = new Date();
   const defStart = iso(new Date(today.getTime() + 14 * 86400000));
@@ -33,6 +34,7 @@ export default function Wizard({ onDone, onCancel }: {
   const [end, setEnd] = useState(plusDays(defStart, 6));
   const [acts, setActs] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState('');
+  const [picking, setPicking] = useState<'start' | 'end' | null>(null);
 
   React.useEffect(() => {
     if (chosen || place.trim().length < 2) { setHits([]); return; }
@@ -83,7 +85,7 @@ export default function Wizard({ onDone, onCancel }: {
       setBusy('Asking Claude to pack…');
       await generateList(trip.id);
       setBusy('');
-      onDone(trip.id);
+      onDone(trip);
     } catch (e: any) {
       setBusy('');
       Alert.alert('Could not build the trip', e.message);
@@ -113,6 +115,12 @@ export default function Wizard({ onDone, onCancel }: {
           {chosen && (
             <Text style={s.picked}>{flag(country)}  {place} · pinned ✓</Text>
           )}
+          {!chosen && place.trim().length >= 2 && (
+            <Pressable onPress={() => { setChosen(true); setHits([]); }} style={s.hit}>
+              <Text style={{ color: C.blue, fontWeight: '800' }}>Use “{place.trim()}” as a region ›</Text>
+              <Text style={s.hitSub}>e.g. the Dolomites, the French Riviera</Text>
+            </Pressable>
+          )}
           <Btn label="Continue" disabled={!place.trim()} onPress={() => setStep(2)} />
           <View style={{ height: 8 }} />
           <Btn label="Cancel" kind="ghost" onPress={onCancel} />
@@ -122,9 +130,33 @@ export default function Wizard({ onDone, onCancel }: {
       {step === 2 && (
         <Card>
           <Text style={s.h1}>Select your dates</Text>
-          <Text style={s.sub}>Format: YYYY-MM-DD</Text>
-          <Field label="START" value={start} onChange={setStart} placeholder="2026-08-10" />
-          <Field label="END" value={end} onChange={setEnd} placeholder="2026-08-17" />
+          <Text style={s.sub}>Tap a date to open the calendar.</Text>
+          <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+            <Pressable style={[s.datePill, picking === 'start' && s.datePillOn]} onPress={() => setPicking(picking === 'start' ? null : 'start')}>
+              <Text style={s.datePillLabel}>START</Text>
+              <Text style={s.datePillValue}>{start}</Text>
+            </Pressable>
+            <View style={{ width: 10 }} />
+            <Pressable style={[s.datePill, picking === 'end' && s.datePillOn]} onPress={() => setPicking(picking === 'end' ? null : 'end')}>
+              <Text style={s.datePillLabel}>END</Text>
+              <Text style={s.datePillValue}>{end}</Text>
+            </Pressable>
+          </View>
+          {picking && (
+            <DateTimePicker
+              value={new Date((picking === 'start' ? start : end) + 'T00:00:00')}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'inline' : 'default'}
+              minimumDate={picking === 'end' ? new Date(start + 'T00:00:00') : new Date()}
+              onChange={(_, d) => {
+                if (!d) { setPicking(null); return; }
+                const v = iso(d);
+                if (picking === 'start') { setStart(v); if (end < v) setEnd(plusDays(v, 6)); }
+                else setEnd(v);
+                if (Platform.OS !== 'ios') setPicking(null);
+              }}
+            />
+          )}
           <View style={{ flexDirection: 'row', marginBottom: 12 }}>
             <Chip label="3 days" selected={false} onPress={() => setEnd(plusDays(start, 2))} />
             <Chip label="1 week" selected={false} onPress={() => setEnd(plusDays(start, 6))} />
@@ -178,4 +210,8 @@ const s = StyleSheet.create({
   hitText: { color: C.text, fontSize: 16, fontWeight: '600' },
   hitSub: { color: C.sub, fontSize: 12, marginTop: 1 },
   picked: { color: C.green, fontWeight: '800', marginBottom: 10 },
+  datePill: { flex: 1, backgroundColor: '#F1F4F9', borderRadius: 14, padding: 12 },
+  datePillOn: { backgroundColor: C.blueSoft },
+  datePillLabel: { color: C.sub, fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
+  datePillValue: { color: C.text, fontSize: 16, fontWeight: '800', marginTop: 2 },
 });

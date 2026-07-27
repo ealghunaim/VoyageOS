@@ -7,16 +7,20 @@ import Documents from './src/screens/Documents';
 import Home from './src/screens/Home';
 import Kits from './src/screens/Kits';
 import Login from './src/screens/Login';
+import Guide from './src/screens/Guide';
 import Packing from './src/screens/Packing';
+import TripHub from './src/screens/TripHub';
 import Wizard from './src/screens/Wizard';
-import { C } from './src/theme';
+import { accentFor, C } from './src/theme';
 
 type Route =
   | { name: 'home' }
   | { name: 'login' }
   | { name: 'wizard' }
-  | { name: 'packing'; tripId: string; tripTitle: string }
-  | { name: 'debrief'; tripId: string; tripTitle: string }
+  | { name: 'hub'; trip: Trip }
+  | { name: 'packing'; trip: Trip }
+  | { name: 'guide'; trip: Trip; section: string }
+  | { name: 'debrief'; trip: Trip }
   | { name: 'kits' }
   | { name: 'documents' };
 
@@ -63,23 +67,34 @@ export default function App() {
           onKits={() => setRoute({ name: 'kits' })}
           onDocuments={() => setRoute({ name: 'documents' })}
           onNewTrip={() => setRoute({ name: 'wizard' })}
-          onOpenTrip={(t: Trip) =>
-            setRoute({ name: 'packing', tripId: t.id, tripTitle: t.title })}
+          onOpenTrip={(t: Trip) => setRoute({ name: 'hub', trip: t })}
         />
       )}
       {route.name === 'wizard' && (
         <Wizard
           onCancel={goHome}
-          onDone={(tripId) =>
-            setRoute({ name: 'packing', tripId, tripTitle: 'Your new trip' })}
+          onDone={(trip) => setRoute({ name: 'hub', trip })}
         />
       )}
+      {route.name === 'hub' && (
+        <TripHub trip={route.trip} onBack={goHome}
+          onPack={() => setRoute({ name: 'packing', trip: route.trip })}
+          onGuide={(section) => setRoute({ name: 'guide', trip: route.trip, section })}
+          onDebrief={() => setRoute({ name: 'debrief', trip: route.trip })} />
+      )}
       {route.name === 'packing' && (
-        <Packing tripId={route.tripId} tripTitle={route.tripTitle} onBack={goHome}
-          onDebrief={() => setRoute({ name: 'debrief', tripId: route.tripId, tripTitle: route.tripTitle })} />
+        <Packing tripId={route.trip.id} tripTitle={route.trip.title}
+          onBack={() => setRoute({ name: 'hub', trip: route.trip })}
+          onDebrief={() => setRoute({ name: 'debrief', trip: route.trip })} />
+      )}
+      {route.name === 'guide' && (
+        <Guide tripId={route.trip.id} tripTitle={route.trip.title} section={route.section}
+          accent={accentFor(route.trip.title)} place={route.trip.title.replace(/ trip$/i, '')}
+          country={null}
+          onBack={() => setRoute({ name: 'hub', trip: route.trip })} />
       )}
       {route.name === 'debrief' && (
-        <Debrief tripId={route.tripId} tripTitle={route.tripTitle} onDone={goHome} />
+        <Debrief tripId={route.trip.id} tripTitle={route.trip.title} onDone={goHome} />
       )}
       {route.name === 'kits' && <Kits onBack={goHome} />}
       {route.name === 'documents' && <Documents onBack={goHome} />}

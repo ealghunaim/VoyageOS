@@ -3,6 +3,7 @@ import {
   ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { listTrips, Trip } from '../api';
+import TripArt from '../components/TripArt';
 import Wordmark from '../components/Wordmark';
 import { Btn, Card } from '../components/ui';
 import { accentFor, C, tint } from '../theme';
@@ -22,7 +23,16 @@ export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, authe
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
-    try { setError(''); setTrips(await listTrips()); }
+    try {
+      setError('');
+      const raw = await listTrips();
+      const now = Date.now();
+      const upcoming = raw.filter(t => new Date(t.end_date + 'T23:59:59').getTime() >= now && t.status !== 'completed')
+        .sort((a, b) => a.start_date.localeCompare(b.start_date));
+      const done = raw.filter(t => !(new Date(t.end_date + 'T23:59:59').getTime() >= now && t.status !== 'completed'))
+        .sort((a, b) => b.start_date.localeCompare(a.start_date));
+      setTrips([...upcoming, ...done]);
+    }
     catch (e: any) { setError(e.message); setTrips([]); }
   }, []);
 
@@ -71,11 +81,9 @@ export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, authe
         return (
           <Pressable key={t.id} onPress={() => onOpenTrip(t)}>
             <Card style={{ padding: 0, overflow: 'hidden' }}>
-              <View style={[s.band, { backgroundColor: tint(accent, 0.16) }]}>
-                <View style={[s.dot, { backgroundColor: accent }]} />
-                <Text style={[s.place, { color: accent }]}>DESTINATION</Text>
-                <View style={{ flex: 1 }} />
-                <View style={s.pill}>
+              <View>
+                <TripArt seed={t.title} accent={accent} height={64} />
+                <View style={s.pillFloat}>
                   <Text style={[s.pillText, { color: accent }]}>{done ? 'debriefed ✓' : when}</Text>
                 </View>
               </View>
@@ -121,7 +129,10 @@ const s = StyleSheet.create({
   band: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 12 },
   dot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
   place: { fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
-  pill: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999, backgroundColor: '#fff' },
+  pillFloat: {
+    position: 'absolute', top: 10, right: 12, paddingHorizontal: 12, paddingVertical: 5,
+    borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.92)',
+  },
   pillText: { fontWeight: '800', fontSize: 12 },
   tripTitle: { fontSize: 21, fontWeight: '800', color: C.text, letterSpacing: -0.3 },
   dates: { color: C.sub, marginTop: 3, marginBottom: 8 },

@@ -18,6 +18,7 @@ TASK_ROUTE = {  # Part 1 §6 routing table
     "extract_items": "small",
     "notification_copy": "small",
     "packing_generate": "mid",
+    "guide_generate": "mid",
     "packing_generate_complex": "frontier",
 }
 

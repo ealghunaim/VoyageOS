@@ -126,3 +126,16 @@ export type PlaceHit = {
 };
 export const searchPlaces = (q: string): Promise<PlaceHit[]> =>
   req(`/v1/places/search?q=${encodeURIComponent(q)}`);
+
+export type Guide = {
+  power: { plugs: string; note: string };
+  etiquette: string[]; customs_flags: string[];
+  eat: { name: string; note: string }[];
+  play: { name: string; note: string }[];
+  visit: { name: string; note: string }[];
+  go: { from_airport: string[]; around: string[] };
+  task_suggestions: string[];
+};
+export const getGuide = (tripId: string, regenerate = false):
+  Promise<{ guide: Guide; cached: boolean; cost_usd: number }> =>
+  req(`/v1/trips/${tripId}/guide?regenerate=${regenerate}`);
