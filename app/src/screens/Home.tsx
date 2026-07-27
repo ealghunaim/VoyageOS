@@ -11,8 +11,9 @@ function daysUntil(dateStr: string) {
   return Math.ceil((d.getTime() - Date.now()) / 86400000);
 }
 
-export default function Home({ onNewTrip, onOpenTrip }: {
+export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments }: {
   onNewTrip: () => void; onOpenTrip: (t: Trip) => void;
+  onKits: () => void; onDocuments: () => void;
 }) {
   const [trips, setTrips] = useState<Trip[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -84,6 +85,11 @@ export default function Home({ onNewTrip, onOpenTrip }: {
           <Btn label="+ New Trip" onPress={onNewTrip} />
         </>
       )}
+      <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 14 }}>
+        <Pressable onPress={onKits}><Text style={s.link}>My kits ›</Text></Pressable>
+        <Text style={{ color: C.sub }}>{'   ·   '}</Text>
+        <Pressable onPress={onDocuments}><Text style={s.link}>Documents ›</Text></Pressable>
+      </View>
       <Text style={s.footer}>v0.5 · dev build</Text>
     </ScrollView>
   );

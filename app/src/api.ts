@@ -1,4 +1,6 @@
-import { API_URL } from './config';
+import * as CFG from './config';
+const API_URL = CFG.API_URL;
+const APP_KEY: string = (CFG as any).APP_KEY ?? '';
 
 export type Trip = {
   id: string; title: string; start_date: string; end_date: string;
@@ -14,7 +16,10 @@ async function req(path: string, options: RequestInit = {}) {
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(APP_KEY ? { 'x-voyageos-key': APP_KEY } : {}),
+      },
       ...options,
     });
   } catch (e) {
@@ -60,3 +65,33 @@ export const submitDebrief = (
   req(`/v1/trips/${tripId}/debrief`, {
     method: 'POST', body: JSON.stringify({ forgot, unused }),
   });
+
+
+export type Kit = { id: string; name: string; item_count?: number };
+export const listKits = (): Promise<Kit[]> => req('/v1/gear-profiles');
+export const createKit = (name: string): Promise<Kit> =>
+  req('/v1/gear-profiles', { method: 'POST', body: JSON.stringify({ name }) });
+export const getKit = (id: string): Promise<Kit & { items: { item_id: string; name: string; qty: number }[] }> =>
+  req(`/v1/gear-profiles/${id}`);
+export const addKitItem = (id: string, name: string) =>
+  req(`/v1/gear-profiles/${id}/items`, { method: 'POST', body: JSON.stringify({ name }) });
+export const removeKitItem = (id: string, itemId: string) =>
+  req(`/v1/gear-profiles/${id}/items/${itemId}`, { method: 'DELETE' });
+export const applyKit = (id: string, tripId: string): Promise<{ added: number; already_there: number; kit: string }> =>
+  req(`/v1/gear-profiles/${id}/apply/${tripId}`, { method: 'POST' });
+
+export type WeightInfo = { total_g: number; counted: number; unweighed: number; limit_g: number | null };
+export const getWeight = (tripId: string): Promise<WeightInfo> => req(`/v1/trips/${tripId}/weight`);
+export const setBagLimit = (tripId: string, limit_g: number | null) =>
+  req(`/v1/trips/${tripId}/bag`, { method: 'PUT', body: JSON.stringify({ limit_g }) });
+
+export type Doc = {
+  id: string; type: string; label: string; expiry_date: string | null;
+  country_code: string | null;
+  expiry: { level: string; message: string; days_left: number | null };
+};
+export const listDocuments = (): Promise<Doc[]> => req('/v1/documents');
+export const createDocument = (b: object): Promise<Doc> =>
+  req('/v1/documents', { method: 'POST', body: JSON.stringify(b) });
+export const deleteDocument = (id: string) =>
+  req(`/v1/documents/${id}`, { method: 'DELETE' });

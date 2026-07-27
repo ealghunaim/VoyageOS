@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { SafeAreaView, StatusBar } from 'react-native';
 import { Trip } from './src/api';
+import Documents from './src/screens/Documents';
 import Home from './src/screens/Home';
+import Kits from './src/screens/Kits';
 import Debrief from './src/screens/Debrief';
 import Packing from './src/screens/Packing';
 import Wizard from './src/screens/Wizard';
@@ -11,7 +13,9 @@ type Route =
   | { name: 'home' }
   | { name: 'wizard' }
   | { name: 'packing'; tripId: string; tripTitle: string }
-  | { name: 'debrief'; tripId: string; tripTitle: string };
+  | { name: 'debrief'; tripId: string; tripTitle: string }
+  | { name: 'kits' }
+  | { name: 'documents' };
 
 export default function App() {
   const [route, setRoute] = useState<Route>({ name: 'home' });
@@ -25,6 +29,8 @@ export default function App() {
       {route.name === 'home' && (
         <Home
           key={homeKey}
+          onKits={() => setRoute({ name: 'kits' })}
+          onDocuments={() => setRoute({ name: 'documents' })}
           onNewTrip={() => setRoute({ name: 'wizard' })}
           onOpenTrip={(t: Trip) =>
             setRoute({ name: 'packing', tripId: t.id, tripTitle: t.title })}
@@ -41,6 +47,8 @@ export default function App() {
         <Packing tripId={route.tripId} tripTitle={route.tripTitle} onBack={goHome}
           onDebrief={() => setRoute({ name: 'debrief', tripId: route.tripId, tripTitle: route.tripTitle })} />
       )}
+      {route.name === 'kits' && <Kits onBack={goHome} />}
+      {route.name === 'documents' && <Documents onBack={goHome} />}
       {route.name === 'debrief' && (
         <Debrief tripId={route.tripId} tripTitle={route.tripTitle} onDone={goHome} />
       )}

@@ -3,7 +3,7 @@ import {
   ActivityIndicator, Alert, Pressable, RefreshControl,
   ScrollView, StyleSheet, Text, View,
 } from 'react-native';
-import { generateList, getPackingList, getTimeline, PackItem, Task, updateItem } from '../api';
+import { applyKit, generateList, getPackingList, getTimeline, getWeight, Kit, listKits, PackItem, setBagLimit, Task, updateItem, WeightInfo } from '../api';
 import { deviceTz, permissionStatus, requestPermission, syncReminders, testPing } from '../notifications';
 import { Btn, Card, Progress } from '../components/ui';
 import { C } from '../theme';
@@ -17,6 +17,9 @@ export default function Packing({ tripId, tripTitle, onBack, onDebrief }: {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [perm, setPerm] = useState<'granted' | 'denied' | 'undetermined'>('denied');
   const [armed, setArmed] = useState<number | null>(null);
+  const [weight, setWeight] = useState<WeightInfo | null>(null);
+  const [showLimits, setShowLimits] = useState(false);
+  const [kits, setKits] = useState<Kit[] | null>(null);
 
   const loadTimeline = useCallback(async () => {
     try {
@@ -26,6 +29,10 @@ export default function Packing({ tripId, tripTitle, onBack, onDebrief }: {
       setPerm(p);
       if (p === 'granted') setArmed(await syncReminders(t.reminders));
     } catch {}
+  }, [tripId]);
+
+  const loadWeight = useCallback(async () => {
+    try { setWeight(await getWeight(tripId)); } catch {}
   }, [tripId]);
 
   const load = useCallback(async () => {
@@ -38,7 +45,7 @@ export default function Packing({ tripId, tripTitle, onBack, onDebrief }: {
     }
   }, [tripId]);
 
-  useEffect(() => { load(); loadTimeline(); }, [load, loadTimeline]);
+  useEffect(() => { load(); loadTimeline(); loadWeight(); }, [load, loadTimeline, loadWeight]);
 
   async function generate(regenerate: boolean) {
     setBusy(true);
@@ -55,7 +62,7 @@ export default function Packing({ tripId, tripTitle, onBack, onDebrief }: {
   async function togglePacked(it: PackItem) {
     const next = it.status === 'packed' ? 'suggested' : 'packed';
     setItems(prev => prev!.map(x => (x.id === it.id ? { ...x, status: next } : x)));
-    try { await updateItem(it.id, { status: next }); }
+    try { await updateItem(it.id, { status: next }); loadWeight(); }
     catch (e: any) { Alert.alert('Save failed', e.message); load(); }
   }
 
@@ -182,11 +189,65 @@ export default function Packing({ tripId, tripTitle, onBack, onDebrief }: {
             ))}
           </View>
         ))}
+        <View style={{ marginTop: 4 }}>
+          <Pressable onPress={async () => {
+            if (kits === null) { try { setKits(await listKits()); } catch {} }
+            else setKits(null);
+          }}>
+            <Text style={s.closeout}>Apply a kit ›</Text>
+          </Pressable>
+          {kits !== null && (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
+              {kits.length === 0 && <Text style={s.reason}>No kits yet — create one from Home.</Text>}
+              {kits.map(k => (
+                <Pressable key={k.id} style={s.kitChip} onPress={async () => {
+                  try {
+                    const r = await applyKit(k.id, tripId);
+                    Alert.alert(`${r.kit} applied`, `${r.added} added · ${r.already_there} already on the list`);
+                    setKits(null); await load(); loadWeight();
+                  } catch (e: any) { Alert.alert('Error', e.message); }
+                }}>
+                  <Text style={{ color: C.blue, fontWeight: '700' }}>{k.name}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
         <Pressable onPress={onDebrief}>
           <Text style={s.closeout}>Close out this trip — 60-second debrief ›</Text>
         </Pressable>
         <Text style={s.footer}>Suggestions explain themselves — that's the point.</Text>
       </ScrollView>
+      {weight && (
+        <Pressable style={s.weightBar} onPress={() => setShowLimits(v => !v)}>
+          <Text style={{
+            fontWeight: '800',
+            color: weight.limit_g && weight.total_g > weight.limit_g ? C.red
+              : weight.limit_g && weight.total_g > weight.limit_g * 0.85 ? '#b45309' : C.text,
+          }}>
+            {(weight.total_g / 1000).toFixed(1)} kg
+            {weight.limit_g ? ` / ${(weight.limit_g / 1000).toFixed(0)} kg` : ' · set a target ›'}
+            {weight.unweighed ? `  · ${weight.unweighed} unweighed` : ''}
+          </Text>
+          {showLimits && (
+            <View style={{ flexDirection: 'row', marginTop: 8 }}>
+              {[7, 10, 23].map(kg => (
+                <Pressable key={kg} style={s.kitChip} onPress={async () => {
+                  await setBagLimit(tripId, kg * 1000); setShowLimits(false); loadWeight();
+                }}>
+                  <Text style={{ color: C.blue, fontWeight: '700' }}>{kg} kg</Text>
+                </Pressable>
+              ))}
+              <Pressable style={s.kitChip} onPress={async () => {
+                await setBagLimit(tripId, null); setShowLimits(false); loadWeight();
+              }}>
+                <Text style={{ color: C.sub, fontWeight: '700' }}>none</Text>
+              </Pressable>
+            </View>
+          )}
+          <Text style={s.weightNote}>your target — not an airline rule</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -239,4 +300,7 @@ const s = StyleSheet.create({
   testLink: { color: C.blue, fontWeight: '700', fontSize: 13, marginTop: 4, marginLeft: 2 },
   histBadge: { color: '#b45309', fontWeight: '800', fontSize: 12, marginTop: 2 },
   closeout: { color: C.blue, fontWeight: '700', textAlign: 'center', marginTop: 10 },
+  kitChip: { borderWidth: 1, borderColor: C.border, backgroundColor: '#fff', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, margin: 4 },
+  weightBar: { backgroundColor: C.card, borderTopWidth: 1, borderTopColor: C.border, padding: 12, alignItems: 'center' },
+  weightNote: { color: '#9aa7b8', fontSize: 11, marginTop: 3 },
 });
