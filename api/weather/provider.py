@@ -1,5 +1,8 @@
-"""Open-Meteo adapter — free, keyless, 16-day horizon. Provider details stay HERE
-so a vendor swap never touches the rules engine (Part 1 §6 adapter doctrine)."""
+"""Open-Meteo adapter — free, keyless. Uses the canonical forecast_days=16 mode
+(the date-bounded mode has known edge bugs) and filters to the trip window
+locally. Provider failures are LOGGED, never swallowed — silence is only ever
+a product decision, not an accident.
+"""
 from __future__ import annotations
 
 from datetime import date, timedelta
@@ -13,15 +16,16 @@ PROVIDER = "open-meteo"
 
 
 def geocode(place_name: str, country_code: str | None = None) -> tuple[float, float] | None:
-    """Best-effort place → (lat, lng). None on miss; caller decides what that means."""
     try:
         with httpx.Client(timeout=10) as c:
             r = c.get(GEOCODE_URL, params={"name": place_name, "count": 5, "language": "en"})
             r.raise_for_status()
             results = r.json().get("results") or []
-    except Exception:
+    except Exception as e:
+        print(f"[weather] geocode failed for '{place_name}': {type(e).__name__}: {e}")
         return None
     if not results:
+        print(f"[weather] geocode: no results for '{place_name}'")
         return None
     if country_code:
         for res in results:
@@ -31,12 +35,10 @@ def geocode(place_name: str, country_code: str | None = None) -> tuple[float, fl
 
 
 def fetch_daily(lat: float, lng: float, start: date, end: date) -> list[dict]:
-    """Per-day forecast rows, clamped to provider horizon. Empty list on any failure —
-    the caller treats missing weather as 'stay silent', never as 'guess' (law 5 spirit)."""
     today = date.today()
-    start = max(start, today)
-    end = min(end, today + timedelta(days=HORIZON_DAYS))
-    if end < start:
+    lo = max(start, today).isoformat()
+    hi = min(end, today + timedelta(days=HORIZON_DAYS)).isoformat()
+    if hi < lo:
         return []
     try:
         with httpx.Client(timeout=15) as c:
@@ -45,14 +47,21 @@ def fetch_daily(lat: float, lng: float, start: date, end: date) -> list[dict]:
                 "daily": "temperature_2m_max,temperature_2m_min,"
                          "precipitation_probability_max,wind_speed_10m_max,uv_index_max",
                 "timezone": "auto",
-                "start_date": start.isoformat(), "end_date": end.isoformat(),
+                "forecast_days": 16,
             })
             r.raise_for_status()
-            d = r.json().get("daily") or {}
-    except Exception:
+            body = r.json()
+            if body.get("error"):
+                print(f"[weather] provider error: {body.get('reason')}")
+                return []
+            d = body.get("daily") or {}
+    except Exception as e:
+        print(f"[weather] fetch failed: {type(e).__name__}: {e}")
         return []
     days = []
     for i, day in enumerate(d.get("time", [])):
+        if not (lo <= day <= hi):
+            continue
         def g(key):
             arr = d.get(key) or []
             return arr[i] if i < len(arr) else None
