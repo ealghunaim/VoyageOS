@@ -31,23 +31,21 @@ def _ensure_coords(db, dest: dict) -> dict | None:
 
 
 def _upsert_snapshots(db, dest_id: str, days: list[dict]) -> int:
-    existing = {r["forecast_date"]: r["id"] for r in
-                db.table("weather_snapshots").select("id,forecast_date")
-                .eq("destination_id", dest_id).execute().data}
+    """Atomic upsert on (destination_id, forecast_date) — concurrent refreshes
+    (double-taps, job overlap) can no longer race into a unique-violation 500."""
+    if not days:
+        return 0
     now = datetime.now(timezone.utc).isoformat()
-    for d in days:
-        row = {
-            "destination_id": dest_id, "forecast_date": d["date"],
-            "provider": d.get("provider", provider.PROVIDER),
-            "temp_min": d["temp_min"], "temp_max": d["temp_max"],
-            "precip_prob": d["precip_prob"], "wind_kph": d["wind_kph"],
-            "payload": {"uv": d["uv"], "ruleset": RULESET}, "fetched_at": now,
-        }
-        if d["date"] in existing:
-            db.table("weather_snapshots").update(row).eq("id", existing[d["date"]]).execute()
-        else:
-            db.table("weather_snapshots").insert(row).execute()
-    return len(days)
+    rows = [{
+        "destination_id": dest_id, "forecast_date": d["date"],
+        "provider": d.get("provider", provider.PROVIDER),
+        "temp_min": d["temp_min"], "temp_max": d["temp_max"],
+        "precip_prob": d["precip_prob"], "wind_kph": d["wind_kph"],
+        "payload": {"uv": d["uv"], "ruleset": RULESET}, "fetched_at": now,
+    } for d in days]
+    db.table("weather_snapshots").upsert(
+        rows, on_conflict="destination_id,forecast_date").execute()
+    return len(rows)
 
 
 def load_snapshots(db, trip: dict) -> tuple[dict | None, list[dict]]:
