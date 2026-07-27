@@ -120,3 +120,9 @@ export const refreshTripWeather = (tripId: string): Promise<{
   applied?: string[]; covered?: string[]; items_added?: number;
   notifications_queued?: number; note?: string | null;
 }> => req(`/v1/trips/${tripId}/weather/refresh`, { method: 'POST' });
+
+export type PlaceHit = {
+  name: string; admin: string | null; country_code: string; lat: number; lng: number;
+};
+export const searchPlaces = (q: string): Promise<PlaceHit[]> =>
+  req(`/v1/places/search?q=${encodeURIComponent(q)}`);

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { addActivity, addDestination, createTrip, generateList } from '../api';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { addActivity, addDestination, createTrip, generateList, PlaceHit, searchPlaces } from '../api';
 import { Btn, Card, Chip, Field } from '../components/ui';
 import { C } from '../theme';
 
@@ -26,10 +26,32 @@ export default function Wizard({ onDone, onCancel }: {
   const [step, setStep] = useState(1);
   const [place, setPlace] = useState('');
   const [country, setCountry] = useState('');
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [hits, setHits] = useState<PlaceHit[]>([]);
+  const [chosen, setChosen] = useState(false);
   const [start, setStart] = useState(defStart);
   const [end, setEnd] = useState(plusDays(defStart, 6));
   const [acts, setActs] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState('');
+
+  React.useEffect(() => {
+    if (chosen || place.trim().length < 2) { setHits([]); return; }
+    const t = setTimeout(() => {
+      searchPlaces(place).then(setHits).catch(() => setHits([]));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [place, chosen]);
+
+  const flag = (cc: string) =>
+    cc.length === 2 ? String.fromCodePoint(...cc.split('').map(c => 127397 + c.charCodeAt(0))) : '';
+
+  const pick = (h: PlaceHit) => {
+    setPlace(h.name);
+    setCountry(h.country_code);
+    setCoords({ lat: h.lat, lng: h.lng });
+    setChosen(true);
+    setHits([]);
+  };
 
   const toggleAct = (a: string) => {
     const next = new Set(acts);
@@ -52,6 +74,8 @@ export default function Wizard({ onDone, onCancel }: {
       await addDestination(trip.id, {
         place_name: place,
         country_code: country ? country.toUpperCase().slice(0, 2) : null,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
       });
       for (const a of acts) {
         await addActivity(trip.id, { type: a });
@@ -77,8 +101,18 @@ export default function Wizard({ onDone, onCancel }: {
       {step === 1 && (
         <Card>
           <Text style={s.h1}>Where is VoyageOS taking you?</Text>
-          <Field label="DESTINATION" value={place} onChange={setPlace} placeholder="e.g. Chamonix" />
-          <Field label="COUNTRY CODE (OPTIONAL)" value={country} onChange={setCountry} placeholder="e.g. FR" />
+          <Field label="DESTINATION" value={place}
+            onChange={(t) => { setPlace(t); setChosen(false); setCoords(null); }}
+            placeholder="Start typing — e.g. Chamonix" />
+          {hits.map(h => (
+            <Pressable key={`${h.name}-${h.lat}`} onPress={() => pick(h)} style={s.hit}>
+              <Text style={s.hitText}>{flag(h.country_code)}  {h.name}</Text>
+              <Text style={s.hitSub}>{[h.admin, h.country_code].filter(Boolean).join(' · ')}</Text>
+            </Pressable>
+          ))}
+          {chosen && (
+            <Text style={s.picked}>{flag(country)}  {place} · pinned ✓</Text>
+          )}
           <Btn label="Continue" disabled={!place.trim()} onPress={() => setStep(2)} />
           <View style={{ height: 8 }} />
           <Btn label="Cancel" kind="ghost" onPress={onCancel} />
@@ -140,4 +174,8 @@ const s = StyleSheet.create({
   sub: { color: C.sub, marginBottom: 14, lineHeight: 20 },
   warn: { color: C.red, marginBottom: 10 },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 14 },
+  hit: { paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.border },
+  hitText: { color: C.text, fontSize: 16, fontWeight: '600' },
+  hitSub: { color: C.sub, fontSize: 12, marginTop: 1 },
+  picked: { color: C.green, fontWeight: '800', marginBottom: 10 },
 });

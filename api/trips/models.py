@@ -19,6 +19,8 @@ class TripCreate(BaseModel):
 class DestinationCreate(BaseModel):
     place_name: str = Field(min_length=1, max_length=120)
     country_code: str | None = Field(default=None, max_length=2)
+    lat: float | None = None   # from autocomplete — stored at creation, geocoding retired
+    lng: float | None = None
     seq: int = 1
 
 
