@@ -139,3 +139,12 @@ export type Guide = {
 export const getGuide = (tripId: string, regenerate = false):
   Promise<{ guide: Guide; cached: boolean; cost_usd: number }> =>
   req(`/v1/trips/${tripId}/guide?regenerate=${regenerate}`);
+
+export type Companion = { name: string; relation: 'partner' | 'child' | 'parent' | 'friend' | 'other'; dob?: string | null };
+export type Profile = {
+  dob: string | null; gender: string | null; nationality: string | null;
+  members: Companion[] | null;
+};
+export const getProfile = (): Promise<Profile> => req('/v1/me/profile');
+export const putProfile = (b: Partial<Profile>): Promise<Profile> =>
+  req('/v1/me/profile', { method: 'PUT', body: JSON.stringify(b) });

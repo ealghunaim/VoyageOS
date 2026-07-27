@@ -7,8 +7,10 @@ import Documents from './src/screens/Documents';
 import Home from './src/screens/Home';
 import Kits from './src/screens/Kits';
 import Login from './src/screens/Login';
+import BottomBar from './src/components/BottomBar';
 import Guide from './src/screens/Guide';
 import Packing from './src/screens/Packing';
+import Profile from './src/screens/Profile';
 import TripHub from './src/screens/TripHub';
 import Wizard from './src/screens/Wizard';
 import { accentFor, C } from './src/theme';
@@ -22,7 +24,8 @@ type Route =
   | { name: 'guide'; trip: Trip; section: string }
   | { name: 'debrief'; trip: Trip }
   | { name: 'kits' }
-  | { name: 'documents' };
+  | { name: 'documents' }
+  | { name: 'profile' };
 
 export default function App() {
   const [route, setRoute] = useState<Route>({ name: 'home' });
@@ -53,9 +56,12 @@ export default function App() {
     );
   }
 
+  const showBar = route.name !== 'login' && route.name !== 'wizard';
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
       <StatusBar barStyle="dark-content" />
+      <View style={{ flex: 1 }}>
       {route.name === 'login' && (
         <Login onDone={() => { setAuthed(true); goHome(); }} />
       )}
@@ -98,6 +104,18 @@ export default function App() {
       )}
       {route.name === 'kits' && <Kits onBack={goHome} />}
       {route.name === 'documents' && <Documents onBack={goHome} />}
+      {route.name === 'profile' && (
+        <Profile onSignedOut={() => { setAuthed(false); setRoute({ name: 'login' }); }} />
+      )}
+      </View>
+      {showBar && (
+        <BottomBar
+          active={route.name === 'home' ? 'home' : route.name === 'profile' ? 'profile' : null}
+          onHome={goHome}
+          onNew={() => setRoute({ name: 'wizard' })}
+          onProfile={() => setRoute({ name: 'profile' })}
+        />
+      )}
     </SafeAreaView>
   );
 }

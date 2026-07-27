@@ -112,11 +112,6 @@ export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, authe
         <Pressable onPress={onDocuments}><Text style={s.link}>Documents ›</Text></Pressable>
       </View>
       <Text style={s.footer}>v1.0-dev{authed ? '' : ' · local mode'}</Text>
-      {authed && onSignOut && (
-        <Pressable onPress={onSignOut}>
-          <Text style={[s.footer, { color: C.blue, fontWeight: '700' }]}>Sign out</Text>
-        </Pressable>
-      )}
     </ScrollView>
   );
 }

@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
-import { getGuide, Guide as GuideT } from '../api';
+import { getGuide, getProfile, Guide as GuideT } from '../api';
+import { countryName, flagOf } from '../countries';
 import { Card, Chip } from '../components/ui';
 import { C, tint } from '../theme';
 
@@ -14,6 +15,7 @@ export default function Guide({ tripId, tripTitle, section, accent, country, pla
 }) {
   const [tab, setTab] = useState(section);
   const [g, setG] = useState<GuideT | null>(null);
+  const [nat, setNat] = useState<string | null>(null);
 
   const load = useCallback(async (regen = false) => {
     try {
@@ -21,7 +23,7 @@ export default function Guide({ tripId, tripTitle, section, accent, country, pla
       setG(r.guide);
     } catch (e: any) { Alert.alert('Guide', e.message); }
   }, [tripId]);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); getProfile().then(p => setNat(p.nationality)).catch(() => {}); }, [load]);
 
   const open = (url: string) => Linking.openURL(url).catch(() => {});
   const q = encodeURIComponent(place);
@@ -76,13 +78,14 @@ export default function Guide({ tripId, tripTitle, section, accent, country, pla
             <Card style={{ backgroundColor: tint(accent, 0.10), borderColor: tint(accent, 0.2) }}>
               <Text style={s.h}>Entry & visa</Text>
               <Text style={s.sub}>
-                Rules depend on your nationality and change often — VoyageOS links you to
-                official sources instead of guessing.
+                {nat
+                  ? `For ${flagOf(nat)} ${countryName(nat)} passport holders — rules change often, so VoyageOS links official sources instead of guessing.`
+                  : 'Rules depend on your nationality — set it in Profile and this card gets personal. Meanwhile, the official sources:'}
               </Text>
               <Pressable onPress={() => open('https://www.iatatravelcentre.com/')}>
                 <Text style={[s.link, { color: accent }]}>IATA Travel Centre ›</Text>
               </Pressable>
-              <Pressable onPress={() => open(`https://www.google.com/search?q=visa+requirements+${encodeURIComponent(country || place)}+official+government`)}>
+              <Pressable onPress={() => open(`https://www.google.com/search?q=visa+requirements+for+${encodeURIComponent(nat ? countryName(nat) : '')}+citizens+${encodeURIComponent(country || place)}+official`)}>
                 <Text style={[s.link, { color: accent }]}>Search official sources ›</Text>
               </Pressable>
             </Card>
