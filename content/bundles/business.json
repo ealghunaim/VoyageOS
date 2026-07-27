@@ -1,0 +1,19 @@
+{
+  "key": "business", "version": 1, "name": "Business trip",
+  "items": [
+    {"name": "Laptop + charger", "category": "electronics", "trip_critical": true},
+    {"name": "USB-C dongle", "category": "electronics"},
+    {"name": "Noise-cancelling headphones", "category": "electronics"},
+    {"name": "Blazer", "category": "clothing"},
+    {"name": "Dress shirts", "category": "clothing", "class": "tops"},
+    {"name": "Dress shoes", "category": "footwear"},
+    {"name": "Belt", "category": "clothing"},
+    {"name": "Business cards", "category": "documents"},
+    {"name": "Portable steamer sheet / wrinkle spray", "category": "toiletries"},
+    {"name": "Pen", "category": "misc"}
+  ],
+  "tasks": [
+    {"key": "print_agenda", "days_before": 1, "time": "18:00", "title": "Download meeting materials offline"}
+  ],
+  "document_slots": []
+}
