@@ -3,7 +3,8 @@ import {
   ActivityIndicator, Alert, Pressable, RefreshControl,
   ScrollView, StyleSheet, Text, View,
 } from 'react-native';
-import { generateList, getPackingList, PackItem, updateItem } from '../api';
+import { generateList, getPackingList, getTimeline, PackItem, Task, updateItem } from '../api';
+import { deviceTz, permissionStatus, requestPermission, syncReminders, testPing } from '../notifications';
 import { Btn, Card, Progress } from '../components/ui';
 import { C } from '../theme';
 
@@ -13,6 +14,19 @@ export default function Packing({ tripId, tripTitle, onBack }: {
   const [items, setItems] = useState<PackItem[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [perm, setPerm] = useState<'granted' | 'denied' | 'undetermined'>('denied');
+  const [armed, setArmed] = useState<number | null>(null);
+
+  const loadTimeline = useCallback(async () => {
+    try {
+      const t = await getTimeline(tripId, deviceTz());
+      setTasks(t.tasks.filter(x => x.status === 'pending'));
+      const p = await permissionStatus();
+      setPerm(p);
+      if (p === 'granted') setArmed(await syncReminders(t.reminders));
+    } catch {}
+  }, [tripId]);
 
   const load = useCallback(async () => {
     try {
@@ -24,7 +38,7 @@ export default function Packing({ tripId, tripTitle, onBack }: {
     }
   }, [tripId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(); loadTimeline(); }, [load, loadTimeline]);
 
   async function generate(regenerate: boolean) {
     setBusy(true);
@@ -108,6 +122,42 @@ export default function Packing({ tripId, tripTitle, onBack }: {
           }} />
         }
       >
+        {perm === 'undetermined' && tasks.length > 0 && (
+          <View style={s.primer}>
+            <Text style={s.primerTitle}>Want reminders at the right moments?</Text>
+            <Text style={s.reason}>
+              First up: {tasks[0].title} · {new Date(tasks[0].due_at).toLocaleString()}.{'\n'}
+              Never more than 3 a day. Quiet 22:00–08:00.
+            </Text>
+            <View style={{ height: 10 }} />
+            <Btn label="Allow reminders" onPress={async () => {
+              const ok = await requestPermission();
+              setPerm(ok ? 'granted' : 'denied');
+              if (ok) loadTimeline();
+            }} />
+          </View>
+        )}
+        {tasks.length > 0 && (
+          <View style={{ marginBottom: 14 }}>
+            <Text style={s.cat}>UP NEXT</Text>
+            {tasks.slice(0, 3).map(t => (
+              <View key={t.id} style={s.row}>
+                <Text style={{ fontSize: 16, marginRight: 10 }}>⏰</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.name}>{t.title}</Text>
+                  <Text style={s.reason}>{new Date(t.due_at).toLocaleString()}</Text>
+                </View>
+              </View>
+            ))}
+            {perm === 'granted' && (
+              <Pressable onPress={async () => { await testPing(); }}>
+                <Text style={s.testLink}>
+                  {armed !== null ? `Reminders armed on this phone ✓ (${armed})` : 'Reminders on ✓'} · Test ping (5s)
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        )}
         {groups.map(g => (
           <View key={g.cat} style={{ marginBottom: 14 }}>
             <Text style={s.cat}>{g.cat.replace('_', ' ').toUpperCase()}</Text>
@@ -175,4 +225,10 @@ const s = StyleSheet.create({
   reason: { color: C.sub, fontSize: 13, marginTop: 2, lineHeight: 18 },
   x: { paddingLeft: 10, paddingTop: 2 },
   footer: { color: '#9aa7b8', textAlign: 'center', marginVertical: 16, fontSize: 12 },
+  primer: {
+    backgroundColor: C.blueSoft, borderRadius: 12, padding: 14, marginBottom: 14,
+    borderWidth: 1, borderColor: '#c7d9fb',
+  },
+  primerTitle: { color: C.text, fontWeight: '800', fontSize: 15, marginBottom: 4 },
+  testLink: { color: C.blue, fontWeight: '700', fontSize: 13, marginTop: 4, marginLeft: 2 },
 });

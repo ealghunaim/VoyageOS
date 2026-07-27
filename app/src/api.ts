@@ -43,3 +43,11 @@ export const getPackingList = (tripId: string): Promise<{ items: PackItem[] }> =
   req(`/v1/trips/${tripId}/packing-list`);
 export const updateItem = (itemId: string, b: object): Promise<PackItem> =>
   req(`/v1/packing-items/${itemId}`, { method: 'PATCH', body: JSON.stringify(b) });
+
+export type Task = {
+  id: string; title: string; kind: string; due_at: string; status: string;
+};
+export const getTimeline = (
+  tripId: string, tz: string
+): Promise<{ tasks: Task[]; reminders: { id: string; send_at: string; payload: any }[] }> =>
+  req(`/v1/trips/${tripId}/timeline?tz=${encodeURIComponent(tz)}`);
