@@ -95,3 +95,15 @@ export const createDocument = (b: object): Promise<Doc> =>
   req('/v1/documents', { method: 'POST', body: JSON.stringify(b) });
 export const deleteDocument = (id: string) =>
   req(`/v1/documents/${id}`, { method: 'DELETE' });
+
+export type WxDay = {
+  date: string; temp_max: number | null; temp_min: number | null;
+  precip_prob: number | null; wind_kph: number | null; uv: number | null;
+};
+export const getTripWeather = (tripId: string): Promise<{ place: string | null; days: WxDay[] }> =>
+  req(`/v1/trips/${tripId}/weather`);
+export const refreshTripWeather = (tripId: string): Promise<{
+  ok: boolean; place?: string; insights?: { key: string; reason: string }[];
+  applied?: string[]; covered?: string[]; items_added?: number;
+  notifications_queued?: number; note?: string | null;
+}> => req(`/v1/trips/${tripId}/weather/refresh`, { method: 'POST' });

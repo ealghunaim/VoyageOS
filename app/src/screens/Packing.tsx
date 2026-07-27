@@ -3,7 +3,7 @@ import {
   ActivityIndicator, Alert, Pressable, RefreshControl,
   ScrollView, StyleSheet, Text, View,
 } from 'react-native';
-import { applyKit, generateList, getPackingList, getTimeline, getWeight, Kit, listKits, PackItem, setBagLimit, Task, updateItem, WeightInfo } from '../api';
+import { applyKit, generateList, getPackingList, getTimeline, getTripWeather, getWeight, Kit, listKits, PackItem, refreshTripWeather, setBagLimit, Task, updateItem, WeightInfo, WxDay } from '../api';
 import { deviceTz, permissionStatus, requestPermission, syncReminders, testPing } from '../notifications';
 import { Btn, Card, Progress } from '../components/ui';
 import { C } from '../theme';
@@ -20,6 +20,8 @@ export default function Packing({ tripId, tripTitle, onBack, onDebrief }: {
   const [weight, setWeight] = useState<WeightInfo | null>(null);
   const [showLimits, setShowLimits] = useState(false);
   const [kits, setKits] = useState<Kit[] | null>(null);
+  const [wx, setWx] = useState<WxDay[]>([]);
+  const [wxPlace, setWxPlace] = useState<string | null>(null);
 
   const loadTimeline = useCallback(async () => {
     try {
@@ -35,6 +37,13 @@ export default function Packing({ tripId, tripTitle, onBack, onDebrief }: {
     try { setWeight(await getWeight(tripId)); } catch {}
   }, [tripId]);
 
+  const loadWx = useCallback(async () => {
+    try {
+      const w = await getTripWeather(tripId);
+      setWx(w.days); setWxPlace(w.place);
+    } catch {}
+  }, [tripId]);
+
   const load = useCallback(async () => {
     try {
       const d = await getPackingList(tripId);
@@ -45,7 +54,7 @@ export default function Packing({ tripId, tripTitle, onBack, onDebrief }: {
     }
   }, [tripId]);
 
-  useEffect(() => { load(); loadTimeline(); loadWeight(); }, [load, loadTimeline, loadWeight]);
+  useEffect(() => { load(); loadTimeline(); loadWeight(); loadWx(); }, [load, loadTimeline, loadWeight, loadWx]);
 
   async function generate(regenerate: boolean) {
     setBusy(true);
@@ -165,6 +174,20 @@ export default function Packing({ tripId, tripTitle, onBack, onDebrief }: {
             )}
           </View>
         )}
+        {wx.length > 0 && (
+          <View style={{ marginBottom: 14 }}>
+            <Text style={s.cat}>{(wxPlace ?? 'FORECAST').toUpperCase()} FORECAST</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <Text style={s.wxStrip}>
+                {wx.map(d =>
+                  `${d.date.slice(5)}  ${d.temp_max != null ? Math.round(d.temp_max) : '–'}°/`
+                  + `${d.temp_min != null ? Math.round(d.temp_min) : '–'}°`
+                  + `${(d.precip_prob ?? 0) >= 60 ? ' ☔' : (d.uv ?? 0) >= 8 ? ' ☀' : ''}`
+                ).join('   ·   ')}
+              </Text>
+            </ScrollView>
+          </View>
+        )}
         {groups.map(g => (
           <View key={g.cat} style={{ marginBottom: 14 }}>
             <Text style={s.cat}>{g.cat.replace('_', ' ').toUpperCase()}</Text>
@@ -179,6 +202,9 @@ export default function Packing({ tripId, tripTitle, onBack, onDebrief }: {
                   </Text>
                   {it.source === 'history' && (
                     <Text style={s.histBadge}>⚑ forgot last time</Text>
+                  )}
+                  {it.source === 'weather' && (
+                    <Text style={s.wxBadge}>☔ forecast</Text>
                   )}
                   {!!it.reason && <Text style={s.reason}>{it.reason}</Text>}
                 </View>
@@ -195,6 +221,22 @@ export default function Packing({ tripId, tripTitle, onBack, onDebrief }: {
             else setKits(null);
           }}>
             <Text style={s.closeout}>Apply a kit ›</Text>
+          </Pressable>
+          <Pressable onPress={async () => {
+            try {
+              const r = await refreshTripWeather(tripId);
+              if (!r.ok) { Alert.alert('Weather', r.note ?? 'No forecast available.'); return; }
+              const lines = (r.insights ?? []).map(i => `• ${i.reason}`).join('\n');
+              Alert.alert(
+                `${r.place} forecast checked`,
+                `${r.items_added} item(s) added` +
+                ((r.covered ?? []).length ? ` · ${(r.covered ?? []).length} already covered` : '') +
+                (r.note ? `\n${r.note}` : '') + (lines ? `\n${lines}` : ''),
+              );
+              await load(); loadWx(); loadWeight();
+            } catch (e: any) { Alert.alert('Weather', e.message); }
+          }}>
+            <Text style={s.closeout}>Refresh weather ›</Text>
           </Pressable>
           {kits !== null && (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -299,6 +341,8 @@ const s = StyleSheet.create({
   primerTitle: { color: C.text, fontWeight: '800', fontSize: 15, marginBottom: 4 },
   testLink: { color: C.blue, fontWeight: '700', fontSize: 13, marginTop: 4, marginLeft: 2 },
   histBadge: { color: '#b45309', fontWeight: '800', fontSize: 12, marginTop: 2 },
+  wxBadge: { color: C.blue, fontWeight: '800', fontSize: 12, marginTop: 2 },
+  wxStrip: { color: C.text, fontSize: 14, fontWeight: '600', lineHeight: 22 },
   closeout: { color: C.blue, fontWeight: '700', textAlign: 'center', marginTop: 10 },
   kitChip: { borderWidth: 1, borderColor: C.border, backgroundColor: '#fff', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, margin: 4 },
   weightBar: { backgroundColor: C.card, borderTopWidth: 1, borderTopColor: C.border, padding: 12, alignItems: 'center' },

@@ -64,7 +64,7 @@ def _persist(db, trip_id: str, traveler_id: str, items: list[dict], *,
             "item_id": catalog.get(it["name"].lower()),
             "name": it["name"], "category": it["category"], "qty": it["qty"],
             "status": "suggested",
-            "source": "history" if it.get("source_signal") == "history" else source,
+            "source": it["source_signal"] if it.get("source_signal") in ("history", "weather") else source,
             "reason": it["reason"], "confidence": it["confidence"], "sort": i,
         })
     db.table("packing_list_items").insert(rows).execute()

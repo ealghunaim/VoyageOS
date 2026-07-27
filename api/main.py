@@ -1,6 +1,8 @@
-"""VoyageOS API — the complete v0.5 monolith: trips, packing, timeline,
-notifications, memory, kits, weight, documents. Worker inside; guard optional."""
+"""VoyageOS API — v1 era begins: the complete v0.5 monolith + the weather engine.
+Two background jobs now: the notification governor (60s) and weather (6h)."""
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
+
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -13,7 +15,9 @@ from api.notifications.router import router as notifications_router
 from api.history.router import router as history_router
 from api.gear.router import router as gear_router
 from api.documents.router import router as documents_router
+from api.weather.router import router as weather_router
 from api.notifications.worker import run_due
+from api.weather.job import run_weather_tick
 
 
 @asynccontextmanager
@@ -21,20 +25,21 @@ async def lifespan(app: FastAPI):
     sched = BackgroundScheduler(daemon=True)
     sched.add_job(run_due, "interval", seconds=60, id="notification_worker",
                   max_instances=1, coalesce=True)
+    sched.add_job(run_weather_tick, "interval", hours=6, id="weather_tick",
+                  max_instances=1, coalesce=True,
+                  next_run_time=datetime.now() + timedelta(seconds=45))
     sched.start()
     print("[worker] notification worker started (60s tick)")
+    print("[weather] snapshot job started (6h tick, first run in 45s)")
     yield
     sched.shutdown(wait=False)
 
 
-app = FastAPI(title="VoyageOS API", version="0.5.0", lifespan=lifespan)
+app = FastAPI(title="VoyageOS API", version="0.6.0", lifespan=lifespan)
 
 
 @app.middleware("http")
 async def shared_secret_guard(request: Request, call_next):
-    """When APP_SHARED_SECRET is set (cloud deploys), every request must carry it.
-    Local dev leaves it unset. This guards the dev-auth stand-in until real
-    Supabase JWT auth lands in v1.0 — never expose an unguarded dev API."""
     secret = settings.app_shared_secret
     if secret and request.url.path not in ("/health", "/docs", "/openapi.json"):
         if request.headers.get("x-voyageos-key") != secret:
@@ -43,10 +48,11 @@ async def shared_secret_guard(request: Request, call_next):
 
 
 for r in (trips_router, packing_router, packing_items_router, timeline_router,
-          notifications_router, history_router, gear_router, documents_router):
+          notifications_router, history_router, gear_router, documents_router,
+          weather_router):
     app.include_router(r)
 
 
 @app.get("/health")
 def health():
-    return {"ok": True, "version": "0.5.0"}
+    return {"ok": True, "version": "0.6.0"}

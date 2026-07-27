@@ -6,6 +6,7 @@ import json
 from datetime import date
 
 from api.history.service import history_flags
+from api.weather.service import load_snapshots
 
 
 def build_context(db, trip: dict, user_id: str) -> dict:
@@ -38,6 +39,10 @@ def build_context(db, trip: dict, user_id: str) -> dict:
     }
     if history["previously_forgot"] or history["often_unused"]:
         ctx["item_history"] = history
+    _, wx_days = load_snapshots(db, trip)
+    if wx_days:
+        ctx["weather_daily"] = wx_days
+        ctx["note"] = "weather_daily is a provider forecast (open-meteo). Treat as ground truth."
     return ctx
 
 

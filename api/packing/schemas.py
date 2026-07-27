@@ -18,7 +18,7 @@ class GenItem(BaseModel):
     qty: int = Field(ge=1, le=14)
     reason: str = Field(min_length=1, max_length=120)
     confidence: float = Field(ge=0, le=1)
-    source_signal: Literal["activity", "duration", "destination", "season", "history"] = "destination"
+    source_signal: Literal["activity", "duration", "destination", "season", "history", "weather"] = "destination"
     priority: Literal["high", "normal", "optional"] = "normal"
 
 
