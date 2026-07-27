@@ -15,6 +15,7 @@ GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 MET_NO_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
+ACCU_BASE = "https://dataservice.accuweather.com"
 USER_AGENT = "VoyageOS/0.6 (+https://github.com/ealghunaim/VoyageOS)"
 HORIZON_DAYS = 15
 PROVIDER = "open-meteo"
@@ -114,14 +115,92 @@ def _fetch_met_no(lat: float, lng: float) -> list[dict]:
     return days
 
 
-def fetch_daily(lat: float, lng: float, start: date, end: date) -> list[dict]:
-    today = date.today()
-    lo = max(start, today).isoformat()
-    hi = min(end, today + timedelta(days=HORIZON_DAYS)).isoformat()
-    if hi < lo:
+def _accu_headers(key: str) -> dict:
+    return {"Authorization": f"Bearer {key}", "User-Agent": USER_AGENT,
+            "Accept-Encoding": "gzip,deflate"}
+
+
+def accu_locate(lat: float, lng: float, key: str) -> str | None:
+    """Coordinates → AccuWeather location key. One call, cached forever."""
+    try:
+        with httpx.Client(timeout=10, headers=_accu_headers(key)) as c:
+            r = c.get(f"{ACCU_BASE}/locations/v1/cities/geoposition/search",
+                      params={"q": f"{lat},{lng}", "apikey": key})
+            r.raise_for_status()
+            loc = r.json()
+        return str(loc.get("Key")) if loc and loc.get("Key") else None
+    except Exception as e:
+        print(f"[weather] accuweather locate failed: {type(e).__name__}: {e}")
+        return None
+
+
+def accu_daily_from_forecasts(payload: dict) -> list[dict]:
+    """Pure mapper: 5-day response → provider rows. Tested offline."""
+    rows = []
+    for f in payload.get("DailyForecasts") or []:
+        day = (f.get("Date") or "")[:10]
+        temp = f.get("Temperature") or {}
+        uv = None
+        for a in f.get("AirAndPollen") or []:
+            if a.get("Name") == "UVIndex":
+                uv = a.get("Value")
+        probs = [((f.get("Day") or {}).get("PrecipitationProbability")),
+                 ((f.get("Night") or {}).get("PrecipitationProbability"))]
+        probs = [p for p in probs if p is not None]
+        wind = (((f.get("Day") or {}).get("Wind") or {}).get("Speed") or {}).get("Value")
+        if not day:
+            continue
+        rows.append({"date": day,
+                     "temp_max": (temp.get("Maximum") or {}).get("Value"),
+                     "temp_min": (temp.get("Minimum") or {}).get("Value"),
+                     "precip_prob": max(probs) if probs else None,
+                     "wind_kph": wind, "uv": uv, "provider": "accuweather"})
+    return rows
+
+
+def fetch_accuweather(location_key: str, key: str) -> list[dict]:
+    try:
+        with httpx.Client(timeout=12, headers=_accu_headers(key)) as c:
+            r = c.get(f"{ACCU_BASE}/forecasts/v1/daily/5day/{location_key}",
+                      params={"metric": "true", "details": "true", "apikey": key})
+            r.raise_for_status()
+            remaining = r.headers.get("RateLimit-Remaining") or r.headers.get("ratelimit-remaining")
+            rows = accu_daily_from_forecasts(r.json())
+            note = f" ({remaining} calls left today)" if remaining else ""
+            print(f"[weather] accuweather delivered {len(rows)} day(s){note}")
+            return rows
+    except Exception as e:
+        print(f"[weather] accuweather fetch failed: {type(e).__name__}: {e}")
         return []
-    days = _fetch_open_meteo(lat, lng) or _fetch_met_no(lat, lng)
-    return [d for d in days if lo <= d["date"] <= hi]
+
+
+def fetch_daily(lat: float, lng: float, start: date, end: date,
+                accu: tuple[str, str] | None = None) -> list[dict]:
+    """Priority merge: AccuWeather (near window) > Open-Meteo > MET Norway.
+    If AccuWeather alone covers the whole trip window, the free providers
+    are spared entirely — fast path for final-approach refreshes."""
+    today = date.today()
+    lo_d, hi_d = max(start, today), min(end, today + timedelta(days=HORIZON_DAYS))
+    if hi_d < lo_d:
+        return []
+    lo, hi = lo_d.isoformat(), hi_d.isoformat()
+    need = {(lo_d + timedelta(days=i)).isoformat()
+            for i in range((hi_d - lo_d).days + 1)}
+    by_date: dict[str, dict] = {}
+
+    def absorb(rows):
+        for d in rows:
+            by_date.setdefault(d["date"], d)
+
+    if accu:
+        absorb(fetch_accuweather(*accu))
+        if need <= set(by_date):
+            return [by_date[k] for k in sorted(by_date) if lo <= k <= hi]
+    om = _fetch_open_meteo(lat, lng)
+    absorb(om)
+    if not om:
+        absorb(_fetch_met_no(lat, lng))
+    return [by_date[k] for k in sorted(by_date) if lo <= k <= hi]
 
 
 def fetch_climatology(lat: float, lng: float, start: date, end: date) -> list[dict]:

@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import date, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+from api.core.config import settings
 from api.weather import provider
 from api.weather.rules import RULESET, evaluate
 
@@ -161,9 +162,20 @@ def refresh_trip(db, trip: dict, user_id: str, *, force: bool = True) -> dict:
         return {"ok": False, "note": f"Could not locate '{trip['title']}' destination — "
                                      "check the place name."}
     if force or not _fresh_enough(db, dest["id"]):
+        accu = None
+        if settings.accuweather_api_key:
+            lk = dest.get("accu_location_key")
+            if not lk:
+                lk = provider.accu_locate(dest["lat"], dest["lng"],
+                                          settings.accuweather_api_key)
+                if lk:
+                    db.table("destinations").update({"accu_location_key": lk}) \
+                        .eq("id", dest["id"]).execute()
+            if lk:
+                accu = (lk, settings.accuweather_api_key)
         days = provider.fetch_daily(dest["lat"], dest["lng"],
                                     date.fromisoformat(trip["start_date"]),
-                                    date.fromisoformat(trip["end_date"]))
+                                    date.fromisoformat(trip["end_date"]), accu=accu)
         snap_count = _upsert_snapshots(db, dest["id"], days) if days else 0
     else:
         snap_count = 0  # fresh cache — provider spared (rate-limit hygiene)
