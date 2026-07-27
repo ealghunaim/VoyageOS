@@ -1,0 +1,2 @@
+-- 0003: weather_snapshots (v0.6 weather engine) — applied 2026-07-27
+-- (same SQL as run in the dashboard; kept here as the source of truth)
