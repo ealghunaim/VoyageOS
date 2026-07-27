@@ -1,23 +1,27 @@
-"""Open-Meteo adapter — free, keyless. Uses the canonical forecast_days=16 mode
-(the date-bounded mode has known edge bugs) and filters to the trip window
-locally. Provider failures are LOGGED, never swallowed — silence is only ever
-a product decision, not an accident.
-"""
+"""Weather providers — resilient chain (v0.6.1).
+
+Primary: Open-Meteo (rich daily data, but per-IP rate limits that shared
+cloud egress IPs can exhaust). Fallback: MET Norway (cloud-friendly, needs
+an identifying User-Agent per their ToS; no rain probability → the rain
+rule stays honestly silent on fallback data). All failures LOG."""
 from __future__ import annotations
 
+import time as _time
 from datetime import date, timedelta
 
 import httpx
 
 GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+MET_NO_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
+USER_AGENT = "VoyageOS/0.6 (+https://github.com/ealghunaim/VoyageOS)"
 HORIZON_DAYS = 15
 PROVIDER = "open-meteo"
 
 
 def geocode(place_name: str, country_code: str | None = None) -> tuple[float, float] | None:
     try:
-        with httpx.Client(timeout=10) as c:
+        with httpx.Client(timeout=10, headers={"User-Agent": USER_AGENT}) as c:
             r = c.get(GEOCODE_URL, params={"name": place_name, "count": 5, "language": "en"})
             r.raise_for_status()
             results = r.json().get("results") or []
@@ -34,43 +38,86 @@ def geocode(place_name: str, country_code: str | None = None) -> tuple[float, fl
     return (results[0]["latitude"], results[0]["longitude"])
 
 
+def _fetch_open_meteo(lat: float, lng: float) -> list[dict]:
+    """Retries on 429 (shared-IP congestion often clears within seconds)."""
+    for attempt in (1, 2, 3):
+        try:
+            with httpx.Client(timeout=15, headers={"User-Agent": USER_AGENT}) as c:
+                r = c.get(FORECAST_URL, params={
+                    "latitude": lat, "longitude": lng,
+                    "daily": "temperature_2m_max,temperature_2m_min,"
+                             "precipitation_probability_max,wind_speed_10m_max,uv_index_max",
+                    "timezone": "auto", "forecast_days": 16,
+                })
+                if r.status_code == 429:
+                    wait = min(int(r.headers.get("Retry-After", 2 * attempt)), 8)
+                    print(f"[weather] open-meteo 429 (attempt {attempt}) — waiting {wait}s")
+                    _time.sleep(wait)
+                    continue
+                r.raise_for_status()
+                body = r.json()
+                if body.get("error"):
+                    print(f"[weather] open-meteo error: {body.get('reason')}")
+                    return []
+                d = body.get("daily") or {}
+        except Exception as e:
+            print(f"[weather] open-meteo fetch failed: {type(e).__name__}: {e}")
+            return []
+        days = []
+        for i, day in enumerate(d.get("time", [])):
+            def g(key):
+                arr = d.get(key) or []
+                return arr[i] if i < len(arr) else None
+            days.append({"date": day, "temp_max": g("temperature_2m_max"),
+                         "temp_min": g("temperature_2m_min"),
+                         "precip_prob": g("precipitation_probability_max"),
+                         "wind_kph": g("wind_speed_10m_max"),
+                         "uv": g("uv_index_max"), "provider": "open-meteo"})
+        return days
+    print("[weather] open-meteo: rate-limited after retries — falling back")
+    return []
+
+
+def met_daily_from_timeseries(timeseries: list[dict]) -> list[dict]:
+    """Pure fold: MET's hourly entries → daily rows. No rain probability
+    exists in this feed, so precip_prob stays None — never invented."""
+    by_date: dict[str, dict] = {}
+    for entry in timeseries:
+        day = (entry.get("time") or "")[:10]
+        details = ((entry.get("data") or {}).get("instant") or {}).get("details") or {}
+        if not day or "air_temperature" not in details:
+            continue
+        b = by_date.setdefault(day, {"temps": [], "winds": []})
+        b["temps"].append(details["air_temperature"])
+        if "wind_speed" in details:
+            b["winds"].append(details["wind_speed"] * 3.6)  # m/s → kph
+    return [{"date": day, "temp_max": max(b["temps"]), "temp_min": min(b["temps"]),
+             "precip_prob": None,
+             "wind_kph": max(b["winds"]) if b["winds"] else None,
+             "uv": None, "provider": "met-no"}
+            for day, b in sorted(by_date.items())]
+
+
+def _fetch_met_no(lat: float, lng: float) -> list[dict]:
+    try:
+        with httpx.Client(timeout=15, headers={"User-Agent": USER_AGENT}) as c:
+            r = c.get(MET_NO_URL, params={"lat": round(lat, 4), "lon": round(lng, 4)})
+            r.raise_for_status()
+            ts = ((r.json().get("properties") or {}).get("timeseries")) or []
+    except Exception as e:
+        print(f"[weather] met.no fetch failed: {type(e).__name__}: {e}")
+        return []
+    days = met_daily_from_timeseries(ts)
+    if days:
+        print(f"[weather] met.no fallback delivered {len(days)} day(s)")
+    return days
+
+
 def fetch_daily(lat: float, lng: float, start: date, end: date) -> list[dict]:
     today = date.today()
     lo = max(start, today).isoformat()
     hi = min(end, today + timedelta(days=HORIZON_DAYS)).isoformat()
     if hi < lo:
         return []
-    try:
-        with httpx.Client(timeout=15) as c:
-            r = c.get(FORECAST_URL, params={
-                "latitude": lat, "longitude": lng,
-                "daily": "temperature_2m_max,temperature_2m_min,"
-                         "precipitation_probability_max,wind_speed_10m_max,uv_index_max",
-                "timezone": "auto",
-                "forecast_days": 16,
-            })
-            r.raise_for_status()
-            body = r.json()
-            if body.get("error"):
-                print(f"[weather] provider error: {body.get('reason')}")
-                return []
-            d = body.get("daily") or {}
-    except Exception as e:
-        print(f"[weather] fetch failed: {type(e).__name__}: {e}")
-        return []
-    days = []
-    for i, day in enumerate(d.get("time", [])):
-        if not (lo <= day <= hi):
-            continue
-        def g(key):
-            arr = d.get(key) or []
-            return arr[i] if i < len(arr) else None
-        days.append({
-            "date": day,
-            "temp_max": g("temperature_2m_max"),
-            "temp_min": g("temperature_2m_min"),
-            "precip_prob": g("precipitation_probability_max"),
-            "wind_kph": g("wind_speed_10m_max"),
-            "uv": g("uv_index_max"),
-        })
-    return days
+    days = _fetch_open_meteo(lat, lng) or _fetch_met_no(lat, lng)
+    return [d for d in days if lo <= d["date"] <= hi]

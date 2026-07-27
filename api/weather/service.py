@@ -37,7 +37,8 @@ def _upsert_snapshots(db, dest_id: str, days: list[dict]) -> int:
     now = datetime.now(timezone.utc).isoformat()
     for d in days:
         row = {
-            "destination_id": dest_id, "forecast_date": d["date"], "provider": provider.PROVIDER,
+            "destination_id": dest_id, "forecast_date": d["date"],
+            "provider": d.get("provider", provider.PROVIDER),
             "temp_min": d["temp_min"], "temp_max": d["temp_max"],
             "precip_prob": d["precip_prob"], "wind_kph": d["wind_kph"],
             "payload": {"uv": d["uv"], "ruleset": RULESET}, "fetched_at": now,
@@ -143,7 +144,16 @@ def _queue_notifications(db, trip: dict, user_id: str,
     return queued
 
 
-def refresh_trip(db, trip: dict, user_id: str) -> dict:
+def _fresh_enough(db, dest_id: str, hours: int = 3) -> bool:
+    rows = db.table("weather_snapshots").select("fetched_at").eq("destination_id", dest_id) \
+        .order("fetched_at", desc=True).limit(1).execute().data
+    if not rows:
+        return False
+    age = datetime.now(timezone.utc) - datetime.fromisoformat(rows[0]["fetched_at"])
+    return age < timedelta(hours=hours)
+
+
+def refresh_trip(db, trip: dict, user_id: str, *, force: bool = True) -> dict:
     dest = _first_destination(db, trip["id"])
     if not dest:
         return {"ok": False, "note": "Trip has no destination."}
@@ -151,10 +161,13 @@ def refresh_trip(db, trip: dict, user_id: str) -> dict:
     if not dest:
         return {"ok": False, "note": f"Could not locate '{trip['title']}' destination — "
                                      "check the place name."}
-    days = provider.fetch_daily(dest["lat"], dest["lng"],
-                                date.fromisoformat(trip["start_date"]),
-                                date.fromisoformat(trip["end_date"]))
-    snap_count = _upsert_snapshots(db, dest["id"], days) if days else 0
+    if force or not _fresh_enough(db, dest["id"]):
+        days = provider.fetch_daily(dest["lat"], dest["lng"],
+                                    date.fromisoformat(trip["start_date"]),
+                                    date.fromisoformat(trip["end_date"]))
+        snap_count = _upsert_snapshots(db, dest["id"], days) if days else 0
+    else:
+        snap_count = 0  # fresh cache — provider spared (rate-limit hygiene)
     _, trip_days = load_snapshots(db, trip)
     insights = evaluate(trip_days, dest["place_name"])
     result = _apply_insights(db, trip, insights)

@@ -23,7 +23,7 @@ def run_weather_tick() -> int:
             .neq("status", "completed").limit(MAX_TRIPS_PER_TICK).execute().data
         n = 0
         for trip in trips:
-            r = refresh_trip(db, trip, trip["owner_id"])
+            r = refresh_trip(db, trip, trip["owner_id"], force=False)
             if r.get("ok"):
                 n += 1
                 print(f"[weather] {trip['title']}: {r['days_in_range']} days, "
