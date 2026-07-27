@@ -40,3 +40,4 @@ supabase db push                       # applies migrations/0001
 ## Non-negotiables carried from the doc
 Law 2 (AI suggests, code verifies) · Law 5 (never invent regulations) · governor before any push ships ·
 Class C never in prompts/logs/analytics · `item_events` written from the first release.
+# VoyageOS
