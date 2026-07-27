@@ -5,6 +5,7 @@ from typing import Literal
 from api.core.auth import current_user_id
 from api.core.db import get_db
 from api.packing import service
+from api.packing.weight import sum_weight
 
 router = APIRouter(prefix="/v1/trips", tags=["packing"])
 items_router = APIRouter(prefix="/v1/packing-items", tags=["packing"])
@@ -55,3 +56,43 @@ def update_item(item_id: str, body: ItemPatch, user_id: str = Depends(current_us
     if not changes:
         raise HTTPException(422, "Nothing to update")
     return db.table("packing_list_items").update(changes).eq("id", item_id).execute().data[0]
+
+
+PRESET_LIMITS_G = {"7kg": 7000, "10kg": 10000, "23kg": 23000}
+
+
+class BagBody(BaseModel):
+    limit_g: int | None = Field(default=None, ge=1000, le=40000)
+
+
+def _main_bag(db, trip_id: str) -> dict | None:
+    rows = db.table("bags").select("*").eq("trip_id", trip_id).limit(1).execute().data
+    return rows[0] if rows else None
+
+
+@router.put("/{trip_id}/bag")
+def set_bag(trip_id: str, body: BagBody, user_id: str = Depends(current_user_id)):
+    """Generic mode (v0.5): a user-picked target, plainly labeled — not an airline rule."""
+    db = get_db()
+    _owned_trip(db, trip_id, user_id)
+    bag = _main_bag(db, trip_id)
+    if bag:
+        return db.table("bags").update({"target_limit_g": body.limit_g})             .eq("id", bag["id"]).execute().data[0]
+    return db.table("bags").insert({"trip_id": trip_id, "name": "Main bag",
+                                    "kind": "carryon",
+                                    "target_limit_g": body.limit_g}).execute().data[0]
+
+
+@router.get("/{trip_id}/weight")
+def get_weight(trip_id: str, user_id: str = Depends(current_user_id)):
+    """Deterministic sum — no model within a kilometer of this number (law 2)."""
+    db = get_db()
+    _owned_trip(db, trip_id, user_id)
+    plist = service._latest_list(db, trip_id)
+    if not plist:
+        return {"total_g": 0, "counted": 0, "unweighed": 0, "limit_g": None}
+    rows = db.table("packing_list_items")         .select("qty,status,items(default_weight_g)")         .eq("list_id", plist["id"]).execute().data
+    total, counted, unweighed = sum_weight(rows)
+    bag = _main_bag(db, trip_id)
+    return {"total_g": total, "counted": counted, "unweighed": unweighed,
+            "limit_g": bag["target_limit_g"] if bag else None}

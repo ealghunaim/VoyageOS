@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     ai_daily_cost_cap_usd: float = 0.50      # per user per day (Part 1 §8 guardrails)
     # --- notifications ---
     default_daily_cap: int = 3               # decision register #7
+    app_shared_secret: str = ""              # set on cloud deploys; local dev leaves empty
 
     class Config:
         env_file = ".env"
