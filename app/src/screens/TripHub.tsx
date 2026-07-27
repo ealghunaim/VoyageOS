@@ -1,22 +1,25 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { getTripWeather, Trip, WxDay } from '../api';
+import TileIcon from '../components/icons';
 import TripArt from '../components/TripArt';
 import { Card } from '../components/ui';
 import { accentFor, C, tint } from '../theme';
 
-const TILES: { key: string; icon: string; label: string; sub: string }[] = [
-  { key: 'pack', icon: '🎒', label: 'Pack', sub: 'Your list, with reasons' },
-  { key: 'know', icon: '🧭', label: 'Know', sub: 'Entry, plugs, customs' },
-  { key: 'eat', icon: '🍜', label: 'Eat', sub: 'Dishes worth the trip' },
-  { key: 'play', icon: '🎟', label: 'Play', sub: 'Experiences' },
-  { key: 'visit', icon: '🗺', label: 'Visit', sub: 'Sights & districts' },
-  { key: 'go', icon: '🚕', label: 'Go', sub: 'Airport & around' },
+const TILES: { key: string; label: string; sub: string }[] = [
+  { key: 'pack', label: 'Pack', sub: 'Your list, with reasons' },
+  { key: 'know', label: 'Know', sub: 'Entry, plugs, customs' },
+  { key: 'eat', label: 'Eat', sub: 'Dishes worth the trip' },
+  { key: 'play', label: 'Play', sub: 'Experiences' },
+  { key: 'visit', label: 'Visit', sub: 'Sights & districts' },
+  { key: 'go', label: 'Go', sub: 'Airport & around' },
+  { key: 'journal', label: 'Journal', sub: 'Your travel log' },
+  { key: 'sos', label: 'SOS', sub: 'Emergency & care' },
 ];
 
-export default function TripHub({ trip, onBack, onPack, onGuide, onDebrief }: {
+export default function TripHub({ trip, onBack, onPack, onGuide, onJournal, onSOS, onDebrief }: {
   trip: Trip; onBack: () => void; onPack: () => void;
-  onGuide: (section: string) => void; onDebrief: () => void;
+  onGuide: (section: string) => void; onJournal: () => void; onSOS: () => void; onDebrief: () => void;
 }) {
   const accent = accentFor(trip.title);
   const [wx, setWx] = useState<WxDay[]>([]);
@@ -34,10 +37,15 @@ export default function TripHub({ trip, onBack, onPack, onGuide, onDebrief }: {
       </Pressable>
 
       <Card style={{ padding: 0, overflow: 'hidden', marginBottom: 18 }}>
-        <TripArt seed={trip.title} accent={accent} height={110} />
+        <TripArt seed={trip.title} accent={accent} height={168} />
         <View style={{ padding: 18, paddingTop: 12 }}>
           <Text style={s.title}>{trip.title}</Text>
           <Text style={s.dates}>{trip.start_date} → {trip.end_date}</Text>
+          {wx.length > 0 && wx.every(d => d.provider === 'climatology') && (
+            <Text style={{ color: C.sub, fontSize: 11, fontWeight: '800', letterSpacing: 0.6, marginTop: 8 }}>
+              TYPICAL {new Date(trip.start_date).toLocaleString('en', { month: 'long' }).toUpperCase()} · LAST YEAR
+            </Text>
+          )}
           {wx.length > 0 && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
               <Text style={s.wx}>
@@ -56,10 +64,14 @@ export default function TripHub({ trip, onBack, onPack, onGuide, onDebrief }: {
           <Pressable
             key={t.key}
             style={[s.tile, { backgroundColor: '#fff' }]}
-            onPress={() => (t.key === 'pack' ? onPack() : onGuide(t.key))}
+            onPress={() =>
+              t.key === 'pack' ? onPack()
+              : t.key === 'journal' ? onJournal()
+              : t.key === 'sos' ? onSOS()
+              : onGuide(t.key)}
           >
             <View style={[s.iconWrap, { backgroundColor: tint(accent, 0.14) }]}>
-              <Text style={{ fontSize: 22 }}>{t.icon}</Text>
+              <TileIcon kind={t.key} accent={accent} size={30} />
             </View>
             <Text style={s.tileLabel}>{t.label}</Text>
             <Text style={s.tileSub}>{t.sub}</Text>
@@ -82,16 +94,16 @@ const s = StyleSheet.create({
   wx: { color: C.text, fontWeight: '700', fontSize: 13 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   tile: {
-    width: '48.5%', borderRadius: 22, padding: 16, marginBottom: 12,
+    width: '48.5%', borderRadius: 22, padding: 16, marginBottom: 12, alignItems: 'center',
     borderWidth: 1, borderColor: C.border,
     shadowColor: '#0B1526', shadowOpacity: 0.05, shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 }, elevation: 2,
   },
   iconWrap: {
-    width: 44, height: 44, borderRadius: 14, alignItems: 'center',
+    width: 52, height: 52, borderRadius: 16, alignItems: 'center',
     justifyContent: 'center', marginBottom: 10,
   },
-  tileLabel: { fontSize: 17, fontWeight: '800', color: C.text },
-  tileSub: { color: C.sub, fontSize: 12, marginTop: 2 },
+  tileLabel: { fontSize: 17, fontWeight: '800', color: C.text, textAlign: 'center' },
+  tileSub: { color: C.sub, fontSize: 12, marginTop: 2, textAlign: 'center' },
   debrief: { fontWeight: '800', textAlign: 'center', marginTop: 8 },
 });

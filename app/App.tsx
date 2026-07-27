@@ -11,6 +11,8 @@ import BottomBar from './src/components/BottomBar';
 import Guide from './src/screens/Guide';
 import Packing from './src/screens/Packing';
 import Profile from './src/screens/Profile';
+import Journal from './src/screens/Journal';
+import SOS from './src/screens/SOS';
 import TripHub from './src/screens/TripHub';
 import Wizard from './src/screens/Wizard';
 import { accentFor, C } from './src/theme';
@@ -22,6 +24,8 @@ type Route =
   | { name: 'hub'; trip: Trip }
   | { name: 'packing'; trip: Trip }
   | { name: 'guide'; trip: Trip; section: string }
+  | { name: 'journal'; trip: Trip }
+  | { name: 'sos'; trip: Trip }
   | { name: 'debrief'; trip: Trip }
   | { name: 'kits' }
   | { name: 'documents' }
@@ -86,6 +90,8 @@ export default function App() {
         <TripHub trip={route.trip} onBack={goHome}
           onPack={() => setRoute({ name: 'packing', trip: route.trip })}
           onGuide={(section) => setRoute({ name: 'guide', trip: route.trip, section })}
+          onJournal={() => setRoute({ name: 'journal', trip: route.trip })}
+          onSOS={() => setRoute({ name: 'sos', trip: route.trip })}
           onDebrief={() => setRoute({ name: 'debrief', trip: route.trip })} />
       )}
       {route.name === 'packing' && (
@@ -97,6 +103,17 @@ export default function App() {
         <Guide tripId={route.trip.id} tripTitle={route.trip.title} section={route.section}
           accent={accentFor(route.trip.title)} place={route.trip.title.replace(/ trip$/i, '')}
           country={null}
+          onBack={() => setRoute({ name: 'hub', trip: route.trip })} />
+      )}
+      {route.name === 'journal' && (
+        <Journal tripId={route.trip.id} tripTitle={route.trip.title}
+          accent={accentFor(route.trip.title)}
+          onBack={() => setRoute({ name: 'hub', trip: route.trip })} />
+      )}
+      {route.name === 'sos' && (
+        <SOS tripId={route.trip.id} tripTitle={route.trip.title}
+          place={route.trip.title.replace(/ trip$/i, '')}
+          accent={accentFor(route.trip.title)}
           onBack={() => setRoute({ name: 'hub', trip: route.trip })} />
       )}
       {route.name === 'debrief' && (

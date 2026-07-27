@@ -57,7 +57,8 @@ def load_snapshots(db, trip: dict) -> tuple[dict | None, list[dict]]:
         .order("forecast_date").execute().data
     days = [{"date": r["forecast_date"], "temp_max": r["temp_max"], "temp_min": r["temp_min"],
              "precip_prob": r["precip_prob"], "wind_kph": r["wind_kph"],
-             "uv": (r.get("payload") or {}).get("uv")} for r in rows]
+             "uv": (r.get("payload") or {}).get("uv"),
+             "provider": r.get("provider")} for r in rows]
     return dest, days
 
 
@@ -167,13 +168,21 @@ def refresh_trip(db, trip: dict, user_id: str, *, force: bool = True) -> dict:
     else:
         snap_count = 0  # fresh cache — provider spared (rate-limit hygiene)
     _, trip_days = load_snapshots(db, trip)
-    insights = evaluate(trip_days, dest["place_name"])
+    if not [d for d in trip_days if d.get("provider") != "climatology"]:
+        clim = provider.fetch_climatology(dest["lat"], dest["lng"],
+                                          date.fromisoformat(trip["start_date"]),
+                                          date.fromisoformat(trip["end_date"]))
+        if clim:
+            _upsert_snapshots(db, dest["id"], clim)
+            _, trip_days = load_snapshots(db, trip)
+    forecast_days = [d for d in trip_days if d.get("provider") != "climatology"]
+    insights = evaluate(forecast_days, dest["place_name"])
     result = _apply_insights(db, trip, insights)
     queued = _queue_notifications(db, trip, user_id, insights, result["applied"])
     return {"ok": True, "place": dest["place_name"], "snapshots": snap_count,
-            "days_in_range": len(trip_days),
+            "days_in_range": len([d for d in trip_days if d.get("provider") != "climatology"]),
             "insights": [{"key": i["key"], "reason": i["reason"]} for i in insights],
             "applied": result["applied"], "covered": result["covered"],
             "items_added": result["items_added"], "notifications_queued": queued,
             "note": ("Forecast window hasn't reached this trip yet — I'll keep checking."
-                     if not trip_days else None)}
+                     if not [d for d in trip_days if d.get("provider") != "climatology"] else None)}

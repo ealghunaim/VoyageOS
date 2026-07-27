@@ -146,7 +146,7 @@ export default function Wizard({ onDone, onCancel }: {
             <DateTimePicker
               value={new Date((picking === 'start' ? start : end) + 'T00:00:00')}
               mode="date"
-              display={Platform.OS === 'ios' ? 'inline' : 'default'}
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
               minimumDate={picking === 'end' ? new Date(start + 'T00:00:00') : new Date()}
               onChange={(_, d) => {
                 if (!d) { setPicking(null); return; }

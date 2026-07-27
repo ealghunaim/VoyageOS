@@ -14,6 +14,7 @@ import httpx
 GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 MET_NO_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
+ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 USER_AGENT = "VoyageOS/0.6 (+https://github.com/ealghunaim/VoyageOS)"
 HORIZON_DAYS = 15
 PROVIDER = "open-meteo"
@@ -121,3 +122,39 @@ def fetch_daily(lat: float, lng: float, start: date, end: date) -> list[dict]:
         return []
     days = _fetch_open_meteo(lat, lng) or _fetch_met_no(lat, lng)
     return [d for d in days if lo <= d["date"] <= hi]
+
+
+def fetch_climatology(lat: float, lng: float, start: date, end: date) -> list[dict]:
+    """Same dates LAST YEAR from the archive — honest 'typical' temps for trips
+    beyond every forecast horizon. Display-only: rules never fire on these."""
+    try:
+        with httpx.Client(timeout=15, headers={"User-Agent": USER_AGENT}) as c:
+            r = c.get(ARCHIVE_URL, params={
+                "latitude": lat, "longitude": lng,
+                "start_date": start.replace(year=start.year - 1).isoformat(),
+                "end_date": end.replace(year=end.year - 1).isoformat(),
+                "daily": "temperature_2m_max,temperature_2m_min,wind_speed_10m_max",
+                "timezone": "auto",
+            })
+            r.raise_for_status()
+            d = r.json().get("daily") or {}
+    except Exception as e:
+        print(f"[weather] climatology fetch failed: {type(e).__name__}: {e}")
+        return []
+    days = []
+    for i, day in enumerate(d.get("time", [])):
+        try:
+            this_year = date.fromisoformat(day)
+            shifted = this_year.replace(year=this_year.year + 1).isoformat()
+        except ValueError:
+            continue
+        def g(key):
+            arr = d.get(key) or []
+            return arr[i] if i < len(arr) else None
+        days.append({"date": shifted, "temp_max": g("temperature_2m_max"),
+                     "temp_min": g("temperature_2m_min"), "precip_prob": None,
+                     "wind_kph": g("wind_speed_10m_max"), "uv": None,
+                     "provider": "climatology"})
+    if days:
+        print(f"[weather] climatology delivered {len(days)} typical day(s)")
+    return days

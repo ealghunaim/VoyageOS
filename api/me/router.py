@@ -14,7 +14,7 @@ from api.core.db import get_db
 
 router = APIRouter(prefix="/v1/me", tags=["me"])
 
-PROFILE_KEYS = ("dob", "gender", "nationality", "members")
+PROFILE_KEYS = ("dob", "gender", "nationality", "members", "emergency_contact")
 
 
 class Member(BaseModel):
@@ -23,11 +23,17 @@ class Member(BaseModel):
     dob: date | None = None
 
 
+class EmergencyContact(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+    phone: str = Field(min_length=3, max_length=24)
+
+
 class ProfileBody(BaseModel):
     dob: date | None = None
     gender: Literal["female", "male", "other", "na"] | None = None
     nationality: str | None = Field(default=None, min_length=2, max_length=2)
     members: list[Member] | None = Field(default=None, max_length=8)
+    emergency_contact: EmergencyContact | None = None
 
 
 def merge(old: dict, incoming: dict) -> dict:

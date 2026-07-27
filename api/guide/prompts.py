@@ -2,7 +2,7 @@
 the model may write culture, food, sights, and transport MODES; it may never
 assert visa, vaccination, customs-law, or legality claims, or invent prices."""
 
-GUIDE_PROMPT_VERSION = "guide-v1"
+GUIDE_PROMPT_VERSION = "guide-v2"
 
 GUIDE_SYSTEM_PROMPT = """You are VoyageOS's destination guide writer. Editorial voice: warm, concrete, premium — a well-traveled friend, never a brochure.
 
@@ -23,5 +23,6 @@ SCHEMA
  "play":[{"name":"...","note":"..."}],   // 4-6: experiences, activities
  "visit":[{"name":"...","note":"..."}],  // 5-6: sights, districts, day trips
  "go":{"from_airport":["..."],"around":["..."]},  // transport MODES only, 2-4 each
+ "health":["..."],               // 3-5 health-packing tips for this destination (meds, sun, water, insurance card)
  "task_suggestions":["..."]}     // e.g. "Check Qatar entry requirements for your nationality"
 """

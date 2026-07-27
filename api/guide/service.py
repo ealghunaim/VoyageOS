@@ -8,7 +8,7 @@ from api.ai_gateway import gateway
 from api.guide.prompts import GUIDE_PROMPT_VERSION, GUIDE_SYSTEM_PROMPT
 
 _LIST_CAPS = {"etiquette": 6, "customs_flags": 5, "eat": 6, "play": 6,
-              "visit": 6, "task_suggestions": 4}
+              "visit": 6, "task_suggestions": 4, "health": 5}
 
 
 def _s(v, cap=140) -> str:
@@ -20,7 +20,7 @@ def sanitize(raw: dict) -> dict:
     out: dict = {}
     power = raw.get("power") or {}
     out["power"] = {"plugs": _s(power.get("plugs"), 60), "note": _s(power.get("note"))}
-    for key in ("etiquette", "customs_flags", "task_suggestions"):
+    for key in ("etiquette", "customs_flags", "task_suggestions", "health"):
         out[key] = [_s(x) for x in (raw.get(key) or [])[:_LIST_CAPS[key]] if _s(x)]
     for key in ("eat", "play", "visit"):
         rows = []

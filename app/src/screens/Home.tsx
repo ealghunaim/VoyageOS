@@ -82,7 +82,7 @@ export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, authe
           <Pressable key={t.id} onPress={() => onOpenTrip(t)}>
             <Card style={{ padding: 0, overflow: 'hidden' }}>
               <View>
-                <TripArt seed={t.title} accent={accent} height={64} />
+                <TripArt seed={t.title} accent={accent} height={104} />
                 <View style={s.pillFloat}>
                   <Text style={[s.pillText, { color: accent }]}>{done ? 'debriefed ✓' : when}</Text>
                 </View>

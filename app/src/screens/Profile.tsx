@@ -20,13 +20,17 @@ export default function Profile({ onSignedOut }: { onSignedOut: () => void }) {
   const [members, setMembers] = useState<Companion[]>([]);
   const [mName, setMName] = useState('');
   const [mRel, setMRel] = useState<Companion['relation']>('partner');
+  const [ecName, setEcName] = useState('');
+  const [ecPhone, setEcPhone] = useState('');
   const [picking, setPicking] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     getProfile().then(p => {
       setDob(p.dob); setGender(p.gender); setNat(p.nationality);
-      setMembers(p.members ?? []); setLoaded(true);
+      setMembers(p.members ?? []);
+      setEcName(p.emergency_contact?.name ?? ''); setEcPhone(p.emergency_contact?.phone ?? '');
+      setLoaded(true);
     }).catch(() => setLoaded(true));
   }, []);
 
@@ -39,7 +43,8 @@ export default function Profile({ onSignedOut }: { onSignedOut: () => void }) {
   async function save() {
     setSaving(true);
     try {
-      await putProfile({ dob, gender: gender as any, nationality: nat, members });
+      await putProfile({ dob, gender: gender as any, nationality: nat, members,
+        emergency_contact: ecName.trim() && ecPhone.trim() ? { name: ecName.trim(), phone: ecPhone.trim() } : undefined });
       Alert.alert('Saved', 'Your profile now personalizes visa links and family packing to come.');
     } catch (e: any) { Alert.alert('Could not save', e.message); }
     finally { setSaving(false); }
@@ -121,6 +126,13 @@ export default function Profile({ onSignedOut }: { onSignedOut: () => void }) {
           setMName('');
         }} />
         <Text style={s.hint}>Companions become shared travelers with their own packing lists in a coming release.</Text>
+      </Card>
+
+      <Card>
+        <Text style={s.section}>EMERGENCY CONTACT</Text>
+        <Field label="NAME" value={ecName} onChange={setEcName} placeholder="Who to call" />
+        <Field label="PHONE" value={ecPhone} onChange={setEcPhone} placeholder="+965…" />
+        <Text style={s.hint}>Appears as one-tap call on every trip's SOS page.</Text>
       </Card>
 
       <Btn label={saving ? 'Saving…' : 'Save profile'} disabled={saving} onPress={save} />

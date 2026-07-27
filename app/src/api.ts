@@ -112,6 +112,7 @@ export const deleteDocument = (id: string) =>
 export type WxDay = {
   date: string; temp_max: number | null; temp_min: number | null;
   precip_prob: number | null; wind_kph: number | null; uv: number | null;
+  provider?: string | null;
 };
 export const getTripWeather = (tripId: string): Promise<{ place: string | null; days: WxDay[] }> =>
   req(`/v1/trips/${tripId}/weather`);
@@ -134,6 +135,7 @@ export type Guide = {
   play: { name: string; note: string }[];
   visit: { name: string; note: string }[];
   go: { from_airport: string[]; around: string[] };
+  health?: string[];
   task_suggestions: string[];
 };
 export const getGuide = (tripId: string, regenerate = false):
@@ -144,7 +146,17 @@ export type Companion = { name: string; relation: 'partner' | 'child' | 'parent'
 export type Profile = {
   dob: string | null; gender: string | null; nationality: string | null;
   members: Companion[] | null;
+  emergency_contact?: { name: string; phone: string } | null;
 };
 export const getProfile = (): Promise<Profile> => req('/v1/me/profile');
 export const putProfile = (b: Partial<Profile>): Promise<Profile> =>
   req('/v1/me/profile', { method: 'PUT', body: JSON.stringify(b) });
+
+export type TripDetail = Trip & {
+  destinations: { place_name: string; country_code: string | null }[];
+};
+export const getTrip = (id: string): Promise<TripDetail> => req(`/v1/trips/${id}`);
+export type Note = { id: string; body: string; created_at: string };
+export const listNotes = (tripId: string): Promise<Note[]> => req(`/v1/trips/${tripId}/notes`);
+export const addNote = (tripId: string, body: string): Promise<Note> =>
+  req(`/v1/trips/${tripId}/notes`, { method: 'POST', body: JSON.stringify({ body }) });
