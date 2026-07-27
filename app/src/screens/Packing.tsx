@@ -8,8 +8,8 @@ import { deviceTz, permissionStatus, requestPermission, syncReminders, testPing 
 import { Btn, Card, Progress } from '../components/ui';
 import { C } from '../theme';
 
-export default function Packing({ tripId, tripTitle, onBack }: {
-  tripId: string; tripTitle: string; onBack: () => void;
+export default function Packing({ tripId, tripTitle, onBack, onDebrief }: {
+  tripId: string; tripTitle: string; onBack: () => void; onDebrief: () => void;
 }) {
   const [items, setItems] = useState<PackItem[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -170,6 +170,9 @@ export default function Packing({ tripId, tripTitle, onBack }: {
                   <Text style={[s.name, it.status === 'packed' && s.nameDone]}>
                     {it.name}{it.qty > 1 ? `  ×${it.qty}` : ''}
                   </Text>
+                  {it.source === 'history' && (
+                    <Text style={s.histBadge}>⚑ forgot last time</Text>
+                  )}
                   {!!it.reason && <Text style={s.reason}>{it.reason}</Text>}
                 </View>
                 <Pressable onPress={() => dismiss(it)} hitSlop={10} style={s.x}>
@@ -179,6 +182,9 @@ export default function Packing({ tripId, tripTitle, onBack }: {
             ))}
           </View>
         ))}
+        <Pressable onPress={onDebrief}>
+          <Text style={s.closeout}>Close out this trip — 60-second debrief ›</Text>
+        </Pressable>
         <Text style={s.footer}>Suggestions explain themselves — that's the point.</Text>
       </ScrollView>
     </View>
@@ -231,4 +237,6 @@ const s = StyleSheet.create({
   },
   primerTitle: { color: C.text, fontWeight: '800', fontSize: 15, marginBottom: 4 },
   testLink: { color: C.blue, fontWeight: '700', fontSize: 13, marginTop: 4, marginLeft: 2 },
+  histBadge: { color: '#b45309', fontWeight: '800', fontSize: 12, marginTop: 2 },
+  closeout: { color: C.blue, fontWeight: '700', textAlign: 'center', marginTop: 10 },
 });

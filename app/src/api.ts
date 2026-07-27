@@ -51,3 +51,12 @@ export const getTimeline = (
   tripId: string, tz: string
 ): Promise<{ tasks: Task[]; reminders: { id: string; send_at: string; payload: any }[] }> =>
   req(`/v1/trips/${tripId}/timeline?tz=${encodeURIComponent(tz)}`);
+
+export const searchItems = (q: string): Promise<{ id: string; name: string; category: string }[]> =>
+  req(`/v1/items/search?q=${encodeURIComponent(q)}`);
+export const submitDebrief = (
+  tripId: string, forgot: string[], unused: string[]
+): Promise<{ forgot: number; unused: number; packed_recorded: number; promise: string }> =>
+  req(`/v1/trips/${tripId}/debrief`, {
+    method: 'POST', body: JSON.stringify({ forgot, unused }),
+  });

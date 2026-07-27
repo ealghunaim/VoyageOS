@@ -69,8 +69,10 @@ export default function Home({ onNewTrip, onOpenTrip }: {
                 <Text style={s.h2} numberOfLines={1}>{t.title}</Text>
                 <Text style={s.badge}>{when}</Text>
               </View>
-              <Text style={s.sub}>{t.start_date} → {t.end_date}</Text>
-              <Text style={s.link}>Open packing list ›</Text>
+              <Text style={s.sub}>{t.start_date} → {t.end_date}{t.status === 'completed' ? '  ·  debriefed ✓' : ''}</Text>
+              <Text style={s.link}>
+                {n < 0 && t.status !== 'completed' ? '60-second debrief ›' : 'Open packing list ›'}
+              </Text>
             </Card>
           </Pressable>
         );

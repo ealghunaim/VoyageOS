@@ -1,5 +1,4 @@
-"""VoyageOS API — one FastAPI monolith. The notification worker lives inside it
-(solo addendum §3.3): APScheduler ticks the governor every 60 seconds."""
+"""VoyageOS API — one FastAPI monolith. Worker inside (60s tick); memory loop live."""
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
@@ -8,6 +7,7 @@ from api.trips.router import router as trips_router
 from api.packing.router import router as packing_router, items_router as packing_items_router
 from api.timeline.router import router as timeline_router
 from api.notifications.router import router as notifications_router
+from api.history.router import router as history_router
 from api.notifications.worker import run_due
 
 
@@ -23,11 +23,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="VoyageOS API", version="0.5.0", lifespan=lifespan)
-app.include_router(trips_router)
-app.include_router(packing_router)
-app.include_router(packing_items_router)
-app.include_router(timeline_router)
-app.include_router(notifications_router)
+for r in (trips_router, packing_router, packing_items_router,
+          timeline_router, notifications_router, history_router):
+    app.include_router(r)
 
 
 @app.get("/health")

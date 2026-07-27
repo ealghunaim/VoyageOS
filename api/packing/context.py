@@ -5,6 +5,8 @@ import hashlib
 import json
 from datetime import date
 
+from api.history.service import history_flags
+
 
 def build_context(db, trip: dict, user_id: str) -> dict:
     trip_id = trip["id"]
@@ -20,7 +22,9 @@ def build_context(db, trip: dict, user_id: str) -> dict:
     end = date.fromisoformat(trip["end_date"])
     duration = (end - start).days + 1
 
-    return {
+    history = history_flags(db, user_id)
+
+    ctx = {
         "trip": {
             "title": trip["title"], "trip_type": trip.get("trip_type"),
             "start_date": trip["start_date"], "end_date": trip["end_date"],
@@ -32,6 +36,9 @@ def build_context(db, trip: dict, user_id: str) -> dict:
         "laundry_available": False,  # v0.5: no accommodation data yet
         "note": "No weather data available in this version.",
     }
+    if history["previously_forgot"] or history["often_unused"]:
+        ctx["item_history"] = history
+    return ctx
 
 
 def context_hash(context: dict) -> str:
