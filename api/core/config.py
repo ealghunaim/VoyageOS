@@ -4,8 +4,10 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     env: str = "local"
-    supabase_url: str = "https://njvpjzojnzbynwlqsdbw.supabase.co"
-    supabase_service_key: str = "sb_publishable_tBcNLlKZ3p9-Ue5wpuJ-Ww_zXuvJn-c"          # server-side only, never shipped to the app
+    supabase_url: str = ""
+    supabase_service_key: str = ""          # server-side only, never shipped to the app
+    dev_user_id: str = ""                    # local dev stand-in for a logged-in user (v0.5)
+    llm_api_key: str = ""
     # --- AI gateway routing (Part 1 §6 routing table) ---
     model_small: str = "change-me-small"     # extraction, copywriting
     model_mid: str = "change-me-mid"         # single-dest generation
