@@ -1,6 +1,10 @@
 import * as CFG from './config';
+import { getToken, refreshSession } from './auth';
 const API_URL = CFG.API_URL;
 const APP_KEY: string = (CFG as any).APP_KEY ?? '';
+
+let onAuthFail: (() => void) | null = null;
+export function setAuthFailHandler(fn: () => void) { onAuthFail = fn; }
 
 export type Trip = {
   id: string; title: string; start_date: string; end_date: string;
@@ -12,20 +16,29 @@ export type PackItem = {
   reason?: string | null; source: string;
 };
 
-async function req(path: string, options: RequestInit = {}) {
+async function req(path: string, options: RequestInit = {}, _retried = false): Promise<any> {
+  const token = getToken();
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
       headers: {
         'Content-Type': 'application/json',
         ...(APP_KEY ? { 'x-voyageos-key': APP_KEY } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       ...options,
     });
   } catch (e) {
-    throw new Error(
-      "Can't reach the VoyageOS server. Is it running with --host 0.0.0.0, and are the phone and Mac on the same Wi-Fi?"
-    );
+    throw new Error("Can't reach the VoyageOS server — check your connection.");
+  }
+  if (res.status === 401 && token && !_retried) {
+    if (await refreshSession()) return req(path, options, true);
+    onAuthFail?.();
+    throw new Error('Session expired — sign in again.');
+  }
+  if (res.status === 401 && token && _retried) {
+    onAuthFail?.();
+    throw new Error('Session expired — sign in again.');
   }
   if (!res.ok) {
     let detail = `HTTP ${res.status}`;

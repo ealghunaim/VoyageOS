@@ -11,9 +11,10 @@ function daysUntil(dateStr: string) {
   return Math.ceil((d.getTime() - Date.now()) / 86400000);
 }
 
-export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments }: {
+export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, authed, onSignOut }: {
   onNewTrip: () => void; onOpenTrip: (t: Trip) => void;
   onKits: () => void; onDocuments: () => void;
+  authed?: boolean; onSignOut?: () => void;
 }) {
   const [trips, setTrips] = useState<Trip[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -90,7 +91,12 @@ export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments }: {
         <Text style={{ color: C.sub }}>{'   ·   '}</Text>
         <Pressable onPress={onDocuments}><Text style={s.link}>Documents ›</Text></Pressable>
       </View>
-      <Text style={s.footer}>v0.5 · dev build</Text>
+      <Text style={s.footer}>v1.0-dev{authed ? '' : ' · local mode'}</Text>
+      {authed && onSignOut && (
+        <Pressable onPress={onSignOut}>
+          <Text style={[s.footer, { color: C.blue, fontWeight: '700' }]}>Sign out</Text>
+        </Pressable>
+      )}
     </ScrollView>
   );
 }
