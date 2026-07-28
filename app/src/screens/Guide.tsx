@@ -1,18 +1,20 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View,
+  ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
-import { getGuide, getProfile, Guide as GuideT } from '../api';
+import { getGuide, getProfile, Guide as GuideT, patchTrip, Trip } from '../api';
+import PlugArt from '../components/PlugArt';
 import { countryName, flagOf } from '../countries';
 import { Card, Chip } from '../components/ui';
 import { C, tint } from '../theme';
 
 const SECTIONS = ['know', 'eat', 'play', 'visit', 'go'];
 
-export default function Guide({ tripId, tripTitle, section, accent, country, place, onBack }: {
-  tripId: string; tripTitle: string; section: string; accent: string;
-  country: string | null; place: string; onBack: () => void;
+export default function Guide({ trip, tripId, tripTitle, section, accent, country, place, onBack, onTripChanged }: {
+  trip: Trip; tripId: string; tripTitle: string; section: string; accent: string;
+  country: string | null; place: string; onBack: () => void; onTripChanged: (t: Trip) => void;
 }) {
+  const [air, setAir] = useState(trip.airline ?? '');
   const [tab, setTab] = useState(section);
   const [g, setG] = useState<GuideT | null>(null);
   const [nat, setNat] = useState<string | null>(null);
@@ -85,6 +87,21 @@ export default function Guide({ tripId, tripTitle, section, accent, country, pla
               <Pressable onPress={() => open('https://www.iatatravelcentre.com/')}>
                 <Text style={[s.link, { color: accent }]}>IATA Travel Centre ›</Text>
               </Pressable>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
+                {[['none', 'No visa'], ['evisa', 'eVisa'], ['arrival', 'On arrival'], ['required', 'Visa required']].map(([v, l]) => (
+                  <Pressable key={v}
+                    style={[sx.vChip, trip.visa_status === v && { backgroundColor: accent, borderColor: accent }]}
+                    onPress={async () => {
+                      try { const t = await patchTrip(trip.id, { visa_status: v }); onTripChanged({ ...trip, ...t }); }
+                      catch (e: any) { Alert.alert('Visa', e.message); }
+                    }}>
+                    <Text style={[sx.vChipText, trip.visa_status === v && { color: '#fff' }]}>{l}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              {!!trip.visa_status && (
+                <Text style={[s.sub, { marginTop: 8, fontWeight: '700' }]}>Verified by you — from the official sources above.</Text>
+              )}
               <Pressable onPress={() => open(`https://www.google.com/search?q=visa+requirements+for+${encodeURIComponent(nat ? countryName(nat) : '')}+citizens+${encodeURIComponent(country || place)}+official`)}>
                 <Text style={[s.link, { color: accent }]}>Search official sources ›</Text>
               </Pressable>
@@ -92,6 +109,7 @@ export default function Guide({ tripId, tripTitle, section, accent, country, pla
             <Card>
               <Text style={s.h}>Power & plugs</Text>
               <Text style={s.rowName}>{g.power.plugs || '—'}</Text>
+              <PlugArt plugs={g.power.plugs || ''} accent={accent} />
               {!!g.power.note && <Text style={s.sub}>{g.power.note}</Text>}
             </Card>
             <Card>
@@ -103,6 +121,27 @@ export default function Guide({ tripId, tripTitle, section, accent, country, pla
               {g.customs_flags.map((e, i) => <Text key={i} style={s.bullet}>·  {e}</Text>)}
               <Text style={s.disclaimer}>Cultural guidance, not legal advice — verify locally.</Text>
             </Card>
+            {trip.travel_mode === 'air' && (
+              <Card>
+                <Text style={s.h}>Your flight</Text>
+                <TextInput style={sx.airInput} value={air} onChangeText={setAir}
+                  placeholder="Airline name" placeholderTextColor="#9AA9BB" />
+                {air.trim() !== (trip.airline ?? '') && (
+                  <Pressable onPress={async () => {
+                    try { const t = await patchTrip(trip.id, { airline: air.trim() }); onTripChanged({ ...trip, ...t }); }
+                    catch (e: any) { Alert.alert('Airline', e.message); }
+                  }}>
+                    <Text style={[s.link, { color: accent }]}>Save airline ›</Text>
+                  </Pressable>
+                )}
+                {!!(trip.airline ?? '').trim() && (
+                  <Pressable onPress={() => open(`https://www.google.com/search?q=${encodeURIComponent((trip.airline ?? '') + ' baggage allowance')}`)}>
+                    <Text style={[s.link, { color: accent }]}>{trip.airline} baggage policy ›</Text>
+                  </Pressable>
+                )}
+                <Text style={s.disclaimer}>Allowances vary by fare and route — the official page is the truth; VoyageOS never guesses limits. Set your own bag target in Pack.</Text>
+              </Card>
+            )}
           </>
         )}
         {tab === 'eat' && <Card><Text style={s.h}>Worth the trip alone</Text><Rows items={g.eat} /></Card>}
@@ -143,4 +182,10 @@ const s = StyleSheet.create({
   bullet: { color: C.text, marginBottom: 7, lineHeight: 20 },
   link: { fontWeight: '800', marginTop: 10 },
   disclaimer: { color: '#9AA9BB', fontSize: 11, marginTop: 10, textAlign: 'center', lineHeight: 16 },
+});
+
+const sx = StyleSheet.create({
+  vChip: { borderWidth: 1.5, borderColor: C.border, backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, marginRight: 6, marginBottom: 6 },
+  vChipText: { color: C.text, fontWeight: '800', fontSize: 12 },
+  airInput: { backgroundColor: '#F1F4F9', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, color: C.text },
 });

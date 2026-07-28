@@ -111,7 +111,8 @@ export default function App() {
           onDebrief={() => setRoute({ name: 'debrief', trip: route.trip })} />
       )}
       {route.name === 'guide' && (
-        <Guide tripId={route.trip.id} tripTitle={route.trip.title} section={route.section}
+        <Guide trip={route.trip} tripId={route.trip.id} tripTitle={route.trip.title} section={route.section}
+          onTripChanged={(t) => setRoute({ name: 'guide', trip: t, section: route.section })}
           accent={accentForTrip(route.trip.country_code, route.trip.title)}
           place={route.trip.place ?? route.trip.title.replace(/ trip$/i, '')}
           country={route.trip.country_code ?? null}

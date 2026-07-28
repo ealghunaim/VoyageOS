@@ -8,6 +8,7 @@ export function setAuthFailHandler(fn: () => void) { onAuthFail = fn; }
 
 export type Trip = {
   place?: string | null; country_code?: string | null; travel_mode?: string | null;
+  airline?: string | null; visa_status?: string | null;
   id: string; title: string; start_date: string; end_date: string;
   trip_type?: string | null; status: string;
 };
@@ -162,7 +163,7 @@ export const listNotes = (tripId: string): Promise<Note[]> => req(`/v1/trips/${t
 export const addNote = (tripId: string, body: string, photos: { b64: string; mime: string }[] = []): Promise<Note> =>
   req(`/v1/trips/${tripId}/notes`, { method: 'POST', body: JSON.stringify({ body, photos }) });
 
-export const patchTrip = (id: string, b: { title?: string; start_date?: string; end_date?: string }): Promise<Trip> =>
+export const patchTrip = (id: string, b: { title?: string; start_date?: string; end_date?: string; airline?: string; visa_status?: string }): Promise<Trip> =>
   req(`/v1/trips/${id}`, { method: 'PATCH', body: JSON.stringify(b) });
 export const deleteTrip = (id: string): Promise<void> =>
   req(`/v1/trips/${id}`, { method: 'DELETE' });

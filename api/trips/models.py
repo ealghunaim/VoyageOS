@@ -9,6 +9,7 @@ class TripCreate(BaseModel):
     end_date: date
     trip_type: str | None = None
     travel_mode: str | None = Field(default=None, max_length=12)  # air|train|ship|car
+    airline: str | None = Field(default=None, max_length=60)
 
     @model_validator(mode="after")
     def dates_ordered(self):
@@ -36,3 +37,5 @@ class TripPatch(BaseModel):
     start_date: date | None = None
     end_date: date | None = None
     travel_mode: str | None = Field(default=None, max_length=12)
+    airline: str | None = Field(default=None, max_length=60)
+    visa_status: str | None = Field(default=None, max_length=16)  # none|evisa|arrival|required

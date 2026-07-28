@@ -142,8 +142,8 @@ export default function TripHub({ trip, onBack, onPack, onGuide, onJournal, onSO
 }
 
 const s = StyleSheet.create({
-  title: { fontSize: 24, fontWeight: '900', color: C.text, letterSpacing: -0.5 },
-  dates: { color: C.sub, marginTop: 3 },
+  title: { fontSize: 31, fontWeight: '900', color: C.text, letterSpacing: -0.8 },
+  dates: { color: C.sub, marginTop: 4, fontSize: 15 },
   wx: { color: C.text, fontWeight: '700', fontSize: 13 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   tile: {
