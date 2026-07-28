@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 
+from fastapi import HTTPException
+
 from api.ai_gateway import gateway
 from api.guide.prompts import GUIDE_PROMPT_VERSION, GUIDE_SYSTEM_PROMPT
 
@@ -82,11 +84,15 @@ def get_guide(db, trip: dict, user_id: str, *, regenerate: bool = False) -> dict
            "accommodation": accommodation, "travel_mode": trip.get("travel_mode"),
            "nationality": nationality}
     result = gateway.complete("guide_generate", GUIDE_SYSTEM_PROMPT,
-                              json.dumps(ctx), db=db, user_id=user_id, max_tokens=2000)
+                              json.dumps(ctx), db=db, user_id=user_id, max_tokens=3600)
     try:
         guide = sanitize(_parse(result.text))
-    except Exception:
-        guide = sanitize({})  # empty-but-valid shell; app renders honest placeholders
+    except Exception as e:
+        print(f"[guide] parse failed: {type(e).__name__}: {e} · raw tail: {result.text[-120:]!r}")
+        raise HTTPException(502, "The guide didn't generate cleanly — tap ↻ to retry.")
+    if not (guide["eat"] or guide["etiquette"] or guide["power"]["plugs"]):
+        print("[guide] empty output — not caching")
+        raise HTTPException(502, "The guide came back empty — tap ↻ to retry.")
 
     db.table("trip_guides").upsert(
         {"trip_id": trip["id"], "payload": guide,
