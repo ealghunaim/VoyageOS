@@ -5,7 +5,7 @@ import { deleteTrip, getTripWeather, patchTrip, Trip, WxDay } from '../api';
 import TileIcon from '../components/icons';
 import TripArt from '../components/TripArt';
 import { Card } from '../components/ui';
-import { accentForTrip, C, tint, F } from '../theme';
+import { accentForTrip, C, tint, F, titleize } from '../theme';
 
 const TILES: { key: string; label: string; sub: string }[] = [
   { key: 'pack', label: 'Pack', sub: 'Your list, with reasons' },
@@ -45,7 +45,7 @@ export default function TripHub({ trip, onBack, onPack, onGuide, onJournal, onSO
       <Card style={{ padding: 0, overflow: 'hidden', marginBottom: 18 }}>
         <TripArt seed={trip.place ?? trip.title} accent={accent} height={168} />
         <View style={{ padding: 18, paddingTop: 12 }}>
-          <Text style={s.title}>{trip.title}</Text>
+          <Text style={s.title}>{titleize(trip.title)}</Text>
           <Text style={s.dates}>{trip.start_date} → {trip.end_date}</Text>
           {wx.length > 0 && wx.every(d => d.provider === 'climatology') && (
             <Text style={{ color: C.sub, fontSize: 11, fontFamily: F.bold, letterSpacing: 0.6, marginTop: 8 }}>

@@ -19,7 +19,7 @@ import SOS from './src/screens/SOS';
 import TripHub from './src/screens/TripHub';
 import Wizard from './src/screens/Wizard';
 import Archive from './src/screens/Archive';
-import { accentForTrip, C } from './src/theme';
+import { accentForTrip, C, titleize } from './src/theme';
 
 type Route =
   | { name: 'home' }
@@ -113,13 +113,13 @@ export default function App() {
           onOpen={(t) => setRoute({ name: 'hub', trip: t })} />
       )}
       {route.name === 'packing' && (
-        <Packing tripId={route.trip.id} tripTitle={route.trip.title}
+        <Packing tripId={route.trip.id} tripTitle={titleize(route.trip.title)}
           accent={accentForTrip(route.trip.country_code, route.trip.title)}
           onBack={() => setRoute({ name: 'hub', trip: route.trip })}
           onDebrief={() => setRoute({ name: 'debrief', trip: route.trip })} />
       )}
       {route.name === 'guide' && (
-        <Guide trip={route.trip} tripId={route.trip.id} tripTitle={route.trip.title} section={route.section}
+        <Guide trip={route.trip} tripId={route.trip.id} tripTitle={titleize(route.trip.title)} section={route.section}
           onTripChanged={(t) => setRoute({ name: 'guide', trip: t, section: route.section })}
           accent={accentForTrip(route.trip.country_code, route.trip.title)}
           place={route.trip.place ?? route.trip.title.replace(/ trip$/i, '')}
@@ -127,18 +127,18 @@ export default function App() {
           onBack={() => setRoute({ name: 'hub', trip: route.trip })} />
       )}
       {route.name === 'journal' && (
-        <Journal tripId={route.trip.id} tripTitle={route.trip.title}
+        <Journal tripId={route.trip.id} tripTitle={titleize(route.trip.title)}
           accent={accentForTrip(route.trip.country_code, route.trip.title)}
           onBack={() => setRoute({ name: 'hub', trip: route.trip })} />
       )}
       {route.name === 'sos' && (
-        <SOS tripId={route.trip.id} tripTitle={route.trip.title}
+        <SOS tripId={route.trip.id} tripTitle={titleize(route.trip.title)}
           place={route.trip.place ?? route.trip.title.replace(/ trip$/i, '')}
           accent={accentForTrip(route.trip.country_code, route.trip.title)}
           onBack={() => setRoute({ name: 'hub', trip: route.trip })} />
       )}
       {route.name === 'debrief' && (
-        <Debrief tripId={route.trip.id} tripTitle={route.trip.title} onDone={goHome} />
+        <Debrief tripId={route.trip.id} tripTitle={titleize(route.trip.title)} onDone={goHome} />
       )}
       {route.name === 'kits' && <Kits onBack={goHome} />}
       {route.name === 'documents' && <Documents onBack={goHome} />}

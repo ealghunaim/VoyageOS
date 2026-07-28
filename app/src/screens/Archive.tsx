@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Trip } from '../api';
 import TripArt from '../components/TripArt';
 import { Card } from '../components/ui';
-import { accentForTrip, C, F } from '../theme';
+import { accentForTrip, C, F, titleize } from '../theme';
 
 export default function Archive({ trips, onOpen, onBack }: {
   trips: Trip[]; onOpen: (t: Trip) => void; onBack: () => void;
@@ -22,7 +22,7 @@ export default function Archive({ trips, onOpen, onBack }: {
             <Card style={{ padding: 0, overflow: 'hidden' }}>
               <TripArt seed={t.place ?? t.title} accent={accent} height={64} />
               <View style={{ padding: 16, paddingTop: 10 }}>
-                <Text style={s.title}>{t.title}</Text>
+                <Text style={s.title}>{titleize(t.title)}</Text>
                 <Text style={s.dates}>{t.start_date} → {t.end_date}{t.status === 'completed' ? '  ·  debriefed ✓' : ''}</Text>
               </View>
             </Card>
