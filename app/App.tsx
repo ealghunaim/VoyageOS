@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, SafeAreaView, StatusBar, Text, View } from 'react-native';
 import { setAuthFailHandler, Trip } from './src/api';
 import { hasAuthKeys, loadSession, signOut } from './src/auth';
+import { registerForPush } from './src/push';
 import Debrief from './src/screens/Debrief';
 import Documents from './src/screens/Documents';
 import Home from './src/screens/Home';
@@ -46,6 +47,7 @@ export default function App() {
     (async () => {
       const s = await loadSession();
       setAuthed(s === 'authed');
+      if (s === 'authed') registerForPush();
       if (s === 'anon') setRoute({ name: 'login' });
       setBooting(false);
     })();

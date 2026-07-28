@@ -17,7 +17,7 @@ export type PackItem = {
   reason?: string | null; source: string;
 };
 
-async function req(path: string, options: RequestInit = {}, _retried = false): Promise<any> {
+export async function req(path: string, options: RequestInit = {}, _retried = false): Promise<any> {
   const token = getToken();
   let res: Response;
   try {
@@ -157,10 +157,10 @@ export type TripDetail = Trip & {
   destinations: { place_name: string; country_code: string | null }[];
 };
 export const getTrip = (id: string): Promise<TripDetail> => req(`/v1/trips/${id}`);
-export type Note = { id: string; body: string; created_at: string };
+export type Note = { id: string; body: string; created_at: string; photos?: string[] };
 export const listNotes = (tripId: string): Promise<Note[]> => req(`/v1/trips/${tripId}/notes`);
-export const addNote = (tripId: string, body: string): Promise<Note> =>
-  req(`/v1/trips/${tripId}/notes`, { method: 'POST', body: JSON.stringify({ body }) });
+export const addNote = (tripId: string, body: string, photos: { b64: string; mime: string }[] = []): Promise<Note> =>
+  req(`/v1/trips/${tripId}/notes`, { method: 'POST', body: JSON.stringify({ body, photos }) });
 
 export const patchTrip = (id: string, b: { title?: string; start_date?: string; end_date?: string }): Promise<Trip> =>
   req(`/v1/trips/${id}`, { method: 'PATCH', body: JSON.stringify(b) });

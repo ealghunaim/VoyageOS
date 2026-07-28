@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import json
 import traceback
+
+import httpx
 from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -21,7 +23,31 @@ class ConsoleAdapter:
         print(f"[deliver] {user_id[:8]}… «{payload.get('title')}» — {payload.get('body')}")
 
 
-adapter = ConsoleAdapter()
+class ExpoPushAdapter:
+    """Production delivery: Expo push to every registered device, console echo
+    kept for the log trail. Console-only until a device registers a token."""
+    URL = "https://exp.host/--/api/v2/push/send"
+
+    def deliver(self, user_id: str, payload: dict) -> None:
+        print(f"[deliver] {user_id[:8]}… «{payload.get('title')}» — {payload.get('body')}")
+        try:
+            tokens = [r["token"] for r in get_db().table("device_tokens")
+                      .select("token").eq("user_id", user_id).execute().data]
+        except Exception:
+            tokens = []
+        if not tokens:
+            return
+        msgs = [{"to": t, "title": payload.get("title", "VoyageOS"),
+                 "body": payload.get("body", ""), "sound": "default"} for t in tokens]
+        try:
+            with httpx.Client(timeout=10) as c:
+                r = c.post(self.URL, json=msgs)
+            print(f"[push] expo {r.status_code} → {len(tokens)} device(s)")
+        except Exception as e:
+            print(f"[push] send failed: {type(e).__name__}: {e}")
+
+
+adapter = ExpoPushAdapter()
 
 
 def _parse_hhmm(s: str, default: time) -> time:

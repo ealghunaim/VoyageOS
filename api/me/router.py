@@ -65,3 +65,16 @@ def put_profile(body: ProfileBody, user_id: str = Depends(current_user_id)):
     db.table("user_preferences").upsert(
         {"user_id": user_id, "extras": extras}, on_conflict="user_id").execute()
     return {k: extras.get(k) for k in PROFILE_KEYS}
+
+
+class DeviceToken(BaseModel):
+    token: str = Field(min_length=10, max_length=200)
+    platform: Literal["ios", "android"] = "ios"
+
+
+@router.post("/device-token", status_code=204)
+def register_device_token(body: DeviceToken, user_id: str = Depends(current_user_id)):
+    db = get_db()
+    db.table("device_tokens").upsert(
+        {"user_id": user_id, "token": body.token, "platform": body.platform},
+        on_conflict="token").execute()
