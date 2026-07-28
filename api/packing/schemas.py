@@ -15,7 +15,7 @@ class GenItem(BaseModel):
     name: str = Field(min_length=1, max_length=60)
     category: Category
     item_class: ItemClassName = "other"
-    qty: int = Field(ge=1, le=14)
+    qty: int = Field(ge=1, le=99)
     reason: str = Field(min_length=1, max_length=120)
     confidence: float = Field(ge=0, le=1)
     source_signal: Literal["activity", "duration", "destination", "season", "history", "weather"] = "destination"

@@ -62,7 +62,7 @@ def _persist(db, trip_id: str, traveler_id: str, items: list[dict], *,
         rows.append({
             "list_id": plist["id"],
             "item_id": catalog.get(it["name"].lower()),
-            "name": it["name"], "category": it["category"], "qty": it["qty"],
+            "name": it["name"], "category": it["category"], "qty": max(1, min(int(it.get("qty") or 1), 99)),
             "status": "suggested",
             "source": it["source_signal"] if it.get("source_signal") in ("history", "weather") else source,
             "style_tag": it.get("style_tag"),
