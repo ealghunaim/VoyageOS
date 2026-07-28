@@ -13,7 +13,7 @@ export type Trip = {
   trip_type?: string | null; status: string;
 };
 export type PackItem = {
-  style_tag?: string | null;
+  style_tag?: string | null; weight_g?: number | null;
   id: string; name: string; category: string; qty: number;
   status: 'suggested' | 'accepted' | 'packed' | 'rejected';
   reason?: string | null; source: string;

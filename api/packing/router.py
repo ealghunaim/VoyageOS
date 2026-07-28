@@ -42,6 +42,7 @@ class ItemPatch(BaseModel):
     status: Literal["suggested", "accepted", "packed", "rejected"] | None = None
     qty: int | None = Field(default=None, ge=1, le=99)
     style_tag: str | None = Field(default=None, max_length=16)
+    weight_g: int | None = Field(default=None, ge=1, le=50000)
 
 
 @items_router.patch("/{item_id}")
@@ -92,15 +93,21 @@ def get_weight(trip_id: str, user_id: str = Depends(current_user_id)):
     plist = service._latest_list(db, trip_id)
     if not plist:
         return {"total_g": 0, "counted": 0, "unweighed": 0, "limit_g": None}
-    rows = db.table("packing_list_items")         .select("qty,status,category,style_tag,items(default_weight_g)")         .eq("list_id", plist["id"]).execute().data
-    total, counted, unweighed = sum_weight(rows)
+    rows = db.table("packing_list_items")         .select("qty,status,category,style_tag,weight_g,items(default_weight_g)")         .eq("list_id", plist["id"]).execute().data
+    # own weights (user-set) win over catalog links and estimates
+    own = [x for x in rows if x.get("weight_g") and x.get("status") != "rejected"]
+    rest = [x for x in rows if not x.get("weight_g")]
+    total0 = sum(int(x["weight_g"]) * (x.get("qty") or 1) for x in own)
+    total, counted, unweighed = sum_weight(rest)
+    total += total0
+    counted += len(own)
     # cumulative approximation: unlinked items get honest per-type estimates
     EST = {"underwear": 80, "sleep": 150, "casual": 200, "smart_casual": 250,
            "formal": 400, "traditional": 350, "outerwear": 600, "athleisure": 220,
            "footwear": 800, "toiletries": 120, "electronics": 250, "documents": 50,
            "medications": 100, "activity_gear": 400, "misc": 150, "clothing": 220}
     approx = False
-    for row in rows:
+    for row in rest:
         if row.get("status") == "rejected":
             continue
         linked = (row.get("items") or {}).get("default_weight_g") if row.get("items") else None

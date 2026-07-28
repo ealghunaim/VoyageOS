@@ -244,11 +244,21 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
                   {it.source === 'weather' && (
                     <Text style={s.wxBadge}>☔ forecast</Text>
                   )}
-                  {!!it.reason && <Text style={s.reason}>{it.reason}</Text>}
+                  {!!it.reason && <Text style={s.reason}>{it.reason}{it.weight_g ? `  \u00b7  ${it.weight_g}g` : ''}</Text>}
                 </View>
                 <Pressable hitSlop={10} style={{ marginRight: 12 }} onPress={() => {
                   const opts = [['underwear','Underwear'],['casual','Casual'],['smart_casual','Smart casual'],['formal','Formal'],['traditional','Traditional'],['outerwear','Outerwear'],['athleisure','Active'],['footwear','Shoes']] as const;
                   Alert.alert('Move to', it.name, [
+                    { text: 'Set weight (g)', onPress: () => {
+                      if (Platform.OS === 'ios' && (Alert as any).prompt) {
+                        (Alert as any).prompt('Weight in grams', it.name, async (v: string) => {
+                          const g = parseInt(v, 10);
+                          if (g >= 1 && g <= 50000) {
+                            try { await updateItem(it.id, { weight_g: g }); await load(); } catch {}
+                          }
+                        }, 'plain-text', it.weight_g ? String(it.weight_g) : '');
+                      }
+                    } },
                     ...opts.map(([v, l]) => ({ text: l, onPress: async () => {
                       try { await updateItem(it.id, { style_tag: v }); await load(); } catch {}
                     } })),
