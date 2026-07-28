@@ -183,9 +183,7 @@ export default function Wizard({ onDone, onCancel }: {
             />
           )}
           <View style={{ flexDirection: 'row', marginBottom: 12 }}>
-            <Chip label="3 days" selected={false} onPress={() => setEnd(plusDays(start, 2))} />
-            <Chip label="1 week" selected={false} onPress={() => setEnd(plusDays(start, 6))} />
-            <Chip label="2 weeks" selected={false} onPress={() => setEnd(plusDays(start, 13))} />
+
           </View>
           {!validDates && <Text style={s.warn}>Check the dates — end must be on/after start.</Text>}
           <Btn label="Continue" disabled={!validDates} onPress={() => setStep(3)} />

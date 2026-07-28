@@ -1,34 +1,36 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, Pressable, Text, View } from 'react-native';
+import { Animated, Pressable, Text } from 'react-native';
 import Svg, { Circle, Polygon } from 'react-native-svg';
 import { C } from '../theme';
 
-/** Voyage·os — the V is a compass needle that settles on north at launch. */
+/** Voyage·os — a bold paper plane on a dotted trail; taps go Home. */
 export default function Wordmark({ size = 30, onPress }: { size?: number; onPress?: () => void }) {
-  const spin = useRef(new Animated.Value(0)).current;
-
+  const fly = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.sequence([
-      Animated.timing(spin, { toValue: 1, duration: 900, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-      Animated.spring(spin, { toValue: 0.90, friction: 3, useNativeDriver: true }),
-      Animated.spring(spin, { toValue: 1, friction: 5, useNativeDriver: true }),
+      Animated.timing(fly, { toValue: 1, duration: 700, useNativeDriver: true }),
+      Animated.spring(fly, { toValue: 0.92, friction: 4, useNativeDriver: true }),
+      Animated.spring(fly, { toValue: 1, friction: 5, useNativeDriver: true }),
     ]).start();
-  }, [spin]);
-
-  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '0deg'] });
-  const s = size * 1.1;
-
+  }, [fly]);
+  const tx = fly.interpolate({ inputRange: [0, 1], outputRange: [-14, 0] });
+  const ty = fly.interpolate({ inputRange: [0, 1], outputRange: [12, 0] });
+  const s = size * 1.25;
   return (
     <Pressable onPress={onPress} style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
-      <Animated.View style={{ transform: [{ rotate }], marginRight: -3, marginBottom: 1 }}>
+      <Animated.View style={{ transform: [{ translateX: tx }, { translateY: ty }], marginRight: 5, marginBottom: 2 }}>
         <Svg width={s} height={s} viewBox="0 0 100 100">
-          {/* tapered needle-V: pivot dot, slim arms, sharp south tip */}
-          <Polygon points="50,96 18,8 34,8 50,74" fill={C.blue} />
-          <Polygon points="50,96 82,8 66,8 50,74" fill={C.text} />
-          <Circle cx="50" cy="90" r="4.5" fill="#F59E0B" />
+          {/* dotted trail */}
+          <Circle cx="7" cy="88" r="3" fill="#F59E0B" opacity={0.5} />
+          <Circle cx="19" cy="77" r="3.6" fill="#F59E0B" opacity={0.75} />
+          <Circle cx="31" cy="66" r="4.2" fill="#F59E0B" />
+          {/* paper plane: bold two-tone with carved keel */}
+          <Polygon points="94,8 12,46 50,58" fill={C.blue} />
+          <Polygon points="94,8 50,58 58,92" fill={C.text} />
+          <Polygon points="50,58 58,92 46,72" fill={C.bg} />
         </Svg>
       </Animated.View>
-      <Text style={{ fontSize: size, fontWeight: '800', color: C.text, letterSpacing: -1.2 }}>oyage</Text>
+      <Text style={{ fontSize: size, fontWeight: '900', color: C.text, letterSpacing: -1.4 }}>Voyage</Text>
       <Text style={{ fontSize: size * 0.5, fontWeight: '900', color: C.blue, marginBottom: 3, marginLeft: 2, letterSpacing: 0.5 }}>os</Text>
     </Pressable>
   );
