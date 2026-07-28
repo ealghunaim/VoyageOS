@@ -31,6 +31,7 @@ export default function Wizard({ onDone, onCancel }: {
   const [mode, setMode] = useState('air');
   const [stay, setStay] = useState('');
   const [airline, setAirline] = useState('');
+  const [cabin, setCabin] = useState('economy');
   const [hits, setHits] = useState<PlaceHit[]>([]);
   const [chosen, setChosen] = useState(false);
   const [start, setStart] = useState(defStart);
@@ -126,8 +127,16 @@ export default function Wizard({ onDone, onCancel }: {
             ))}
           </View>
           {mode === 'air' && (
+            <>
             <Field label="AIRLINE (OPTIONAL)" value={airline} onChange={setAirline}
               placeholder="e.g. Jazeera, Qatar Airways" />
+            <Text style={s.modeLabel}>CABIN</Text>
+            <View style={s.chipWrap}>
+              {[['economy','Economy'],['premium','Premium'],['business','Business'],['first','First']].map(([v,l]) => (
+                <Chip key={v} label={l} selected={cabin === v} onPress={() => setCabin(v)} />
+              ))}
+            </View>
+            </>
           )}
           <Field label="WHERE ARE YOU STAYING? (OPTIONAL)" value={stay} onChange={setStay}
             placeholder="Hotel or area — tailors your guide" />

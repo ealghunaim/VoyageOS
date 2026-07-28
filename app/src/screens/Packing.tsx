@@ -107,11 +107,27 @@ export default function Packing({ tripId, tripTitle, onBack, onDebrief }: {
   }
 
   const packed = items.filter(i => i.status === 'packed').length;
+  const WARDROBE: [string, string][] = [
+    ['underwear', 'Underwear'], ['sleep', 'Sleepwear'], ['casual', 'Casual'],
+    ['smart_casual', 'Smart casual'], ['formal', 'Formal'], ['traditional', 'Traditional'],
+    ['athleisure', 'Active'], ['footwear', 'Shoes'],
+  ];
   const groups: { cat: string; rows: PackItem[] }[] = [];
+  const push = (cat: string, it: PackItem) => {
+    const g = groups.find(x => x.cat === cat);
+    if (g) g.rows.push(it); else groups.push({ cat, rows: [it] });
+  };
   for (const it of items) {
-    const g = groups.find(x => x.cat === it.category);
-    if (g) g.rows.push(it); else groups.push({ cat: it.category, rows: [it] });
+    if (it.category === 'clothing' || it.category === 'footwear') {
+      const tag = WARDROBE.find(([k]) => k === (it.style_tag ?? ''));
+      push(tag ? tag[1] : it.category === 'footwear' ? 'Shoes' : 'Clothing', it);
+    } else push(it.category, it);
   }
+  const ORDER = [...WARDROBE.map(([, l]) => l), 'Clothing'];
+  groups.sort((a, b) => {
+    const ia = ORDER.indexOf(a.cat), ib = ORDER.indexOf(b.cat);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>

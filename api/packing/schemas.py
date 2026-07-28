@@ -19,6 +19,7 @@ class GenItem(BaseModel):
     reason: str = Field(min_length=1, max_length=120)
     confidence: float = Field(ge=0, le=1)
     source_signal: Literal["activity", "duration", "destination", "season", "history", "weather"] = "destination"
+    style_tag: Literal["underwear", "casual", "smart_casual", "formal", "traditional", "footwear", "athleisure", "sleep"] | None = None
     priority: Literal["high", "normal", "optional"] = "normal"
 
 

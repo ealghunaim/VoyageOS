@@ -29,6 +29,16 @@ def sanitize(raw: dict) -> dict:
                 rows.append({"name": _s(item.get("name"), 60), "note": _s(item.get("note"))})
         out[key] = rows
     go = raw.get("go") or {}
+    vh = raw.get("visa_hint") or {}
+    st = vh.get("status")
+    out["visa_hint"] = {"status": st if st in ("none", "evisa", "arrival", "required") else "unknown",
+                        "note": _s(vh.get("note"), 120)}
+    ap = raw.get("airport") or {}
+    out["airport"] = {"code": _s(ap.get("code"), 4).upper(), "name": _s(ap.get("name"), 60),
+                      "to_city": _s(ap.get("to_city")),
+                      "highlights": [_s(x) for x in (ap.get("highlights") or [])[:4] if _s(x)],
+                      "duty_free": _s(ap.get("duty_free")), "smoking": _s(ap.get("smoking")),
+                      "tips": [_s(x) for x in (ap.get("tips") or [])[:3] if _s(x)]}
     out["go"] = {
         "from_airport": [_s(x) for x in (go.get("from_airport") or [])[:4] if _s(x)],
         "around": [_s(x) for x in (go.get("around") or [])[:4] if _s(x)],
@@ -62,12 +72,15 @@ def get_guide(db, trip: dict, user_id: str, *, regenerate: bool = False) -> dict
     acts = [a["type"] for a in db.table("activities").select("type")
             .eq("trip_id", trip["id"]).execute().data]
     accommodation = (dests[0].get("accommodation") or {}).get("name") if dests else None
+    nat_rows = db.table("user_preferences").select("extras").eq("user_id", user_id).execute().data
+    nationality = ((nat_rows[0].get("extras") if nat_rows else {}) or {}).get("nationality")
 
     gateway.check_budget(db, user_id)
     ctx = {"destination": {"place": place, "country": country},
            "month": trip["start_date"][5:7], "start_date": trip["start_date"],
            "duration_days": None, "activities": sorted(set(acts)),
-           "accommodation": accommodation, "travel_mode": trip.get("travel_mode")}
+           "accommodation": accommodation, "travel_mode": trip.get("travel_mode"),
+           "nationality": nationality}
     result = gateway.complete("guide_generate", GUIDE_SYSTEM_PROMPT,
                               json.dumps(ctx), db=db, user_id=user_id, max_tokens=2000)
     try:

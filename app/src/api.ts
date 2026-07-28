@@ -8,11 +8,12 @@ export function setAuthFailHandler(fn: () => void) { onAuthFail = fn; }
 
 export type Trip = {
   place?: string | null; country_code?: string | null; travel_mode?: string | null;
-  airline?: string | null; visa_status?: string | null;
+  airline?: string | null; visa_status?: string | null; cabin_class?: string | null;
   id: string; title: string; start_date: string; end_date: string;
   trip_type?: string | null; status: string;
 };
 export type PackItem = {
+  style_tag?: string | null;
   id: string; name: string; category: string; qty: number;
   status: 'suggested' | 'accepted' | 'packed' | 'rejected';
   reason?: string | null; source: string;
@@ -138,6 +139,8 @@ export type Guide = {
   visit: { name: string; note: string }[];
   go: { from_airport: string[]; around: string[] };
   health?: string[];
+  visa_hint?: { status: string; note: string };
+  airport?: { code: string; name: string; to_city: string; highlights: string[]; duty_free: string; smoking: string; tips: string[] };
   task_suggestions: string[];
 };
 export const getGuide = (tripId: string, regenerate = false):
@@ -163,7 +166,7 @@ export const listNotes = (tripId: string): Promise<Note[]> => req(`/v1/trips/${t
 export const addNote = (tripId: string, body: string, photos: { b64: string; mime: string }[] = []): Promise<Note> =>
   req(`/v1/trips/${tripId}/notes`, { method: 'POST', body: JSON.stringify({ body, photos }) });
 
-export const patchTrip = (id: string, b: { title?: string; start_date?: string; end_date?: string; airline?: string; visa_status?: string }): Promise<Trip> =>
+export const patchTrip = (id: string, b: { title?: string; start_date?: string; end_date?: string; airline?: string; visa_status?: string; cabin_class?: string }): Promise<Trip> =>
   req(`/v1/trips/${id}`, { method: 'PATCH', body: JSON.stringify(b) });
 export const deleteTrip = (id: string): Promise<void> =>
   req(`/v1/trips/${id}`, { method: 'DELETE' });

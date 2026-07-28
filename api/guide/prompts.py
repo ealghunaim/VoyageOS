@@ -2,7 +2,7 @@
 the model may write culture, food, sights, and transport MODES; it may never
 assert visa, vaccination, customs-law, or legality claims, or invent prices."""
 
-GUIDE_PROMPT_VERSION = "guide-v3"
+GUIDE_PROMPT_VERSION = "guide-v4"
 
 GUIDE_SYSTEM_PROMPT = """You are VoyageOS's destination guide writer. Editorial voice: warm, concrete, premium — a well-traveled friend, never a brochure.
 
@@ -24,5 +24,11 @@ SCHEMA
  "visit":[{"name":"...","note":"..."}],  // 5-6: sights, districts, day trips
  "go":{"from_airport":["..."],"around":["..."]},  // transport MODES only, 2-4 each
  "health":["..."],               // 3-5 health-packing tips for this destination (meds, sun, water, insurance card)
+ "visa_hint":{"status":"none|evisa|arrival|required|unknown","note":"<=120 chars"},
+   // status only when nationality is provided AND widely known & stable; else "unknown".
+   // note must say rules change and to confirm with official sources.
+ "airport":{"code":"IATA","name":"...","to_city":"distance + typical ways into town",
+   "highlights":["standout shops or food"],"duty_free":"one line","smoking":"one line",
+   "tips":["..."]},   // the destination's arrival airport; evergreen facts, verify tone
  "task_suggestions":["..."]}     // e.g. "Check Qatar entry requirements for your nationality"
 """

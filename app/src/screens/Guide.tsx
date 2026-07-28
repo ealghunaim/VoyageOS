@@ -3,6 +3,7 @@ import {
   ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { getGuide, getProfile, Guide as GuideT, patchTrip, Trip } from '../api';
+import { transitFor } from '../airlines';
 import PlugArt from '../components/PlugArt';
 import { countryName, flagOf } from '../countries';
 import { Card, Chip } from '../components/ui';
@@ -16,7 +17,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
 }) {
   const [air, setAir] = useState(trip.airline ?? '');
   const [tab, setTab] = useState(section);
-  const [g, setG] = useState<GuideT | null>(null);
+  const [g2, setG] = useState<GuideT | null>(null);
   const [nat, setNat] = useState<string | null>(null);
 
   const load = useCallback(async (regen = false) => {
@@ -30,7 +31,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
   const open = (url: string) => Linking.openURL(url).catch(() => {});
   const q = encodeURIComponent(place);
 
-  if (!g) {
+  if (!g2) {
     return (
       <View style={s.center}>
         <ActivityIndicator size="large" color={accent} />
@@ -88,17 +89,25 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                 <Text style={[s.link, { color: accent }]}>IATA Travel Centre ›</Text>
               </Pressable>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
-                {[['none', 'No visa'], ['evisa', 'eVisa'], ['arrival', 'On arrival'], ['required', 'Visa required']].map(([v, l]) => (
+                {[['none', 'No visa'], ['evisa', 'eVisa'], ['arrival', 'On arrival'], ['required', 'Visa required']].map(([v, l]) => {
+                  const suggested = !trip.visa_status && g2?.visa_hint?.status === v;
+                  return (
                   <Pressable key={v}
-                    style={[sx.vChip, trip.visa_status === v && { backgroundColor: accent, borderColor: accent }]}
+                    style={[sx.vChip,
+                      suggested && { borderColor: accent, borderStyle: 'dashed' as const, backgroundColor: tint(accent, 0.08) },
+                      trip.visa_status === v && { backgroundColor: accent, borderColor: accent }]}
                     onPress={async () => {
                       try { const t = await patchTrip(trip.id, { visa_status: v }); onTripChanged({ ...trip, ...t }); }
                       catch (e: any) { Alert.alert('Visa', e.message); }
                     }}>
-                    <Text style={[sx.vChipText, trip.visa_status === v && { color: '#fff' }]}>{l}</Text>
+                    <Text style={[sx.vChipText, trip.visa_status === v && { color: '#fff' }]}>{l}{suggested ? ' · suggested' : ''}</Text>
                   </Pressable>
-                ))}
+                  );
+                })}
               </View>
+              {!trip.visa_status && !!g2?.visa_hint?.note && g2.visa_hint.status !== 'unknown' && (
+                <Text style={[s.sub, { marginTop: 8 }]}>{g2.visa_hint.note}</Text>
+              )}
               {!!trip.visa_status && (
                 <Text style={[s.sub, { marginTop: 8, fontWeight: '700' }]}>Verified by you — from the official sources above.</Text>
               )}
@@ -108,19 +117,32 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
             </Card>
             <Card>
               <Text style={s.h}>Power & plugs</Text>
-              <Text style={s.rowName}>{g.power.plugs || '—'}</Text>
-              <PlugArt plugs={g.power.plugs || ''} accent={accent} />
-              {!!g.power.note && <Text style={s.sub}>{g.power.note}</Text>}
+              <Text style={s.rowName}>{g2.power.plugs || '—'}</Text>
+              <PlugArt plugs={g2.power.plugs || ''} accent={accent} />
+              {!!g2.power.note && <Text style={s.sub}>{g2.power.note}</Text>}
             </Card>
             <Card>
               <Text style={s.h}>Etiquette</Text>
-              {g.etiquette.map((e, i) => <Text key={i} style={s.bullet}>·  {e}</Text>)}
+              {g2.etiquette.map((e, i) => <Text key={i} style={s.bullet}>·  {e}</Text>)}
             </Card>
             <Card>
               <Text style={s.h}>Local sensitivities</Text>
-              {g.customs_flags.map((e, i) => <Text key={i} style={s.bullet}>·  {e}</Text>)}
+              {g2.customs_flags.map((e, i) => <Text key={i} style={s.bullet}>·  {e}</Text>)}
               <Text style={s.disclaimer}>Cultural guidance, not legal advice — verify locally.</Text>
             </Card>
+            {!!g2.airport?.code && (
+              <Card>
+                <Text style={s.h}>✈ Arrival · {g2.airport.code} {g2.airport.name}</Text>
+                {!!g2.airport.to_city && <Text style={s.sub}>{g2.airport.to_city}</Text>}
+                {g2.airport.highlights.map((h, i) => <Text key={i} style={s.bullet}>·  {h}</Text>)}
+                {!!g2.airport.duty_free && <Text style={s.sub}>Duty free: {g2.airport.duty_free}</Text>}
+                {!!g2.airport.smoking && <Text style={s.sub}>Smoking: {g2.airport.smoking}</Text>}
+                {g2.airport.tips.map((h, i) => <Text key={`t${i}`} style={s.bullet}>·  {h}</Text>)}
+                <Pressable onPress={() => open(`https://www.google.com/search?q=${g2.airport!.code}+airport+news+updates`)}>
+                  <Text style={[s.link, { color: accent }]}>Latest {g2.airport.code} updates ›</Text>
+                </Pressable>
+              </Card>
+            )}
             {trip.travel_mode === 'air' && (
               <Card>
                 <Text style={s.h}>Your flight</Text>
@@ -135,30 +157,41 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                   </Pressable>
                 )}
                 {!!(trip.airline ?? '').trim() && (
-                  <Pressable onPress={() => open(`https://www.google.com/search?q=${encodeURIComponent((trip.airline ?? '') + ' baggage allowance')}`)}>
+                  <Pressable onPress={() => open(`https://www.google.com/search?q=${encodeURIComponent(((trip.airline ?? '') + ' ' + (trip.cabin_class ?? '') + ' baggage allowance').trim())}`)}>
                     <Text style={[s.link, { color: accent }]}>{trip.airline} baggage policy ›</Text>
                   </Pressable>
                 )}
+                {(() => {
+                  const hub = transitFor(trip.airline, country, nat);
+                  return hub ? (
+                    <>
+                      <Text style={[s.sub, { marginTop: 8, fontWeight: '700' }]}>Likely transit via {hub.iata} · {hub.city} — based on {trip.airline}'s hub.</Text>
+                      <Pressable onPress={() => open(`https://www.google.com/search?q=${hub.iata}+airport+transit+guide`)}>
+                        <Text style={[s.link, { color: accent }]}>{hub.iata} transit guide ›</Text>
+                      </Pressable>
+                    </>
+                  ) : null;
+                })()}
                 <Text style={s.disclaimer}>Allowances vary by fare and route — the official page is the truth; VoyageOS never guesses limits. Set your own bag target in Pack.</Text>
               </Card>
             )}
           </>
         )}
-        {tab === 'eat' && <Card><Text style={s.h}>Worth the trip alone</Text><Rows items={g.eat} /></Card>}
-        {tab === 'play' && <Card><Text style={s.h}>Experiences</Text><Rows items={g.play} /></Card>}
-        {tab === 'visit' && <Card><Text style={s.h}>Sights & districts</Text><Rows items={g.visit} /></Card>}
+        {tab === 'eat' && <Card><Text style={s.h}>Worth the trip alone</Text><Rows items={g2.eat} /></Card>}
+        {tab === 'play' && <Card><Text style={s.h}>Experiences</Text><Rows items={g2.play} /></Card>}
+        {tab === 'visit' && <Card><Text style={s.h}>Sights & districts</Text><Rows items={g2.visit} /></Card>}
         {tab === 'go' && (
           <>
             <Card>
               <Text style={s.h}>From the airport</Text>
-              {g.go.from_airport.map((e, i) => <Text key={i} style={s.bullet}>·  {e}</Text>)}
+              {g2.go.from_airport.map((e, i) => <Text key={i} style={s.bullet}>·  {e}</Text>)}
               <Pressable onPress={() => open(`https://www.google.com/maps/dir/?api=1&destination=${q}`)}>
                 <Text style={[s.link, { color: accent }]}>Directions to {place} ›</Text>
               </Pressable>
             </Card>
             <Card>
               <Text style={s.h}>Getting around</Text>
-              {g.go.around.map((e, i) => <Text key={i} style={s.bullet}>·  {e}</Text>)}
+              {g2.go.around.map((e, i) => <Text key={i} style={s.bullet}>·  {e}</Text>)}
               <Pressable onPress={() => open(`https://www.google.com/maps/search/?api=1&query=public+transport+${q}`)}>
                 <Text style={[s.link, { color: accent }]}>Open the map ›</Text>
               </Pressable>
