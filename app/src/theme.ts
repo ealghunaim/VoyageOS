@@ -1,15 +1,17 @@
 // VoyageOS design system v2 — "editorial travel": light, airy, premium, round.
 // One accent per destination: colors follow where you're going.
 export const C = {
-  bg: '#F6F8FB',
+  bg: '#F2F6FA',
   card: '#FFFFFF',
-  border: '#ECF0F5',
-  text: '#0B1526',      // deep navy — premium over plain black
-  sub: '#5B6B7F',
-  blue: '#2563EB',      // brand base (wordmark, primary actions)
-  blueSoft: '#E9F0FE',
+  border: '#E3EAF3',
+  text: '#0A0E17',      // deep navy — premium over plain black
+  sub: '#7B8596',
+  blue: '#1D6BFF',      // brand base (wordmark, primary actions)
+  blueSoft: '#E4EEFF',
   green: '#16A34A',
   red: '#DC2626',
+  glacier: '#3FD1FF',
+  navy: '#0A0E17',
 };
 
 export const R = { card: 24, btn: 16, chip: 999, input: 14 };
