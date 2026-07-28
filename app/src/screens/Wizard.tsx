@@ -43,7 +43,14 @@ export default function Wizard({ onDone, onCancel }: {
   React.useEffect(() => {
     if (chosen || place.trim().length < 2) { setHits([]); return; }
     const t = setTimeout(() => {
-      searchPlaces(place).then(setHits).catch(() => setHits([]));
+      searchPlaces(place).then(res => {
+        const seen = new Set<string>();
+        setHits(res.filter(h => {
+          const k = `${h.name}|${h.admin ?? ''}|${h.country_code}`;
+          if (seen.has(k)) return false;
+          seen.add(k); return true;
+        }));
+      }).catch(() => setHits([]));
     }, 250);
     return () => clearTimeout(t);
   }, [place, chosen]);
@@ -111,8 +118,8 @@ export default function Wizard({ onDone, onCancel }: {
           <Field label="DESTINATION" value={place}
             onChange={(t) => { setPlace(t); setChosen(false); setCoords(null); }}
             placeholder="Start typing — e.g. Chamonix" />
-          {hits.map(h => (
-            <Pressable key={`${h.name}-${h.lat}`} onPress={() => pick(h)} style={s.hit}>
+          {hits.map((h, i) => (
+            <Pressable key={`${h.name}-${h.lat}-${h.lng}-${i}`} onPress={() => pick(h)} style={s.hit}>
               <Text style={s.hitText}>{flag(h.country_code)}  {h.name}</Text>
               <Text style={s.hitSub}>{[h.admin, h.country_code].filter(Boolean).join(' · ')}</Text>
             </Pressable>
