@@ -28,12 +28,14 @@ export default function Wordmark({ size = 28, onPress }: { size?: number; onPres
               <Stop offset="1" stopColor="#7EE8FF" stopOpacity="0.6" />
             </LinearGradient>
           </Defs>
-          <Path d="M14 18 L50 84 L86 18" stroke="#3FD1FF" strokeWidth={30} opacity={0.16}
-            fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          <Path d="M14 18 L50 84 L86 18" stroke="url(#ribbon)" strokeWidth={19}
-            fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          <Path d="M16 14 L50 76 L84 14" stroke="url(#sheen)" strokeWidth={6}
-            fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <Path d="M12 22 C30 62 42 80 50 84 C60 76 74 46 88 16" stroke="#3FD1FF" strokeWidth={28} opacity={0.15}
+            fill="none" strokeLinecap="round" />
+          <Path d="M12 22 C30 62 42 80 50 84 C60 76 74 46 88 16" stroke="url(#ribbon)" strokeWidth={18}
+            fill="none" strokeLinecap="round" />
+          <Path d="M13 18 C31 58 43 76 51 80 C61 72 75 42 87 12" stroke="url(#sheen)" strokeWidth={4.5}
+            fill="none" strokeLinecap="round" />
+          <Path d="M10 24 C28 64 41 82 49 86" stroke="#EAF6FF" strokeWidth={1.6} opacity={0.9}
+            fill="none" strokeLinecap="round" />
         </Svg>
       </Animated.View>
       <Text style={{ fontSize: size, fontWeight: '800', color: C.text, letterSpacing: 2.5 }}>VOYAGE</Text>
