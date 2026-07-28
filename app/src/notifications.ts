@@ -31,6 +31,9 @@ export type Reminder = {
 
 /** Arms the governed schedule on-device. Idempotent per reminder id. */
 export async function syncReminders(reminders: Reminder[]): Promise<number> {
+  // dedupe: clear previously armed reminders before re-arming
+  await Notifications.cancelAllScheduledNotificationsAsync();
+
   let armed = 0;
   for (const r of reminders) {
     const when = new Date(r.send_at);
