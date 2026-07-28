@@ -39,6 +39,10 @@ const PALETTE = [
 ];
 
 // flag-derived accents — cards wear the destination's colors
+export function titleize(title: string): string {
+  return title.split(' ').map(w => w.toLowerCase() === 'trip' ? 'trip' : w.toUpperCase()).join(' ');
+}
+
 export const FLAG_ACCENT: Record<string, string> = {
   KW: '#007A3D', QA: '#8A1538', AE: '#00732F', SA: '#165D31', BH: '#CE1126',
   OM: '#DB161B', JO: '#CE1126', EG: '#C09300', TR: '#E30A17', LB: '#00A651',
@@ -50,7 +54,7 @@ export const FLAG_ACCENT: Record<string, string> = {
   CL: '#0032A0', CO: '#FCD116', AU: '#00247D', NZ: '#00247D', ZA: '#007847',
   IN: '#FF671F', PK: '#01411C', BD: '#006A4E', LK: '#8D2029', PH: '#0038A8',
   ID: '#CE1126', MY: '#010066', SG: '#EF3340', TH: '#241D4F', VN: '#DA251D',
-  CN: '#DE2910', JP: '#BC002D', KR: '#0047A0', MV: '#00843D', MA: '#C1272D',
+  CN: '#DE2910', SC: '#0072C6', IS: '#02529C', HR: '#C8102E', KZ: '#00AFCA', JP: '#BC002D', KR: '#0047A0', MV: '#00843D', MA: '#C1272D',
 };
 
 export function accentForTrip(countryCode: string | null | undefined, fallbackKey: string): string {

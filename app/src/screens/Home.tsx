@@ -6,7 +6,7 @@ import { getTripWeather, listTrips, Trip, WxDay } from '../api';
 import TripArt from '../components/TripArt';
 import Wordmark from '../components/Wordmark';
 import { Btn, Card } from '../components/ui';
-import { accentForTrip, C, F } from '../theme';
+import { accentForTrip, C, F, titleize } from '../theme';
 
 function daysUntil(dateStr: string) {
   const d = new Date(dateStr + 'T00:00:00');
@@ -83,18 +83,20 @@ export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, onArc
         const past = n < 0;
         const when = n > 1 ? `in ${n} days` : n === 1 ? 'tomorrow' : n === 0 ? 'today' : 'past';
         const accent = accentForTrip(t.country_code, t.title);
+        const hrsToGo = (new Date(t.start_date + 'T00:00:00').getTime() - Date.now()) / 3600000;
+        const imminent = hrsToGo <= 24 && hrsToGo > -48;
         const done = t.status === 'completed';
         return (
           <Pressable key={t.id} onPress={() => onOpenTrip(t)}>
-            <Card style={{ padding: 0, overflow: 'hidden' }}>
+            <Card style={[{ padding: 0, overflow: 'hidden' }, imminent && { borderWidth: 2, borderColor: accent }] as any}>
               <View>
-                <TripArt seed={t.place ?? t.title} accent={accent} height={104} />
+                <TripArt seed={t.place ?? t.title} accent={accent} height={imminent ? 156 : 104} />
                 <View style={s.pillFloat}>
                   <Text style={[s.pillText, { color: accent }]}>{done ? 'debriefed ✓' : when}</Text>
                 </View>
               </View>
               <View style={{ padding: 18, paddingTop: 12 }}>
-                <Text style={s.tripTitle} numberOfLines={1}>{t.title}</Text>
+                <Text style={[s.tripTitle, imminent && { fontSize: 24 }]} numberOfLines={1}>{titleize(t.title)}</Text>
                 <Text style={s.dates}>{t.start_date} → {t.end_date}</Text>
                 {(() => {
                   const days = wx[t.id] ?? [];

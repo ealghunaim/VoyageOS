@@ -9,7 +9,50 @@ export type Mark = {
   circles?: { cx: number; cy: number; r: number; t?: number }[];
 };
 
+const GENERIC: Mark = { // city skyline — every unmatched destination gets this
+  keys: [],
+  paths: [
+    { d: 'M14 100 V52 h12 V100 Z', t: 0.6 }, { d: 'M30 100 V34 h14 V100 Z', t: 0.85 },
+    { d: 'M48 100 V60 h10 V100 Z', t: 0.5 }, { d: 'M62 100 V42 h13 V100 Z', t: 0.75 },
+    { d: 'M79 100 V64 h9 V100 Z', t: 0.55 },
+    { d: 'M33 40 h3 v4 h-3 Z M39 40 h3 v4 h-3 Z M33 50 h3 v4 h-3 Z M39 50 h3 v4 h-3 Z M65 48 h3 v4 h-3 Z M71 48 h3 v4 h-3 Z', t: 0.3 },
+  ],
+};
+
 export const MARKS: Mark[] = [
+  { // Bahrain — twin-sail towers
+    keys: ['bahrain', 'manama'],
+    paths: [
+      { d: 'M34 100 V30 q10 -8 12 0 V100 Z', t: 0.85 },
+      { d: 'M56 100 V30 q10 -8 12 0 V100 Z', t: 0.7 },
+      { d: 'M46 62 h10 v4 H46 Z M46 46 h10 v4 H46 Z', t: 0.5 },
+    ],
+  },
+  { // Jeddah — fountain jet over the corniche
+    keys: ['jeddah'],
+    paths: [
+      { d: 'M48 100 V38 h4 V100 Z', t: 0.85 },
+      { d: 'M50 38 q-8 -18 -20 -22 q14 0 20 12 q6 -12 20 -12 q-12 4 -20 22 Z', t: 0.6 },
+      { d: 'M18 100 q32 -10 64 0 Z', t: 0.5 },
+    ],
+  },
+  { // Bangkok — wat spire
+    keys: ['bangkok', 'thailand'],
+    paths: [
+      { d: 'M44 100 V56 h12 V100 Z', t: 0.85 },
+      { d: 'M40 56 L50 12 L60 56 Z', t: 0.85 },
+      { d: 'M30 100 V72 h8 V100 Z M62 100 V72 h8 V100 Z', t: 0.6 },
+    ],
+  },
+  { // Prague — bridge tower
+    keys: ['prague', 'czech'],
+    paths: [
+      { d: 'M36 100 V36 h6 v6 h6 v-6 h4 v6 h6 v-6 h6 V100 Z', t: 0.85 },
+      { d: 'M36 36 L50 16 L64 36 Z', t: 0.85 },
+      { d: 'M46 100 v-16 a4 5 0 0 1 8 0 v16 Z', t: 0.5 },
+      { d: 'M14 96 h72 v4 H14 Z M20 96 v-10 h6 v10 Z M74 96 v-10 h6 v10 Z', t: 0.6 },
+    ],
+  },
   { // Kuwait Towers — the spheres on spires
     keys: ['kuwait'],
     paths: [
@@ -179,7 +222,7 @@ export const MARKS: Mark[] = [
     ],
   },
   { // Palm — coastal & island escapes
-    keys: ['riviera', 'nice', 'cannes', 'maldives', 'bali', 'phuket', 'beach', 'ibiza'],
+    keys: ['riviera', 'nice', 'cannes', 'maldives', 'male', 'bali', 'phuket', 'beach', 'ibiza', 'seychelles', 'mahe'],
     paths: [
       { d: 'M50 100 Q46 70 52 44 l5 1 Q52 72 56 100 Z', t: 0.85 },
       { d: 'M54 46 Q34 34 20 42 Q36 26 55 40 Z M54 46 Q74 32 86 42 Q72 26 54 40 Z M54 44 Q44 22 28 22 Q46 14 56 40 Z M55 44 Q66 22 80 24 Q64 14 54 40 Z',
@@ -201,5 +244,5 @@ export function markFor(name: string): Mark | null {
   for (const m of MARKS) {
     if (m.keys.some(k => n.includes(k))) return m;
   }
-  return null;
+  return GENERIC;
 }

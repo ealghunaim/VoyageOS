@@ -78,7 +78,7 @@ export default function Wizard({ onDone, onCancel }: {
     try {
       setBusy('Creating your trip…');
       const trip = await createTrip({
-        title: `${place} trip`,
+        title: `${place.trim().toUpperCase()} trip`,
         start_date: start,
         end_date: end,
         trip_type: acts.values().next().value ?? 'general',
