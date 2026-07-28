@@ -170,3 +170,14 @@ export const patchTrip = (id: string, b: { title?: string; start_date?: string; 
   req(`/v1/trips/${id}`, { method: 'PATCH', body: JSON.stringify(b) });
 export const deleteTrip = (id: string): Promise<void> =>
   req(`/v1/trips/${id}`, { method: 'DELETE' });
+
+export type FoodTip = {
+  id: string; restaurant: string; note: string; order_rec: string; when_rec: string;
+  author: string; is_mine: boolean; created_at: string;
+};
+export const listFoodTips = (place: string, cc?: string | null): Promise<FoodTip[]> =>
+  req(`/v1/food-tips?place=${encodeURIComponent(place)}${cc ? `&cc=${cc}` : ''}`);
+export const addFoodTip = (b: { place_name: string; country_code?: string | null; restaurant: string; note?: string; order_rec?: string; when_rec?: string }): Promise<FoodTip> =>
+  req('/v1/food-tips', { method: 'POST', body: JSON.stringify(b) });
+export const deleteFoodTip = (id: string): Promise<void> =>
+  req(`/v1/food-tips/${id}`, { method: 'DELETE' });

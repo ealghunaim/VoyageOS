@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
-import { getGuide, getProfile, Guide as GuideT, patchTrip, Trip } from '../api';
+import { addFoodTip, deleteFoodTip, FoodTip, getGuide, getProfile, Guide as GuideT, listFoodTips, patchTrip, Trip } from '../api';
 import { transitFor } from '../airlines';
 import PlugArt from '../components/PlugArt';
 import { countryName, flagOf } from '../countries';
@@ -16,6 +16,11 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
   country: string | null; place: string; onBack: () => void; onTripChanged: (t: Trip) => void;
 }) {
   const [air, setAir] = useState(trip.airline ?? '');
+  const [tips, setTips] = useState<FoodTip[]>([]);
+  const [tName, setTName] = useState('');
+  const [tNote, setTNote] = useState('');
+  const [tOrder, setTOrder] = useState('');
+  const [tWhen, setTWhen] = useState('');
   const [tab, setTab] = useState(section);
   const [g2, setG] = useState<GuideT | null>(null);
   const [nat, setNat] = useState<string | null>(null);
@@ -26,7 +31,11 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
       setG(r.guide);
     } catch (e: any) { Alert.alert('Guide', e.message); }
   }, [tripId]);
-  useEffect(() => { load(); getProfile().then(p => setNat(p.nationality)).catch(() => {}); }, [load]);
+  useEffect(() => {
+    load();
+    getProfile().then(p => setNat(p.nationality)).catch(() => {});
+    listFoodTips(place, country).then(setTips).catch(() => {});
+  }, [load, place, country]);
 
   const open = (url: string) => Linking.openURL(url).catch(() => {});
   const q = encodeURIComponent(place);
@@ -197,6 +206,54 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                 </View>
               </Card>
             ))}
+            <Text style={sx.tipHead}>FROM TRAVELERS · {place.toUpperCase()}</Text>
+            {tips.map(t => (
+              <Card key={t.id}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={[s.h, { flex: 1, marginBottom: 0 }]}>{t.restaurant}</Text>
+                  {t.is_mine && (
+                    <Pressable hitSlop={10} onPress={async () => {
+                      try { await deleteFoodTip(t.id); setTips(tips.filter(x => x.id !== t.id)); } catch {}
+                    }}>
+                      <Text style={{ color: C.sub }}>✕</Text>
+                    </Pressable>
+                  )}
+                </View>
+                <Text style={[s.sub, { fontWeight: '700' }]}>{t.author}</Text>
+                {!!t.note && <Text style={s.sub}>{t.note}</Text>}
+                {!!t.order_rec && <Text style={[s.bullet, { marginTop: 6 }]}>·  Order: {t.order_rec}</Text>}
+                {!!t.when_rec && <Text style={s.bullet}>·  Go: {t.when_rec}</Text>}
+                <View style={{ flexDirection: 'row', marginTop: 4 }}>
+                  <Pressable onPress={() => open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.restaurant + ' ' + place)}`)}>
+                    <Text style={[s.link, { color: accent, marginRight: 22 }]}>Map ›</Text>
+                  </Pressable>
+                  <Pressable onPress={() => open(`https://www.google.com/search?q=${encodeURIComponent(t.restaurant + ' ' + place + ' reservation')}`)}>
+                    <Text style={[s.link, { color: accent }]}>Reserve ›</Text>
+                  </Pressable>
+                </View>
+              </Card>
+            ))}
+            <Card style={{ backgroundColor: tint(accent, 0.06) }}>
+              <Text style={s.h}>Share a find</Text>
+              <TextInput style={sx.tipInput} value={tName} onChangeText={setTName}
+                placeholder="Restaurant name" placeholderTextColor="#9AA9BB" />
+              <TextInput style={sx.tipInput} value={tOrder} onChangeText={setTOrder}
+                placeholder="What to order" placeholderTextColor="#9AA9BB" />
+              <TextInput style={sx.tipInput} value={tWhen} onChangeText={setTWhen}
+                placeholder="When to go" placeholderTextColor="#9AA9BB" />
+              <TextInput style={[sx.tipInput, { minHeight: 60 }]} value={tNote} onChangeText={setTNote}
+                multiline placeholder="Why it's worth it…" placeholderTextColor="#9AA9BB" />
+              <Pressable disabled={tName.trim().length < 2} onPress={async () => {
+                try {
+                  const t = await addFoodTip({ place_name: place, country_code: country,
+                    restaurant: tName.trim(), note: tNote.trim(), order_rec: tOrder.trim(), when_rec: tWhen.trim() });
+                  setTips([t, ...tips]); setTName(''); setTNote(''); setTOrder(''); setTWhen('');
+                } catch (e: any) { Alert.alert('Tip', e.message); }
+              }}>
+                <Text style={[s.link, { color: accent, textAlign: 'center' }]}>Post it ›</Text>
+              </Pressable>
+              <Text style={s.disclaimer}>Visible to every VoyageOS traveler headed to {place}.</Text>
+            </Card>
           </>
         )}
         {tab === 'play' && <Card><Text style={s.h}>Experiences</Text><Rows items={g2.play} /></Card>}
@@ -241,5 +298,7 @@ const s = StyleSheet.create({
 const sx = StyleSheet.create({
   vChip: { borderWidth: 1.5, borderColor: C.border, backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, marginRight: 6, marginBottom: 6 },
   vChipText: { color: C.text, fontWeight: '800', fontSize: 12 },
+  tipHead: { color: C.sub, fontSize: 12, fontWeight: '800', letterSpacing: 0.8, marginTop: 6, marginBottom: 10 },
+  tipInput: { backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, color: C.text, marginBottom: 8, borderWidth: 1, borderColor: C.border },
   airInput: { backgroundColor: '#F1F4F9', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, color: C.text },
 });
