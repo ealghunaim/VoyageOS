@@ -14,6 +14,8 @@ export const C = {
   navy: '#0A0E17',
 };
 
+export const F = { reg: 'Satoshi', med: 'Satoshi-Medium', bold: 'Satoshi-Bold' };
+
 export const R = { card: 24, btn: 16, chip: 999, input: 14 };
 
 export const SHADOW = {

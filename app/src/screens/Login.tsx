@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { signIn, signUp } from '../auth';
 import { Btn, Card, Field } from '../components/ui';
-import { C } from '../theme';
+import { C, F } from '../theme';
 
 export default function Login({ onDone }: { onDone: () => void }) {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
@@ -59,7 +59,7 @@ export default function Login({ onDone }: { onDone: () => void }) {
 
 const s = StyleSheet.create({
   wrap: { padding: 16, paddingTop: 64 },
-  brand: { fontSize: 30, fontWeight: '900', color: C.blue, marginBottom: 2 },
+  brand: { fontSize: 30, fontFamily: F.bold, color: C.blue, marginBottom: 2 },
   tag: { color: C.sub, marginBottom: 18 },
   h2: { fontSize: 20, fontWeight: '800', color: C.text, marginBottom: 12 },
   msg: { color: C.red, marginBottom: 10, lineHeight: 19 },

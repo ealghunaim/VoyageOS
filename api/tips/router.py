@@ -1,5 +1,8 @@
 """Food tips — traveler-to-traveler restaurant finds, keyed by DESTINATION so
 they cross trips and, come TestFlight, cross users. The seed of the food blog."""
+import base64
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
@@ -9,6 +12,11 @@ from api.core.db import get_db
 router = APIRouter(prefix="/v1/food-tips", tags=["tips"])
 
 
+class TipPhoto(BaseModel):
+    b64: str = Field(max_length=4_000_000)
+    mime: str = Field(default="image/jpeg", max_length=40)
+
+
 class TipCreate(BaseModel):
     place_name: str = Field(min_length=2, max_length=120)
     country_code: str | None = Field(default=None, max_length=2)
@@ -16,6 +24,7 @@ class TipCreate(BaseModel):
     note: str = Field(default="", max_length=300)
     order_rec: str = Field(default="", max_length=120)
     when_rec: str = Field(default="", max_length=80)
+    photos: list[TipPhoto] = Field(default_factory=list, max_length=2)
 
 
 @router.get("")
@@ -33,6 +42,20 @@ def list_tips(place: str, cc: str | None = None, user_id: str = Depends(current_
         r["author"] = "You" if r["is_mine"] else f"Traveler {r['user_id'][:4]}"
         r.pop("user_id", None)
     return rows[:30]
+
+
+def _upload(db, user_id: str, photos) -> list[str]:
+    urls = []
+    for p in photos[:2]:
+        try:
+            raw = base64.b64decode(p.b64)
+            ext = "png" if "png" in p.mime else "jpg"
+            key = f"{user_id}/tips/{uuid.uuid4().hex}.{ext}"
+            db.storage.from_("journal").upload(key, raw, {"content-type": p.mime})
+            urls.append(db.storage.from_("journal").get_public_url(key))
+        except Exception as e:
+            print(f"[tips] photo upload failed: {type(e).__name__}: {e}")
+    return urls
 
 
 @router.post("", status_code=201)

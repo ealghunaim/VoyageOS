@@ -6,7 +6,7 @@ import { getTripWeather, listTrips, Trip, WxDay } from '../api';
 import TripArt from '../components/TripArt';
 import Wordmark from '../components/Wordmark';
 import { Btn, Card } from '../components/ui';
-import { accentForTrip, C } from '../theme';
+import { accentForTrip, C, F } from '../theme';
 
 function daysUntil(dateStr: string) {
   const d = new Date(dateStr + 'T00:00:00');
@@ -148,7 +148,7 @@ export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, onArc
 
 const s = StyleSheet.create({
   center: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
-  greeting: { fontSize: 34, fontWeight: '900', color: C.text, letterSpacing: -0.8, marginTop: 18, marginBottom: 18 },
+  greeting: { fontSize: 34, fontFamily: F.bold, color: C.text, letterSpacing: -0.8, marginTop: 18, marginBottom: 18 },
   h2: { fontSize: 18, fontWeight: '800', color: C.text, marginBottom: 4 },
   sub: { color: C.sub, lineHeight: 20 },
   band: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 12 },

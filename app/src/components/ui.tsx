@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { C, R, SHADOW } from '../theme';
+import { C, R, SHADOW, F } from '../theme';
 
 export function Btn({ label, onPress, kind = 'primary', disabled = false, color }: {
   label: string; onPress: () => void; kind?: 'primary' | 'ghost'; disabled?: boolean; color?: string;
@@ -64,7 +64,7 @@ export function Progress({ value, color }: { value: number; color?: string }) {
 
 const s = StyleSheet.create({
   btn: { borderRadius: R.btn, paddingVertical: 16, alignItems: 'center' },
-  btnText: { color: '#fff', fontWeight: '800', fontSize: 16, letterSpacing: 0.2 },
+  btnText: { color: '#fff', fontFamily: F.bold, fontSize: 16, letterSpacing: 0.2 },
   card: {
     backgroundColor: C.card, borderRadius: R.card, padding: 18,
     borderWidth: 1, borderColor: C.border, marginBottom: 14,

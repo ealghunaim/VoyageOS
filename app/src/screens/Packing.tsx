@@ -109,7 +109,7 @@ export default function Packing({ tripId, tripTitle, onBack, onDebrief }: {
   const packed = items.filter(i => i.status === 'packed').length;
   const WARDROBE: [string, string][] = [
     ['underwear', 'Underwear'], ['sleep', 'Sleepwear'], ['casual', 'Casual'],
-    ['smart_casual', 'Smart casual'], ['formal', 'Formal'], ['traditional', 'Traditional'],
+    ['smart_casual', 'Smart casual'], ['formal', 'Formal'], ['traditional', 'Traditional'], ['outerwear', 'Outerwear'],
     ['athleisure', 'Active'], ['footwear', 'Shoes'],
   ];
   const groups: { cat: string; rows: PackItem[] }[] = [];

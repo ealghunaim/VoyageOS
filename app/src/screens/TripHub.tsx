@@ -5,7 +5,7 @@ import { deleteTrip, getTripWeather, patchTrip, Trip, WxDay } from '../api';
 import TileIcon from '../components/icons';
 import TripArt from '../components/TripArt';
 import { Card } from '../components/ui';
-import { accentForTrip, C, tint } from '../theme';
+import { accentForTrip, C, tint, F } from '../theme';
 
 const TILES: { key: string; label: string; sub: string }[] = [
   { key: 'pack', label: 'Pack', sub: 'Your list, with reasons' },
@@ -142,7 +142,7 @@ export default function TripHub({ trip, onBack, onPack, onGuide, onJournal, onSO
 }
 
 const s = StyleSheet.create({
-  title: { fontSize: 31, fontWeight: '900', color: C.text, letterSpacing: -0.8 },
+  title: { fontSize: 31, fontFamily: F.bold, color: C.text, letterSpacing: -0.8 },
   dates: { color: C.sub, marginTop: 4, fontSize: 15 },
   wx: { color: C.text, fontWeight: '700', fontSize: 13 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },

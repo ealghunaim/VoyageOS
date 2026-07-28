@@ -1,3 +1,4 @@
+import { useFonts } from 'expo-font';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, SafeAreaView, StatusBar, Text, View } from 'react-native';
 import { setAuthFailHandler, Trip } from './src/api';
@@ -38,6 +39,11 @@ export default function App() {
   const [route, setRoute] = useState<Route>({ name: 'home' });
   const [homeKey, setHomeKey] = useState(0);
   const [booting, setBooting] = useState(true);
+  const [fontsLoaded] = useFonts({
+    Satoshi: require('./assets/fonts/Satoshi-Regular.otf'),
+    'Satoshi-Medium': require('./assets/fonts/Satoshi-Medium.otf'),
+    'Satoshi-Bold': require('./assets/fonts/Satoshi-Bold.otf'),
+  });
   const [authed, setAuthed] = useState(false);
 
   const goHome = () => { setHomeKey(k => k + 1); setRoute({ name: 'home' }); };
@@ -53,7 +59,7 @@ export default function App() {
     })();
   }, []);
 
-  if (booting) {
+  if (booting || !fontsLoaded) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>

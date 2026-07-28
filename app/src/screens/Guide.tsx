@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Image as RNImage,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { addFoodTip, deleteFoodTip, FoodTip, getGuide, getProfile, Guide as GuideT, listFoodTips, patchTrip, Trip } from '../api';
 import { transitFor } from '../airlines';
 import PlugArt from '../components/PlugArt';
@@ -21,6 +22,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
   const [tNote, setTNote] = useState('');
   const [tOrder, setTOrder] = useState('');
   const [tWhen, setTWhen] = useState('');
+  const [tPhotos, setTPhotos] = useState<{ b64: string; mime: string; uri: string }[]>([]);
   const [tab, setTab] = useState(section);
   const [g2, setG] = useState<GuideT | null>(null);
   const [nat, setNat] = useState<string | null>(null);
@@ -223,6 +225,11 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                 {!!t.note && <Text style={s.sub}>{t.note}</Text>}
                 {!!t.order_rec && <Text style={[s.bullet, { marginTop: 6 }]}>·  Order: {t.order_rec}</Text>}
                 {!!t.when_rec && <Text style={s.bullet}>·  Go: {t.when_rec}</Text>}
+                {!!t.photos?.length && (
+                  <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                    {t.photos.map((u, pi) => <RNImage key={pi} source={{ uri: u }} style={sx.tipImg} />)}
+                  </View>
+                )}
                 <View style={{ flexDirection: 'row', marginTop: 4 }}>
                   <Pressable onPress={() => open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.restaurant + ' ' + place)}`)}>
                     <Text style={[s.link, { color: accent, marginRight: 22 }]}>Map ›</Text>
@@ -243,11 +250,28 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                 placeholder="When to go" placeholderTextColor="#9AA9BB" />
               <TextInput style={[sx.tipInput, { minHeight: 60 }]} value={tNote} onChangeText={setTNote}
                 multiline placeholder="Why it's worth it…" placeholderTextColor="#9AA9BB" />
+              <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+                {tPhotos.map((p, pi) => (
+                  <Pressable key={pi} onPress={() => setTPhotos(tPhotos.filter((_, j) => j !== pi))}>
+                    <RNImage source={{ uri: p.uri }} style={sx.tipThumb} />
+                  </Pressable>
+                ))}
+                {tPhotos.length < 2 && (
+                  <Pressable style={sx.tipAdd} onPress={async () => {
+                    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.4, base64: true });
+                    const a2 = r.assets?.[0];
+                    if (!r.canceled && a2?.base64) setTPhotos([...tPhotos, { b64: a2.base64, mime: a2.mimeType ?? 'image/jpeg', uri: a2.uri }]);
+                  }}>
+                    <Text style={{ color: accent, fontSize: 20, fontWeight: '800' }}>+</Text>
+                  </Pressable>
+                )}
+              </View>
               <Pressable disabled={tName.trim().length < 2} onPress={async () => {
                 try {
                   const t = await addFoodTip({ place_name: place, country_code: country,
-                    restaurant: tName.trim(), note: tNote.trim(), order_rec: tOrder.trim(), when_rec: tWhen.trim() });
-                  setTips([t, ...tips]); setTName(''); setTNote(''); setTOrder(''); setTWhen('');
+                    restaurant: tName.trim(), note: tNote.trim(), order_rec: tOrder.trim(), when_rec: tWhen.trim(),
+                    photos: tPhotos.map(p => ({ b64: p.b64, mime: p.mime })) });
+                  setTips([t, ...tips]); setTName(''); setTNote(''); setTOrder(''); setTWhen(''); setTPhotos([]);
                 } catch (e: any) { Alert.alert('Tip', e.message); }
               }}>
                 <Text style={[s.link, { color: accent, textAlign: 'center' }]}>Post it ›</Text>
@@ -299,6 +323,9 @@ const sx = StyleSheet.create({
   vChip: { borderWidth: 1.5, borderColor: C.border, backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, marginRight: 6, marginBottom: 6 },
   vChipText: { color: C.text, fontWeight: '800', fontSize: 12 },
   tipHead: { color: C.sub, fontSize: 12, fontWeight: '800', letterSpacing: 0.8, marginTop: 6, marginBottom: 10 },
+  tipImg: { width: 110, height: 110, borderRadius: 12, marginRight: 8 },
+  tipThumb: { width: 50, height: 50, borderRadius: 10, marginRight: 8 },
+  tipAdd: { width: 50, height: 50, borderRadius: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
   tipInput: { backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, color: C.text, marginBottom: 8, borderWidth: 1, borderColor: C.border },
   airInput: { backgroundColor: '#F1F4F9', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, color: C.text },
 });

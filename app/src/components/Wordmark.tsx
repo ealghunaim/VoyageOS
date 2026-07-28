@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Pressable, Text } from 'react-native';
 import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
-import { C } from '../theme';
+import { C, F } from '../theme';
 
 /** VOYAGE OS — the aurora ribbon V. Taps go Home. */
 export default function Wordmark({ size = 28, onPress }: { size?: number; onPress?: () => void }) {
@@ -38,8 +38,8 @@ export default function Wordmark({ size = 28, onPress }: { size?: number; onPres
             fill="none" strokeLinecap="round" />
         </Svg>
       </Animated.View>
-      <Text style={{ fontSize: size, fontWeight: '800', color: C.text, letterSpacing: 2.5 }}>VOYAGE</Text>
-      <Text style={{ fontSize: size, fontWeight: '800', color: C.blue, letterSpacing: 2.5 }}>OS</Text>
+      <Text style={{ fontSize: size, fontFamily: F.bold, color: C.text, letterSpacing: 2.5 }}>VOYAGE</Text>
+      <Text style={{ fontSize: size, fontFamily: F.bold, color: C.blue, letterSpacing: 2.5 }}>OS</Text>
     </Pressable>
   );
 }
