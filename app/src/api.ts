@@ -184,3 +184,6 @@ export const deleteFoodTip = (id: string): Promise<void> =>
 
 export const quickAddItems = (tripId: string, text: string): Promise<PackItem[]> =>
   req(`/v1/trips/${tripId}/items/quick-add`, { method: 'POST', body: JSON.stringify({ text }) });
+
+export const askTrip = (tripId: string, question: string): Promise<{ answer: string }> =>
+  req(`/v1/trips/${tripId}/ask`, { method: 'POST', body: JSON.stringify({ question }) });

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { deleteTrip, getTripWeather, patchTrip, Trip, WxDay } from '../api';
+import { askTrip, deleteTrip, getTripWeather, patchTrip, Trip, WxDay } from '../api';
 import TileIcon from '../components/icons';
 import TripArt from '../components/TripArt';
 import { Card } from '../components/ui';
@@ -28,6 +28,9 @@ export default function TripHub({ trip, onBack, onPack, onGuide, onJournal, onSO
   const [eStart, setEStart] = useState(trip.start_date);
   const [eEnd, setEEnd] = useState(trip.end_date);
   const [picking, setPicking] = useState<'start' | 'end'>('start');
+  const [aq, setAq] = useState('');
+  const [aBusy, setABusy] = useState(false);
+  const [answer, setAnswer] = useState<string | null>(null);
   const [wx, setWx] = useState<WxDay[]>([]);
   const past = new Date(trip.start_date + 'T00:00:00').getTime() < Date.now();
 
@@ -65,6 +68,24 @@ export default function TripHub({ trip, onBack, onPack, onGuide, onJournal, onSO
         </View>
       </Card>
 
+      <View style={{ backgroundColor: '#fff', borderRadius: 22, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: C.border }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TextInput
+            style={{ flex: 1, backgroundColor: '#F1F4F9', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, color: C.text }}
+            value={aq} onChangeText={setAq}
+            placeholder="Ask about this trip - weather, what to wear, anything"
+            placeholderTextColor="#9AA9BB" />
+          <Pressable disabled={aBusy || aq.trim().length < 3} onPress={async () => {
+            setABusy(true); setAnswer(null);
+            try { const r = await askTrip(trip.id, aq.trim()); setAnswer(r.answer); }
+            catch (e: any) { setAnswer(e.message); }
+            finally { setABusy(false); }
+          }}>
+            <Text style={{ color: accent, fontFamily: F.bold, fontSize: 15, marginLeft: 12, opacity: aBusy || aq.trim().length < 3 ? 0.4 : 1 }}>{aBusy ? '...' : 'Ask'}</Text>
+          </Pressable>
+        </View>
+        {!!answer && <Text style={{ color: C.text, lineHeight: 21, marginTop: 10 }}>{answer}</Text>}
+      </View>
       <View style={s.grid}>
         {TILES.map(t => (
           <Pressable
