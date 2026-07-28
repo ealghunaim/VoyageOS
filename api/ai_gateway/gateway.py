@@ -84,16 +84,27 @@ def complete(task: str, system: str, user_content: str, *,
     in_price, out_price = TIER_PRICES[tier]
 
     t0 = time.monotonic()
+    # Prompt caching: long, static system prompts (guide/packing) are marked
+    # cacheable — repeat reads bill at ~10% and return faster. Short prompts
+    # skip the flag (below the API's cacheable minimum).
+    system_payload = (
+        [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]
+        if len(system) >= 4000 else system
+    )
     resp = _client().messages.create(
         model=model,
         max_tokens=max_tokens,
-        system=system,
+        system=system_payload,
         messages=[{"role": "user", "content": user_content}],
     )
     latency_ms = int((time.monotonic() - t0) * 1000)
 
     text = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
     tin, tout = resp.usage.input_tokens, resp.usage.output_tokens
+    cread = getattr(resp.usage, "cache_read_input_tokens", 0) or 0
+    cwrite = getattr(resp.usage, "cache_creation_input_tokens", 0) or 0
+    if cread or cwrite:
+        print(f"[ai] cache {task}: read {cread} · wrote {cwrite}")
     cost = round(tin * in_price / 1e6 + tout * out_price / 1e6, 5)
 
     if db is not None:
