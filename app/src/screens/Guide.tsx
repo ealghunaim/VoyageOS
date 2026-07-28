@@ -177,7 +177,28 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
             )}
           </>
         )}
-        {tab === 'eat' && <Card><Text style={s.h}>Worth the trip alone</Text><Rows items={g2.eat} /></Card>}
+        {tab === 'eat' && (
+          <>
+            {g2.eat.length === 0 && <Card><Text style={s.sub}>Nothing yet — tap ↻ to write the food guide.</Text></Card>}
+            {g2.eat.map((r, i) => (
+              <Card key={i}>
+                <Text style={s.h}>{r.name}</Text>
+                {!!r.area && <Text style={[s.sub, { fontWeight: '700' }]}>{r.area}</Text>}
+                {!!r.note && <Text style={s.sub}>{r.note}</Text>}
+                {!!r.order && <Text style={[s.bullet, { marginTop: 8 }]}>·  Order: {r.order}</Text>}
+                {!!r.when && <Text style={s.bullet}>·  Go: {r.when}</Text>}
+                <View style={{ flexDirection: 'row', marginTop: 6 }}>
+                  <Pressable onPress={() => open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.name + ' ' + place)}`)}>
+                    <Text style={[s.link, { color: accent, marginRight: 22 }]}>Map ›</Text>
+                  </Pressable>
+                  <Pressable onPress={() => open(`https://www.google.com/search?q=${encodeURIComponent(r.name + ' ' + place + ' reservation')}`)}>
+                    <Text style={[s.link, { color: accent }]}>Reserve ›</Text>
+                  </Pressable>
+                </View>
+              </Card>
+            ))}
+          </>
+        )}
         {tab === 'play' && <Card><Text style={s.h}>Experiences</Text><Rows items={g2.play} /></Card>}
         {tab === 'visit' && <Card><Text style={s.h}>Sights & districts</Text><Rows items={g2.visit} /></Card>}
         {tab === 'go' && (

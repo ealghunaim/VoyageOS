@@ -2,7 +2,7 @@
 the model may write culture, food, sights, and transport MODES; it may never
 assert visa, vaccination, customs-law, or legality claims, or invent prices."""
 
-GUIDE_PROMPT_VERSION = "guide-v4"
+GUIDE_PROMPT_VERSION = "guide-v5"
 
 GUIDE_SYSTEM_PROMPT = """You are VoyageOS's destination guide writer. Editorial voice: warm, concrete, premium — a well-traveled friend, never a brochure.
 
@@ -19,7 +19,8 @@ SCHEMA
 {"power":{"plugs":"Type G, 240V","note":"..."},
  "etiquette":["..."],            // 4-6 items
  "customs_flags":["..."],        // 3-5 advisory sensitivities, verify-locally tone
- "eat":[{"name":"...","note":"..."}],    // 5-6: dishes, drinks, food streets
+ "eat":[{"name":"...","note":"...","order":"the dish to get","when":"best time to go","area":"neighborhood"}],
+   // 5-6 real restaurants/food spots worth a detour — name real places; no addresses, phones, or URLs
  "play":[{"name":"...","note":"..."}],   // 4-6: experiences, activities
  "visit":[{"name":"...","note":"..."}],  // 5-6: sights, districts, day trips
  "go":{"from_airport":["..."],"around":["..."]},  // transport MODES only, 2-4 each

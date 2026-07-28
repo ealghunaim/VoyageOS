@@ -24,7 +24,14 @@ def sanitize(raw: dict) -> dict:
     out["power"] = {"plugs": _s(power.get("plugs"), 60), "note": _s(power.get("note"))}
     for key in ("etiquette", "customs_flags", "task_suggestions", "health"):
         out[key] = [_s(x) for x in (raw.get(key) or [])[:_LIST_CAPS[key]] if _s(x)]
-    for key in ("eat", "play", "visit"):
+    eat_rows = []
+    for item in (raw.get("eat") or [])[:_LIST_CAPS["eat"]]:
+        if isinstance(item, dict) and item.get("name"):
+            eat_rows.append({"name": _s(item.get("name"), 60), "note": _s(item.get("note")),
+                             "order": _s(item.get("order"), 80), "when": _s(item.get("when"), 60),
+                             "area": _s(item.get("area"), 50)})
+    out["eat"] = eat_rows
+    for key in ("play", "visit"):
         rows = []
         for item in (raw.get(key) or [])[:_LIST_CAPS[key]]:
             if isinstance(item, dict) and item.get("name"):
