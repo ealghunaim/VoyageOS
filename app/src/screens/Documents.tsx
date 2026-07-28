@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { createDocument, deleteDocument, Doc, listDocuments } from '../api';
 import { Btn, Card, Chip } from '../components/ui';
-import { C } from '../theme';
+import { C, F } from '../theme';
 
 const TYPES = ['passport', 'visa', 'insurance', 'vaccination', 'permit', 'other'];
 const LEVEL_COLOR: Record<string, string> = {
@@ -42,7 +42,7 @@ export default function Documents({ onBack }: { onBack: () => void }) {
             </Pressable>
           </View>
           <Text style={s.sub}>{d.type}{d.country_code ? ` · ${d.country_code}` : ''}</Text>
-          <Text style={{ color: LEVEL_COLOR[d.expiry.level] ?? C.sub, fontWeight: '700', marginTop: 4 }}>
+          <Text style={{ color: LEVEL_COLOR[d.expiry.level] ?? C.sub, fontFamily: F.med, marginTop: 4 }}>
             {d.expiry.message}
           </Text>
         </Card>
@@ -75,11 +75,11 @@ export default function Documents({ onBack }: { onBack: () => void }) {
 const s = StyleSheet.create({
   wrap: { padding: 16, paddingTop: 24 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  back: { color: C.blue, fontSize: 16, fontWeight: '700' },
-  h2: { fontSize: 17, fontWeight: '800', color: C.text },
-  name: { color: C.text, fontSize: 16, fontWeight: '700' },
+  back: { color: C.blue, fontSize: 16, fontFamily: F.med },
+  h2: { fontSize: 17, fontFamily: F.bold, color: C.text },
+  name: { color: C.text, fontSize: 16, fontFamily: F.med },
   sub: { color: C.sub, marginTop: 2 },
-  q: { fontSize: 16, fontWeight: '800', color: C.text, marginBottom: 8 },
+  q: { fontSize: 16, fontFamily: F.bold, color: C.text, marginBottom: 8 },
   input: { borderWidth: 1, borderColor: C.border, borderRadius: 12, backgroundColor: '#fff', paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: C.text, marginBottom: 10 },
   foot: { color: '#9aa7b8', textAlign: 'center', marginTop: 12, fontSize: 12 },
 });

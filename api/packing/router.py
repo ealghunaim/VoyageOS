@@ -92,8 +92,22 @@ def get_weight(trip_id: str, user_id: str = Depends(current_user_id)):
     plist = service._latest_list(db, trip_id)
     if not plist:
         return {"total_g": 0, "counted": 0, "unweighed": 0, "limit_g": None}
-    rows = db.table("packing_list_items")         .select("qty,status,items(default_weight_g)")         .eq("list_id", plist["id"]).execute().data
+    rows = db.table("packing_list_items")         .select("qty,status,category,style_tag,items(default_weight_g)")         .eq("list_id", plist["id"]).execute().data
     total, counted, unweighed = sum_weight(rows)
+    # cumulative approximation: unlinked items get honest per-type estimates
+    EST = {"underwear": 80, "sleep": 150, "casual": 200, "smart_casual": 250,
+           "formal": 400, "traditional": 350, "outerwear": 600, "athleisure": 220,
+           "footwear": 800, "toiletries": 120, "electronics": 250, "documents": 50,
+           "medications": 100, "activity_gear": 400, "misc": 150, "clothing": 220}
+    approx = False
+    for row in rows:
+        if row.get("status") == "rejected":
+            continue
+        linked = (row.get("items") or {}).get("default_weight_g") if row.get("items") else None
+        if not linked:
+            grams = EST.get(row.get("style_tag") or "", 0) or EST.get(row.get("category") or "", 150)
+            total += grams * (row.get("qty") or 1)
+            approx = True
     bag = _main_bag(db, trip_id)
-    return {"total_g": total, "counted": counted, "unweighed": unweighed,
+    return {"total_g": total, "counted": counted, "unweighed": unweighed, "approx": approx,
             "limit_g": bag["target_limit_g"] if bag else None}

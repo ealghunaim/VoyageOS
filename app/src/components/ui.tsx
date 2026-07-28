@@ -73,8 +73,8 @@ const s = StyleSheet.create({
     borderWidth: 1.5, borderColor: C.border, backgroundColor: '#fff',
     paddingHorizontal: 16, paddingVertical: 10, borderRadius: R.chip, margin: 4,
   },
-  chipText: { color: C.text, fontWeight: '700' },
-  fieldLabel: { color: C.sub, fontSize: 12, marginBottom: 7, fontWeight: '800', letterSpacing: 0.6 },
+  chipText: { color: C.text, fontFamily: F.med },
+  fieldLabel: { color: C.sub, fontSize: 12, marginBottom: 7, fontFamily: F.bold, letterSpacing: 0.6 },
   input: {
     backgroundColor: '#F1F4F9', borderRadius: R.input,
     paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: C.text,

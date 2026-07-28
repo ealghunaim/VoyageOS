@@ -10,6 +10,7 @@ import Home from './src/screens/Home';
 import Kits from './src/screens/Kits';
 import Login from './src/screens/Login';
 import BottomBar from './src/components/BottomBar';
+import Wordmark from './src/components/Wordmark';
 import Guide from './src/screens/Guide';
 import Packing from './src/screens/Packing';
 import Profile from './src/screens/Profile';
@@ -63,14 +64,14 @@ export default function App() {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 30, fontWeight: '900', color: C.blue }}>VoyageOS</Text>
+          <Wordmark size={28} />
           <ActivityIndicator style={{ marginTop: 16 }} color={C.blue} />
         </View>
       </SafeAreaView>
     );
   }
 
-  const showBar = route.name !== 'login' && route.name !== 'wizard';
+  const showBar = route.name !== 'login';
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
@@ -113,6 +114,7 @@ export default function App() {
       )}
       {route.name === 'packing' && (
         <Packing tripId={route.trip.id} tripTitle={route.trip.title}
+          accent={accentForTrip(route.trip.country_code, route.trip.title)}
           onBack={() => setRoute({ name: 'hub', trip: route.trip })}
           onDebrief={() => setRoute({ name: 'debrief', trip: route.trip })} />
       )}

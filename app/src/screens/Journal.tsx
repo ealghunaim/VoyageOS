@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { addNote, listNotes, Note } from '../api';
 import { Btn, Card } from '../components/ui';
-import { C } from '../theme';
+import { C, F } from '../theme';
 
 export default function Journal({ tripId, tripTitle, accent, onBack }: {
   tripId: string; tripTitle: string; accent: string; onBack: () => void;
@@ -32,7 +32,7 @@ export default function Journal({ tripId, tripTitle, accent, onBack }: {
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20 }}
       keyboardShouldPersistTaps="handled">
       <Pressable onPress={onBack} hitSlop={10} style={{ marginBottom: 10 }}>
-        <Text style={{ color: accent, fontSize: 16, fontWeight: '800' }}>‹ {tripTitle}</Text>
+        <Text style={{ color: accent, fontSize: 16, fontFamily: F.bold }}>‹ {tripTitle}</Text>
       </Pressable>
       <Text style={s.h1}>Journal</Text>
       <Card>
@@ -56,7 +56,7 @@ export default function Journal({ tripId, tripTitle, accent, onBack }: {
                 setPhotos([...photos, { b64: a2.base64, mime: a2.mimeType ?? 'image/jpeg', uri: a2.uri }]);
               }
             }}>
-              <Text style={{ color: accent, fontSize: 22, fontWeight: '800' }}>+</Text>
+              <Text style={{ color: accent, fontSize: 22, fontFamily: F.bold }}>+</Text>
               <Text style={{ color: C.sub, fontSize: 10 }}>photo</Text>
             </Pressable>
           )}
@@ -80,7 +80,7 @@ export default function Journal({ tripId, tripTitle, accent, onBack }: {
 }
 
 const s = StyleSheet.create({
-  h1: { fontSize: 30, fontWeight: '900', color: C.text, letterSpacing: -0.6, marginBottom: 14 },
+  h1: { fontSize: 30, fontFamily: F.bold, color: C.text, letterSpacing: -0.6, marginBottom: 14 },
   input: { backgroundColor: '#F1F4F9', borderRadius: 14, padding: 14, minHeight: 90, fontSize: 16, color: C.text, marginBottom: 12, textAlignVertical: 'top' },
   when: { color: '#9AA9BB', fontSize: 11, marginBottom: 6 },
   body: { color: C.text, fontSize: 15, lineHeight: 22 },

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { addKitItem, createKit, getKit, Kit, listKits, removeKitItem } from '../api';
 import { Btn, Card } from '../components/ui';
-import { C } from '../theme';
+import { C, F } from '../theme';
 
 export default function Kits({ onBack }: { onBack: () => void }) {
   const [kits, setKits] = useState<Kit[]>([]);
@@ -83,8 +83,8 @@ export default function Kits({ onBack }: { onBack: () => void }) {
 const s = StyleSheet.create({
   wrap: { padding: 16, paddingTop: 24 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  back: { color: C.blue, fontSize: 16, fontWeight: '700' },
-  h2: { fontSize: 17, fontWeight: '800', color: C.text },
+  back: { color: C.blue, fontSize: 16, fontFamily: F.med },
+  h2: { fontSize: 17, fontFamily: F.bold, color: C.text },
   name: { color: C.text, fontSize: 16, fontWeight: '600' },
   sub: { color: C.sub, marginTop: 2, marginBottom: 8 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: C.border },

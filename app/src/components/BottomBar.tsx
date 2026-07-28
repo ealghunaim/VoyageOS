@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
-import { C, SHADOW } from '../theme';
+import { C, SHADOW, F } from '../theme';
 
 function HomeIcon({ on }: { on: boolean }) {
   const c = on ? C.blue : '#9AA9BB';
@@ -49,11 +49,11 @@ const s = StyleSheet.create({
     paddingTop: 8, paddingBottom: 6, paddingHorizontal: 24,
   },
   item: { alignItems: 'center', width: 90 },
-  label: { fontSize: 12, fontWeight: '800', color: '#9AA9BB', marginTop: 2 },
+  label: { fontSize: 12, fontFamily: F.bold, color: '#9AA9BB', marginTop: 2 },
   onLabel: { color: C.blue },
   fab: {
     width: 58, height: 58, borderRadius: 29, backgroundColor: C.blue,
     alignItems: 'center', justifyContent: 'center', marginTop: -24,
   },
-  fabText: { color: '#fff', fontSize: 32, fontWeight: '800', marginTop: -2 },
+  fabText: { color: '#fff', fontSize: 32, fontFamily: F.bold, marginTop: -2 },
 });

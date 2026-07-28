@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { getPackingList, PackItem, searchItems, submitDebrief } from '../api';
 import { Btn, Card, Chip } from '../components/ui';
-import { C } from '../theme';
+import { C, F } from '../theme';
 
 export default function Debrief({ tripId, tripTitle, onDone }: {
   tripId: string; tripTitle: string; onDone: () => void;
@@ -73,7 +73,7 @@ export default function Debrief({ tripId, tripTitle, onDone }: {
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 16, paddingTop: 24 }}>
       <View style={s.header}>
         <Pressable onPress={onDone} hitSlop={10}>
-          <Text style={{ color: C.blue, fontSize: 16, fontWeight: '700' }}>Skip</Text>
+          <Text style={{ color: C.blue, fontSize: 16, fontFamily: F.med }}>Skip</Text>
         </Pressable>
         <Text style={s.h2} numberOfLines={1}>{tripTitle}</Text>
         <View style={{ width: 34 }} />
@@ -97,7 +97,7 @@ export default function Debrief({ tripId, tripTitle, onDone }: {
         ))}
         {q.trim().length >= 2 && (
           <Pressable onPress={() => addForgot(q)} style={s.result}>
-            <Text style={{ color: C.blue, fontWeight: '700' }}>Add "{q.trim()}"</Text>
+            <Text style={{ color: C.blue, fontFamily: F.med }}>Add "{q.trim()}"</Text>
           </Pressable>
         )}
         <View style={s.chipWrap}>
@@ -135,10 +135,10 @@ export default function Debrief({ tripId, tripTitle, onDone }: {
 
 const s = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  h1: { fontSize: 24, fontWeight: '800', color: C.text, marginBottom: 4 },
-  h2: { fontSize: 15, fontWeight: '700', color: C.sub, flex: 1, textAlign: 'center' },
+  h1: { fontSize: 24, fontFamily: F.bold, color: C.text, marginBottom: 4 },
+  h2: { fontSize: 15, fontFamily: F.med, color: C.sub, flex: 1, textAlign: 'center' },
   sub: { color: C.sub, marginBottom: 12, lineHeight: 20 },
-  q: { fontSize: 16, fontWeight: '800', color: C.text, marginBottom: 10 },
+  q: { fontSize: 16, fontFamily: F.bold, color: C.text, marginBottom: 10 },
   input: {
     borderWidth: 1, borderColor: C.border, borderRadius: 12, backgroundColor: '#fff',
     paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: C.text, marginBottom: 6,

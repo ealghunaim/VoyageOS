@@ -3,7 +3,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { addActivity, addDestination, createTrip, generateList, PlaceHit, searchPlaces, Trip } from '../api';
 import { Btn, Card, Chip, Field } from '../components/ui';
-import { C } from '../theme';
+import { C, F } from '../theme';
 
 const ACTIVITIES = [
   'hiking', 'trail_running', 'business', 'beach', 'ski',
@@ -149,7 +149,7 @@ export default function Wizard({ onDone, onCancel }: {
             placeholder="Hotel or area — tailors your guide" />
           {!chosen && place.trim().length >= 2 && (
             <Pressable onPress={() => { setChosen(true); setHits([]); }} style={s.hit}>
-              <Text style={{ color: C.blue, fontWeight: '800' }}>Use “{place.trim()}” as a region ›</Text>
+              <Text style={{ color: C.blue, fontFamily: F.bold }}>Use “{place.trim()}” as a region ›</Text>
               <Text style={s.hitSub}>e.g. the Dolomites, the French Riviera</Text>
             </Pressable>
           )}
@@ -232,17 +232,17 @@ const s = StyleSheet.create({
   wrap: { padding: 16, paddingTop: 24 },
   dots: { flexDirection: 'row', justifyContent: 'center', marginBottom: 16 },
   dot: { width: 26, height: 6, borderRadius: 3, backgroundColor: C.border, marginHorizontal: 4 },
-  h1: { fontSize: 22, fontWeight: '800', color: C.text, marginBottom: 8 },
+  h1: { fontSize: 22, fontFamily: F.bold, color: C.text, marginBottom: 8 },
   sub: { color: C.sub, marginBottom: 14, lineHeight: 20 },
   warn: { color: C.red, marginBottom: 10 },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 14 },
   hit: { paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.border },
   hitText: { color: C.text, fontSize: 16, fontWeight: '600' },
   hitSub: { color: C.sub, fontSize: 12, marginTop: 1 },
-  picked: { color: C.green, fontWeight: '800', marginBottom: 10 },
+  picked: { color: C.green, fontFamily: F.bold, marginBottom: 10 },
   datePill: { flex: 1, backgroundColor: '#F1F4F9', borderRadius: 14, padding: 12 },
   datePillOn: { backgroundColor: C.blueSoft },
-  datePillLabel: { color: C.sub, fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
-  datePillValue: { color: C.text, fontSize: 16, fontWeight: '800', marginTop: 2 },
-  modeLabel: { color: C.sub, fontSize: 12, marginBottom: 7, fontWeight: '800', letterSpacing: 0.6 },
+  datePillLabel: { color: C.sub, fontSize: 11, fontFamily: F.bold, letterSpacing: 0.6 },
+  datePillValue: { color: C.text, fontSize: 16, fontFamily: F.bold, marginTop: 2 },
+  modeLabel: { color: C.sub, fontSize: 12, marginBottom: 7, fontFamily: F.bold, letterSpacing: 0.6 },
 });

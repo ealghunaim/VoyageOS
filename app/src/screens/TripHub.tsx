@@ -39,7 +39,7 @@ export default function TripHub({ trip, onBack, onPack, onGuide, onJournal, onSO
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20, paddingTop: 16 }}>
       <Pressable onPress={onBack} hitSlop={10} style={{ marginBottom: 10 }}>
-        <Text style={{ color: C.blue, fontSize: 16, fontWeight: '800' }}>‹ Trips</Text>
+        <Text style={{ color: C.blue, fontSize: 16, fontFamily: F.bold }}>‹ Trips</Text>
       </Pressable>
 
       <Card style={{ padding: 0, overflow: 'hidden', marginBottom: 18 }}>
@@ -48,7 +48,7 @@ export default function TripHub({ trip, onBack, onPack, onGuide, onJournal, onSO
           <Text style={s.title}>{trip.title}</Text>
           <Text style={s.dates}>{trip.start_date} → {trip.end_date}</Text>
           {wx.length > 0 && wx.every(d => d.provider === 'climatology') && (
-            <Text style={{ color: C.sub, fontSize: 11, fontWeight: '800', letterSpacing: 0.6, marginTop: 8 }}>
+            <Text style={{ color: C.sub, fontSize: 11, fontFamily: F.bold, letterSpacing: 0.6, marginTop: 8 }}>
               TYPICAL {new Date(trip.start_date).toLocaleString('en', { month: 'long' }).toUpperCase()} · LAST YEAR
             </Text>
           )}
@@ -91,8 +91,8 @@ export default function TripHub({ trip, onBack, onPack, onGuide, onJournal, onSO
             {(['start', 'end'] as const).map(k => (
               <Pressable key={k} onPress={() => setPicking(k)}
                 style={{ flex: 1, backgroundColor: picking === k ? tint(accent, 0.14) : '#F1F4F9', borderRadius: 12, padding: 10, marginRight: k === 'start' ? 8 : 0 }}>
-                <Text style={{ color: C.sub, fontSize: 11, fontWeight: '800' }}>{k.toUpperCase()}</Text>
-                <Text style={{ color: C.text, fontWeight: '800' }}>{k === 'start' ? eStart : eEnd}</Text>
+                <Text style={{ color: C.sub, fontSize: 11, fontFamily: F.bold }}>{k.toUpperCase()}</Text>
+                <Text style={{ color: C.text, fontFamily: F.bold }}>{k === 'start' ? eStart : eEnd}</Text>
               </Pressable>
             ))}
           </View>
@@ -112,13 +112,13 @@ export default function TripHub({ trip, onBack, onPack, onGuide, onJournal, onSO
               onTripChanged({ ...trip, ...t });
             } catch (e: any) { Alert.alert('Dates', e.message); }
           }}>
-            <Text style={{ color: accent, fontWeight: '800', textAlign: 'center', marginTop: 8 }}>Save dates</Text>
+            <Text style={{ color: accent, fontFamily: F.bold, textAlign: 'center', marginTop: 8 }}>Save dates</Text>
           </Pressable>
         </View>
       )}
       <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 4 }}>
         <Pressable onPress={() => setEditing(v => !v)}>
-          <Text style={{ color: C.sub, fontWeight: '800' }}>{editing ? 'Cancel' : 'Edit dates'}</Text>
+          <Text style={{ color: C.sub, fontFamily: F.bold }}>{editing ? 'Cancel' : 'Edit dates'}</Text>
         </Pressable>
         <Text style={{ color: C.sub }}>{'    ·    '}</Text>
         <Pressable onPress={() =>
@@ -129,7 +129,7 @@ export default function TripHub({ trip, onBack, onPack, onGuide, onJournal, onSO
               catch (e: any) { Alert.alert('Delete', e.message); }
             } },
           ])}>
-          <Text style={{ color: C.red, fontWeight: '800' }}>Delete trip</Text>
+          <Text style={{ color: C.red, fontFamily: F.bold }}>Delete trip</Text>
         </Pressable>
       </View>
       {past && trip.status !== 'completed' && (
@@ -144,7 +144,7 @@ export default function TripHub({ trip, onBack, onPack, onGuide, onJournal, onSO
 const s = StyleSheet.create({
   title: { fontSize: 31, fontFamily: F.bold, color: C.text, letterSpacing: -0.8 },
   dates: { color: C.sub, marginTop: 4, fontSize: 15 },
-  wx: { color: C.text, fontWeight: '700', fontSize: 13 },
+  wx: { color: C.text, fontFamily: F.med, fontSize: 13 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   tile: {
     width: '48.5%', borderRadius: 22, padding: 16, marginBottom: 12, alignItems: 'center',
@@ -156,7 +156,7 @@ const s = StyleSheet.create({
     width: 52, height: 52, borderRadius: 16, alignItems: 'center',
     justifyContent: 'center', marginBottom: 10,
   },
-  tileLabel: { fontSize: 17, fontWeight: '800', color: C.text, textAlign: 'center' },
+  tileLabel: { fontSize: 17, fontFamily: F.bold, color: C.text, textAlign: 'center' },
   tileSub: { color: C.sub, fontSize: 12, marginTop: 2, textAlign: 'center' },
-  debrief: { fontWeight: '800', textAlign: 'center', marginTop: 8 },
+  debrief: { fontFamily: F.bold, textAlign: 'center', marginTop: 8 },
 });

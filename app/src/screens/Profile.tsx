@@ -7,7 +7,7 @@ import { Companion, getProfile, putProfile } from '../api';
 import { getEmail, signOut } from '../auth';
 import { Btn, Card, Chip, Field } from '../components/ui';
 import { COUNTRIES, countryName, flagOf } from '../countries';
-import { C } from '../theme';
+import { C, F } from '../theme';
 
 const RELATIONS: Companion['relation'][] = ['partner', 'child', 'parent', 'friend'];
 
@@ -107,7 +107,7 @@ export default function Profile({ onSignedOut }: { onSignedOut: () => void }) {
         <Text style={s.section}>TRAVEL COMPANIONS</Text>
         {members.map((m, i) => (
           <View key={i} style={s.member}>
-            <Text style={{ color: C.text, fontWeight: '700', flex: 1 }}>
+            <Text style={{ color: C.text, fontFamily: F.med, flex: 1 }}>
               {m.name} <Text style={{ color: C.sub, fontWeight: '400' }}>· {m.relation}</Text>
             </Text>
             <Pressable hitSlop={10} onPress={() => setMembers(members.filter((_, j) => j !== i))}>
@@ -145,15 +145,15 @@ export default function Profile({ onSignedOut }: { onSignedOut: () => void }) {
 
 const s = StyleSheet.create({
   center: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
-  h1: { fontSize: 30, fontWeight: '900', color: C.text, letterSpacing: -0.6 },
+  h1: { fontSize: 30, fontFamily: F.bold, color: C.text, letterSpacing: -0.6 },
   email: { color: C.sub, marginTop: 2, marginBottom: 16 },
-  section: { color: C.sub, fontSize: 12, fontWeight: '800', letterSpacing: 0.6, marginBottom: 8, marginTop: 4 },
+  section: { color: C.sub, fontSize: 12, fontFamily: F.bold, letterSpacing: 0.6, marginBottom: 8, marginTop: 4 },
   input: { backgroundColor: '#F1F4F9', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 13, fontSize: 16, color: C.text },
   hit: { paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.border },
-  natPicked: { color: C.text, fontSize: 17, fontWeight: '800' },
+  natPicked: { color: C.text, fontSize: 17, fontFamily: F.bold },
   hint: { color: '#9AA9BB', fontSize: 12, marginTop: 10, lineHeight: 17 },
   dateRow: { backgroundColor: '#F1F4F9', borderRadius: 14, padding: 13, marginBottom: 12 },
-  dateValue: { color: C.text, fontSize: 16, fontWeight: '800' },
+  dateValue: { color: C.text, fontSize: 16, fontFamily: F.bold },
   member: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: C.border, marginBottom: 4 },
-  signout: { color: C.red, fontWeight: '800', textAlign: 'center', marginVertical: 18 },
+  signout: { color: C.red, fontFamily: F.bold, textAlign: 'center', marginVertical: 18 },
 });

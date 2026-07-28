@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
-import { C, tint } from '../theme';
+import { C, tint, F } from '../theme';
 
 /** Socket-face clip art per plug type letter — same minimal language as the landmarks. */
 function Face({ letter, accent }: { letter: string; accent: string }) {
@@ -40,7 +40,7 @@ export default function PlugArt({ plugs, accent }: { plugs: string; accent: stri
       {letters.map(l => (
         <View key={l} style={{ alignItems: 'center', marginRight: 14 }}>
           <Face letter={l} accent={accent} />
-          <Text style={{ color: C.sub, fontWeight: '800', fontSize: 12, marginTop: 3 }}>Type {l}</Text>
+          <Text style={{ color: C.sub, fontFamily: F.bold, fontSize: 12, marginTop: 3 }}>Type {l}</Text>
         </View>
       ))}
     </View>

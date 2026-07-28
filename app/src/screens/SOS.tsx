@@ -4,7 +4,7 @@ import { getGuide, getProfile, getTrip } from '../api';
 import { Card } from '../components/ui';
 import { countryName, flagOf } from '../countries';
 import { EMERGENCY } from '../emergency';
-import { C, tint } from '../theme';
+import { C, tint, F } from '../theme';
 
 export default function SOS({ tripId, tripTitle, place, accent, onBack }: {
   tripId: string; tripTitle: string; place: string; accent: string; onBack: () => void;
@@ -27,7 +27,7 @@ export default function SOS({ tripId, tripTitle, place, accent, onBack }: {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20 }}>
       <Pressable onPress={onBack} hitSlop={10} style={{ marginBottom: 10 }}>
-        <Text style={{ color: accent, fontSize: 16, fontWeight: '800' }}>‹ {tripTitle}</Text>
+        <Text style={{ color: accent, fontSize: 16, fontFamily: F.bold }}>‹ {tripTitle}</Text>
       </Pressable>
       <Text style={s.h1}>SOS</Text>
 
@@ -87,12 +87,12 @@ export default function SOS({ tripId, tripTitle, place, accent, onBack }: {
 }
 
 const s = StyleSheet.create({
-  h1: { fontSize: 30, fontWeight: '900', color: C.text, letterSpacing: -0.6, marginBottom: 14 },
-  section: { color: C.sub, fontSize: 12, fontWeight: '800', letterSpacing: 0.6, marginBottom: 10 },
+  h1: { fontSize: 30, fontFamily: F.bold, color: C.text, letterSpacing: -0.6, marginBottom: 14 },
+  section: { color: C.sub, fontSize: 12, fontFamily: F.bold, letterSpacing: 0.6, marginBottom: 10 },
   sub: { color: C.sub, lineHeight: 20 },
   hint: { color: '#9AA9BB', fontSize: 11, marginTop: 10 },
   callBtn: { backgroundColor: tint('#DC2626', 0.12), borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, marginRight: 8, marginBottom: 8 },
-  callText: { color: C.red, fontWeight: '800' },
-  link: { fontWeight: '800', marginBottom: 12 },
+  callText: { color: C.red, fontFamily: F.bold },
+  link: { fontFamily: F.bold, marginBottom: 12 },
   bullet: { color: C.text, marginBottom: 7, lineHeight: 20 },
 });

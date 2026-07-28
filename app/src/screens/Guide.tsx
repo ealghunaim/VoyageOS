@@ -8,7 +8,7 @@ import { transitFor } from '../airlines';
 import PlugArt from '../components/PlugArt';
 import { countryName, flagOf } from '../countries';
 import { Card, Chip } from '../components/ui';
-import { C, tint } from '../theme';
+import { C, tint, F } from '../theme';
 
 const SECTIONS = ['know', 'eat', 'play', 'visit', 'go'];
 
@@ -68,7 +68,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
       <View style={{ padding: 20, paddingBottom: 8 }}>
         <View style={s.header}>
           <Pressable onPress={onBack} hitSlop={10}>
-            <Text style={{ color: accent, fontSize: 16, fontWeight: '800' }}>‹ {tripTitle}</Text>
+            <Text style={{ color: accent, fontSize: 16, fontFamily: F.bold }}>‹ {tripTitle}</Text>
           </Pressable>
           <Pressable hitSlop={10} onPress={() =>
             Alert.alert('Rewrite guide?', 'Calls the model again (a few cents).', [
@@ -120,7 +120,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                 <Text style={[s.sub, { marginTop: 8 }]}>{g2.visa_hint.note}</Text>
               )}
               {!!trip.visa_status && (
-                <Text style={[s.sub, { marginTop: 8, fontWeight: '700' }]}>Verified by you — from the official sources above.</Text>
+                <Text style={[s.sub, { marginTop: 8, fontFamily: F.med }]}>Verified by you — from the official sources above.</Text>
               )}
               <Pressable onPress={() => open(`https://www.google.com/search?q=visa+requirements+for+${encodeURIComponent(nat ? countryName(nat) : '')}+citizens+${encodeURIComponent(country || place)}+official`)}>
                 <Text style={[s.link, { color: accent }]}>Search official sources ›</Text>
@@ -176,7 +176,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                   const hub = transitFor(trip.airline, country, nat);
                   return hub ? (
                     <>
-                      <Text style={[s.sub, { marginTop: 8, fontWeight: '700' }]}>Likely transit via {hub.iata} · {hub.city} — based on {trip.airline}'s hub.</Text>
+                      <Text style={[s.sub, { marginTop: 8, fontFamily: F.med }]}>Likely transit via {hub.iata} · {hub.city} — based on {trip.airline}'s hub.</Text>
                       <Pressable onPress={() => open(`https://www.google.com/search?q=${hub.iata}+airport+transit+guide`)}>
                         <Text style={[s.link, { color: accent }]}>{hub.iata} transit guide ›</Text>
                       </Pressable>
@@ -194,7 +194,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
             {g2.eat.map((r, i) => (
               <Card key={i}>
                 <Text style={s.h}>{r.name}</Text>
-                {!!r.area && <Text style={[s.sub, { fontWeight: '700' }]}>{r.area}</Text>}
+                {!!r.area && <Text style={[s.sub, { fontFamily: F.med }]}>{r.area}</Text>}
                 {!!r.note && <Text style={s.sub}>{r.note}</Text>}
                 {!!r.order && <Text style={[s.bullet, { marginTop: 8 }]}>·  Order: {r.order}</Text>}
                 {!!r.when && <Text style={s.bullet}>·  Go: {r.when}</Text>}
@@ -221,7 +221,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                     </Pressable>
                   )}
                 </View>
-                <Text style={[s.sub, { fontWeight: '700' }]}>{t.author}</Text>
+                <Text style={[s.sub, { fontFamily: F.med }]}>{t.author}</Text>
                 {!!t.note && <Text style={s.sub}>{t.note}</Text>}
                 {!!t.order_rec && <Text style={[s.bullet, { marginTop: 6 }]}>·  Order: {t.order_rec}</Text>}
                 {!!t.when_rec && <Text style={s.bullet}>·  Go: {t.when_rec}</Text>}
@@ -262,7 +262,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                     const a2 = r.assets?.[0];
                     if (!r.canceled && a2?.base64) setTPhotos([...tPhotos, { b64: a2.base64, mime: a2.mimeType ?? 'image/jpeg', uri: a2.uri }]);
                   }}>
-                    <Text style={{ color: accent, fontSize: 20, fontWeight: '800' }}>+</Text>
+                    <Text style={{ color: accent, fontSize: 20, fontFamily: F.bold }}>+</Text>
                   </Pressable>
                 )}
               </View>
@@ -310,19 +310,19 @@ const s = StyleSheet.create({
   center: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
   loading: { color: C.sub, marginTop: 12 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  h: { fontSize: 16, fontWeight: '800', color: C.text, marginBottom: 8 },
+  h: { fontSize: 16, fontFamily: F.bold, color: C.text, marginBottom: 8 },
   row: { marginBottom: 12 },
-  rowName: { fontSize: 15, fontWeight: '700', color: C.text },
+  rowName: { fontSize: 15, fontFamily: F.med, color: C.text },
   sub: { color: C.sub, marginTop: 3, lineHeight: 19 },
   bullet: { color: C.text, marginBottom: 7, lineHeight: 20 },
-  link: { fontWeight: '800', marginTop: 10 },
+  link: { fontFamily: F.bold, marginTop: 10 },
   disclaimer: { color: '#9AA9BB', fontSize: 11, marginTop: 10, textAlign: 'center', lineHeight: 16 },
 });
 
 const sx = StyleSheet.create({
   vChip: { borderWidth: 1.5, borderColor: C.border, backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, marginRight: 6, marginBottom: 6 },
-  vChipText: { color: C.text, fontWeight: '800', fontSize: 12 },
-  tipHead: { color: C.sub, fontSize: 12, fontWeight: '800', letterSpacing: 0.8, marginTop: 6, marginBottom: 10 },
+  vChipText: { color: C.text, fontFamily: F.bold, fontSize: 12 },
+  tipHead: { color: C.sub, fontSize: 12, fontFamily: F.bold, letterSpacing: 0.8, marginTop: 6, marginBottom: 10 },
   tipImg: { width: 110, height: 110, borderRadius: 12, marginRight: 8 },
   tipThumb: { width: 50, height: 50, borderRadius: 10, marginRight: 8 },
   tipAdd: { width: 50, height: 50, borderRadius: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
