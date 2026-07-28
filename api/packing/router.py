@@ -40,7 +40,8 @@ def get_list(trip_id: str, user_id: str = Depends(current_user_id)):
 
 class ItemPatch(BaseModel):
     status: Literal["suggested", "accepted", "packed", "rejected"] | None = None
-    qty: int | None = Field(default=None, ge=1, le=14)
+    qty: int | None = Field(default=None, ge=1, le=99)
+    style_tag: str | None = Field(default=None, max_length=16)
 
 
 @items_router.patch("/{item_id}")

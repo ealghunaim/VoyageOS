@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert, Pressable, RefreshControl,
-  ScrollView, StyleSheet, Text, View,
+  ScrollView, StyleSheet, Text, TextInput, View, Platform,
 } from 'react-native';
-import { applyKit, generateList, getPackingList, getTimeline, getTripWeather, getWeight, Kit, listKits, PackItem, refreshTripWeather, setBagLimit, Task, updateItem, WeightInfo, WxDay } from '../api';
+import { addKitItem, applyKit, createKit, quickAddItems, generateList, getPackingList, getTimeline, getTripWeather, getWeight, Kit, listKits, PackItem, refreshTripWeather, setBagLimit, Task, updateItem, WeightInfo, WxDay } from '../api';
 import { deviceTz, permissionStatus, requestPermission, syncReminders, testPing } from '../notifications';
 import { Btn, Card, Progress } from '../components/ui';
 import { C } from '../theme';
@@ -22,6 +22,8 @@ export default function Packing({ tripId, tripTitle, onBack, onDebrief }: {
   const [kits, setKits] = useState<Kit[] | null>(null);
   const [wx, setWx] = useState<WxDay[]>([]);
   const [wxPlace, setWxPlace] = useState<string | null>(null);
+  const [quick, setQuick] = useState('');
+  const [quickBusy, setQuickBusy] = useState(false);
 
   const loadTimeline = useCallback(async () => {
     try {
@@ -204,6 +206,25 @@ export default function Packing({ tripId, tripTitle, onBack, onDebrief }: {
             </ScrollView>
           </View>
         )}
+        <View style={sq.quickRow}>
+          <TextInput
+            style={sq.quickInput} value={quick} onChangeText={setQuick}
+            placeholder="Add items - try: 2 polos, power bank, sunscreen"
+            placeholderTextColor="#9AA9BB"
+          />
+          <Pressable disabled={quickBusy || quick.trim().length < 2} onPress={async () => {
+            setQuickBusy(true);
+            try {
+              const added = await quickAddItems(tripId, quick.trim());
+              setQuick('');
+              await load();
+              Alert.alert('Added', added.map(i => `- ${i.name}${i.qty > 1 ? ` x${i.qty}` : ''}`).join('\n'));
+            } catch (e: any) { Alert.alert('Add items', e.message); }
+            finally { setQuickBusy(false); }
+          }}>
+            <Text style={[sq.quickBtn, (quickBusy || quick.trim().length < 2) && { opacity: 0.4 }]}>{quickBusy ? '...' : 'Add'}</Text>
+          </Pressable>
+        </View>
         {groups.map(g => (
           <View key={g.cat} style={{ marginBottom: 14 }}>
             <Text style={s.cat}>{g.cat.replace('_', ' ').toUpperCase()}</Text>
@@ -224,6 +245,17 @@ export default function Packing({ tripId, tripTitle, onBack, onDebrief }: {
                   )}
                   {!!it.reason && <Text style={s.reason}>{it.reason}</Text>}
                 </View>
+                <Pressable hitSlop={10} style={{ marginRight: 12 }} onPress={() => {
+                  const opts = [['underwear','Underwear'],['casual','Casual'],['smart_casual','Smart casual'],['formal','Formal'],['traditional','Traditional'],['outerwear','Outerwear'],['athleisure','Active'],['footwear','Shoes']] as const;
+                  Alert.alert('Move to', it.name, [
+                    ...opts.map(([v, l]) => ({ text: l, onPress: async () => {
+                      try { await updateItem(it.id, { style_tag: v }); await load(); } catch {}
+                    } })),
+                    { text: 'Cancel', style: 'cancel' as const },
+                  ]);
+                }}>
+                  <Text style={{ color: '#9AA9BB', fontSize: 15, fontWeight: '800' }}>...</Text>
+                </Pressable>
                 <Pressable onPress={() => dismiss(it)} hitSlop={10} style={s.x}>
                   <Text style={{ color: C.sub, fontSize: 16 }}>✕</Text>
                 </Pressable>
@@ -253,6 +285,22 @@ export default function Packing({ tripId, tripTitle, onBack, onDebrief }: {
             } catch (e: any) { Alert.alert('Weather', e.message); }
           }}>
             <Text style={s.closeout}>Refresh weather ›</Text>
+          </Pressable>
+          <Pressable onPress={() => {
+            const packedItems = items.filter(i => i.status === 'packed');
+            if (!packedItems.length) { Alert.alert('Save as kit', 'Check some items first - your packed items become the kit.'); return; }
+            const doSave = async (name: string) => {
+              try {
+                const kit = await createKit(name);
+                for (const i of packedItems) await addKitItem(kit.id, i.name);
+                Alert.alert('Kit saved', `"${name}" holds ${packedItems.length} item(s).`);
+              } catch (e: any) { Alert.alert('Save as kit', e.message); }
+            };
+            if (Platform.OS === 'ios' && (Alert as any).prompt) {
+              (Alert as any).prompt('Name this kit', `${packedItems.length} packed item(s)`, (n: string) => n?.trim() && doSave(n.trim()));
+            } else doSave(`${tripTitle} kit`);
+          }}>
+            <Text style={s.closeout}>Save packed as kit ›</Text>
           </Pressable>
           {kits !== null && (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -363,4 +411,10 @@ const s = StyleSheet.create({
   kitChip: { borderWidth: 1, borderColor: C.border, backgroundColor: '#fff', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, margin: 4 },
   weightBar: { backgroundColor: C.card, borderTopWidth: 1, borderTopColor: C.border, padding: 12, alignItems: 'center' },
   weightNote: { color: '#9aa7b8', fontSize: 11, marginTop: 3 },
+});
+
+const sq = StyleSheet.create({
+  quickRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+  quickInput: { flex: 1, backgroundColor: '#fff', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: C.text, borderWidth: 1, borderColor: C.border },
+  quickBtn: { color: C.blue, fontWeight: '800', fontSize: 16, marginLeft: 12 },
 });

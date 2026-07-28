@@ -181,3 +181,6 @@ export const addFoodTip = (b: { place_name: string; country_code?: string | null
   req('/v1/food-tips', { method: 'POST', body: JSON.stringify(b) });
 export const deleteFoodTip = (id: string): Promise<void> =>
   req(`/v1/food-tips/${id}`, { method: 'DELETE' });
+
+export const quickAddItems = (tripId: string, text: string): Promise<PackItem[]> =>
+  req(`/v1/trips/${tripId}/items/quick-add`, { method: 'POST', body: JSON.stringify({ text }) });
