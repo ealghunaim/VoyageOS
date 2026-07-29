@@ -10,6 +10,12 @@ const CCY: Record<string, string> = {
 export function currencyForCountry(cc?: string | null): string | null {
   return cc ? (CCY[cc.toUpperCase()] ?? null) : null;
 }
+export const CURRENCIES = [
+  'KWD', 'QAR', 'AED', 'SAR', 'BHD', 'OMR', 'USD', 'EUR', 'GBP', 'EGP', 'JOD',
+  'TRY', 'CHF', 'JPY', 'CNY', 'INR', 'THB', 'SGD', 'MYR', 'IDR', 'MVR', 'LKR',
+  'AUD', 'CAD', 'ZAR', 'BRL', 'MXN', 'SEK', 'NOK', 'DKK', 'PLN', 'HKD', 'KRW',
+];
+
 const cache: Record<string, { rates: Record<string, number>; ts: number }> = {};
 export async function getRate(base: string, target: string): Promise<number | null> {
   const b = base.toUpperCase(), t = target.toUpperCase();

@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { getPhrases, Phrase, Trip } from '../api';
-import { currencyForCountry, getRate } from '../fx';
+import { CURRENCIES, currencyForCountry, getRate } from '../fx';
 import { C, F, tint } from '../theme';
 
 export default function TripExtras({ trip, accent }: { trip: Trip; accent: string }) {
   const [open, setOpen] = useState<null | 'phrases' | 'money'>(null);
-  const destCcy = currencyForCountry(trip.country_code) ?? 'USD';
+  const [destCcy, setDestCcy] = useState(currencyForCountry(trip.country_code) ?? 'USD');
 
   const [phrases, setPhrases] = useState<{ language: string; phrases: Phrase[] } | null>(null);
   const [pBusy, setPBusy] = useState(false);
@@ -17,6 +17,7 @@ export default function TripExtras({ trip, accent }: { trip: Trip; accent: strin
   }, [open, phrases, trip.id]);
 
   const [home, setHome] = useState('KWD');
+  const ordered = (sel: string) => [sel, ...CURRENCIES.filter(c => c !== sel)];
   const [amount, setAmount] = useState('100');
   const [rate, setRate] = useState<number | null>(null);
   const [rBusy, setRBusy] = useState(false);
@@ -67,11 +68,25 @@ export default function TripExtras({ trip, accent }: { trip: Trip; accent: strin
 
       {open === 'money' && (
         <View style={s.panel}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TextInput style={s.amt} value={amount} onChangeText={setAmount} keyboardType="numeric" />
-            <TextInput style={s.code} value={home} onChangeText={t => setHome(t.toUpperCase().slice(0, 3))}
-              autoCapitalize="characters" maxLength={3} />
-          </View>
+          <TextInput style={s.amt} value={amount} onChangeText={setAmount} keyboardType="numeric" />
+          <Text style={s.pickLabel}>FROM</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+            {ordered(home).map(c => (
+              <Pressable key={c} onPress={() => setHome(c)}
+                style={[s.ccyChip, c === home && { backgroundColor: accent, borderColor: accent }]}>
+                <Text style={[s.ccyChipText, c === home && { color: '#fff' }]}>{c}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+          <Text style={s.pickLabel}>TO</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
+            {ordered(destCcy).map(c => (
+              <Pressable key={c} onPress={() => setDestCcy(c)}
+                style={[s.ccyChip, c === destCcy && { backgroundColor: accent, borderColor: accent }]}>
+                <Text style={[s.ccyChipText, c === destCcy && { color: '#fff' }]}>{c}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
           <View style={{ alignItems: 'center', marginVertical: 8 }}>
             {rBusy ? <ActivityIndicator color={accent} />
               : converted != null ? (
@@ -97,7 +112,9 @@ const s = StyleSheet.create({
   local: { color: C.text, fontSize: 17, fontFamily: F.bold },
   en: { color: C.sub, fontSize: 13, marginTop: 1 },
   note: { color: '#9AA9BB', fontSize: 12, marginTop: 8 },
-  amt: { flex: 1, backgroundColor: '#F1F4F9', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 18, fontFamily: F.bold, color: C.text, marginRight: 10 },
-  code: { width: 84, backgroundColor: '#F1F4F9', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 16, fontFamily: F.bold, color: C.text, textAlign: 'center' },
+  amt: { backgroundColor: '#F1F4F9', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 18, fontFamily: F.bold, color: C.text, marginBottom: 10 },
+  pickLabel: { color: C.sub, fontSize: 11, fontFamily: F.bold, letterSpacing: 0.6, marginBottom: 6 },
+  ccyChip: { borderWidth: 1.5, borderColor: C.border, backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, marginRight: 6 },
+  ccyChipText: { color: C.text, fontFamily: F.bold, fontSize: 13 },
   result: { fontSize: 26, fontFamily: F.bold },
 });
