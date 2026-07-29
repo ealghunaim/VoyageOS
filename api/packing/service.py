@@ -58,11 +58,13 @@ def _persist(db, trip_id: str, traveler_id: str, items: list[dict], *,
 
     catalog = _catalog_index(db)
     rows = []
-    for i, it in enumerate(sorted(items, key=lambda x: (CATEGORY_ORDER.index(x["category"]), x["name"]))):
+    def _cat_rank(c: str) -> int:
+        return CATEGORY_ORDER.index(c) if c in CATEGORY_ORDER else len(CATEGORY_ORDER)
+    for i, it in enumerate(sorted(items, key=lambda x: (_cat_rank(x.get("category") or ""), x.get("name") or ""))):
         rows.append({
             "list_id": plist["id"],
             "item_id": catalog.get(it["name"].lower()),
-            "name": it["name"], "category": it["category"], "qty": max(1, min(int(it.get("qty") or 1), 99)),
+            "name": it.get("name") or "item", "category": it.get("category") or "misc", "qty": max(1, min(int(it.get("qty") or 1), 99)),
             "status": "suggested",
             "source": it["source_signal"] if it.get("source_signal") in ("history", "weather") else source,
             "style_tag": it.get("style_tag"),
