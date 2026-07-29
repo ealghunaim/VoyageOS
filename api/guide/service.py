@@ -132,7 +132,7 @@ def get_guide(db, trip: dict, user_id: str, *, regenerate: bool = False) -> dict
            "require_gateway": MODE_KIND.get(trip.get("travel_mode") or ""),
            "nationality": nationality}
     result = gateway.complete("guide_generate", GUIDE_SYSTEM_PROMPT,
-                              json.dumps(ctx), db=db, user_id=user_id, max_tokens=3600)
+                              json.dumps(ctx), db=db, user_id=user_id, max_tokens=6000)
     try:
         guide = sanitize(_parse(result.text), travel_mode=trip.get("travel_mode"))
     except Exception as e:
