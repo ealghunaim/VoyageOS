@@ -3,6 +3,7 @@ import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, Vi
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { askTrip, deleteTrip, getTripWeather, patchTrip, Trip, WxDay } from '../api';
 import TileIcon from '../components/icons';
+import DepartureCard from './DepartureCard';
 import TripArt from '../components/TripArt';
 import { Card } from '../components/ui';
 import { accentForTrip, C, tint, F, titleize } from '../theme';
@@ -86,6 +87,12 @@ export default function TripHub({ trip, onBack, onPack, onGuide, onJournal, onSO
         </View>
         {!!answer && <Text style={{ color: C.text, lineHeight: 21, marginTop: 10 }}>{answer}</Text>}
       </View>
+      {(() => {
+        const endMs = new Date(trip.end_date + 'T23:59:00').getTime();
+        const hrsToEnd = (endMs - Date.now()) / 3600000;
+        if (hrsToEnd > 24 || hrsToEnd < -24) return null;
+        return <DepartureCard trip={trip} accent={accent} onOpenPacking={onPack} onTripChanged={onTripChanged} />;
+      })()}
       <View style={s.grid}>
         {TILES.map(t => (
           <Pressable

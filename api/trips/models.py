@@ -7,6 +7,7 @@ class TripCreate(BaseModel):
     title: str = Field(min_length=1, max_length=120)
     start_date: date
     end_date: date
+    depart_time: str | None = Field(default=None, max_length=5)  # return flight HH:MM
     trip_type: str | None = None
     travel_mode: str | None = Field(default=None, max_length=12)  # air|train|ship|car
     airline: str | None = Field(default=None, max_length=60)
@@ -41,3 +42,4 @@ class TripPatch(BaseModel):
     airline: str | None = Field(default=None, max_length=60)
     visa_status: str | None = Field(default=None, max_length=16)  # none|evisa|arrival|required
     cabin_class: str | None = Field(default=None, max_length=16)
+    depart_time: str | None = Field(default=None, max_length=5)

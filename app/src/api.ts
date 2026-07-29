@@ -8,7 +8,7 @@ export function setAuthFailHandler(fn: () => void) { onAuthFail = fn; }
 
 export type Trip = {
   place?: string | null; country_code?: string | null; travel_mode?: string | null;
-  airline?: string | null; visa_status?: string | null; cabin_class?: string | null;
+  airline?: string | null; visa_status?: string | null; cabin_class?: string | null; depart_time?: string | null;
   id: string; title: string; start_date: string; end_date: string;
   trip_type?: string | null; status: string;
 };
@@ -139,6 +139,7 @@ export type Guide = {
   visit: { name: string; note: string }[];
   go: { from_airport: string[]; around: string[] };
   health?: string[];
+  souvenirs?: { name: string; note: string; price_band: string }[];
   visa_hint?: { status: string; note: string };
   airport?: { code: string; name: string; to_city: string; highlights: string[]; duty_free: string; smoking: string; tips: string[] };
   gateway?: { kind: string; code: string; name: string; to_city: string; highlights: string[]; duty_free: string; smoking: string; tips: string[] };
@@ -168,7 +169,7 @@ export const listNotes = (tripId: string): Promise<Note[]> => req(`/v1/trips/${t
 export const addNote = (tripId: string, body: string, photos: { b64: string; mime: string }[] = []): Promise<Note> =>
   req(`/v1/trips/${tripId}/notes`, { method: 'POST', body: JSON.stringify({ body, photos }) });
 
-export const patchTrip = (id: string, b: { title?: string; start_date?: string; end_date?: string; airline?: string; visa_status?: string; cabin_class?: string }): Promise<Trip> =>
+export const patchTrip = (id: string, b: { title?: string; start_date?: string; end_date?: string; airline?: string; visa_status?: string; cabin_class?: string; depart_time?: string }): Promise<Trip> =>
   req(`/v1/trips/${id}`, { method: 'PATCH', body: JSON.stringify(b) });
 export const deleteTrip = (id: string): Promise<void> =>
   req(`/v1/trips/${id}`, { method: 'DELETE' });

@@ -2,7 +2,7 @@
 the model may write culture, food, sights, and transport MODES; it may never
 assert visa, vaccination, customs-law, or legality claims, or invent prices."""
 
-GUIDE_PROMPT_VERSION = "guide-v8"
+GUIDE_PROMPT_VERSION = "guide-v9"
 
 GUIDE_SYSTEM_PROMPT = """You are VoyageOS's destination guide writer. Editorial voice: warm, concrete, premium — a well-traveled friend, never a brochure.
 
@@ -37,5 +37,8 @@ SCHEMA
    // ferry terminal — include it. If input has require_gateway, that kind MUST appear first.
    // Do NOT invent options a city truly lacks. Island resorts: put the onward
    // transfer (seaplane/speedboat) in the relevant tips. Evergreen facts, verify tone.
+ "souvenirs":[{"name":"...","note":"what it is / where to get it","price_band":"rough local range e.g. €8-15"}],
+   // 3-5 things worth bringing home. price_band is a ROUGH typical range for orientation,
+   // NEVER a quote — the app shows it with a confirm-locally note.
  "task_suggestions":["..."]}     // e.g. "Check Qatar entry requirements for your nationality"
 """

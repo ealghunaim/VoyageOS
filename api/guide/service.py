@@ -76,6 +76,12 @@ def sanitize(raw: dict, travel_mode: str | None = None) -> dict:
         "from_airport": [_s(x) for x in (go.get("from_airport") or [])[:4] if _s(x)],
         "around": [_s(x) for x in (go.get("around") or [])[:4] if _s(x)],
     }
+    out["souvenirs"] = [
+        {"name": _s(x.get("name"), 60), "note": _s(x.get("note"), 100),
+         "price_band": _s(x.get("price_band"), 30)}
+        for x in (raw.get("souvenirs") or [])[:5]
+        if isinstance(x, dict) and _s(x.get("name"))
+    ]
     return out
 
 

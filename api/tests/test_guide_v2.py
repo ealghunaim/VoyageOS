@@ -24,3 +24,9 @@ def test_gateways_list_and_mode_ordering():
 def test_gateway_compat_single():
     out = sanitize({"gateway": {"kind": "port", "name": "Male Ferry Terminal"}})
     assert out["gateways"][0]["kind"] == "port" and out["gateway"]["kind"] == "port"
+
+
+def test_souvenirs_shape_and_cap():
+    out = sanitize({"souvenirs": [{"name": f"item{i}", "note": "x", "price_band": "€5"} for i in range(8)]})
+    assert len(out["souvenirs"]) == 5
+    assert set(out["souvenirs"][0]) == {"name", "note", "price_band"}
