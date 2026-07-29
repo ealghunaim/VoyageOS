@@ -142,19 +142,30 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
               {g2.customs_flags.map((e, i) => <Text key={i} style={s.bullet}>·  {e}</Text>)}
               <Text style={s.disclaimer}>Cultural guidance, not legal advice — verify locally.</Text>
             </Card>
-            {!!g2.airport?.code && (
-              <Card>
-                <Text style={s.h}>✈ Arrival · {g2.airport.code} {g2.airport.name}</Text>
-                {!!g2.airport.to_city && <Text style={s.sub}>{g2.airport.to_city}</Text>}
-                {g2.airport.highlights.map((h, i) => <Text key={i} style={s.bullet}>·  {h}</Text>)}
-                {!!g2.airport.duty_free && <Text style={s.sub}>Duty free: {g2.airport.duty_free}</Text>}
-                {!!g2.airport.smoking && <Text style={s.sub}>Smoking: {g2.airport.smoking}</Text>}
-                {g2.airport.tips.map((h, i) => <Text key={`t${i}`} style={s.bullet}>·  {h}</Text>)}
-                <Pressable onPress={() => open(`https://www.google.com/search?q=${g2.airport!.code}+airport+news+updates`)}>
-                  <Text style={[s.link, { color: accent }]}>Latest {g2.airport.code} updates ›</Text>
-                </Pressable>
-              </Card>
-            )}
+            {(() => {
+              const gw = g2.gateway?.name || g2.gateway?.code
+                ? g2.gateway
+                : g2.airport?.code ? { ...g2.airport, kind: 'airport' } : null;
+              if (!gw) return null;
+              const KINDS: Record<string, [string, string]> = {
+                airport: ['\u2708', 'Arrival airport'], port: ['\u2693', 'Arrival port'],
+                station: ['\ud83d\ude89', 'Arrival station'], road: ['\ud83d\udee3', 'Arriving by road'],
+              };
+              const [ic, lb] = KINDS[gw.kind] ?? KINDS.airport;
+              return (
+                <Card>
+                  <Text style={s.h}>{ic} {lb} \u00b7 {gw.code ? gw.code + ' ' : ''}{gw.name}</Text>
+                  {!!gw.to_city && <Text style={s.sub}>{gw.to_city}</Text>}
+                  {gw.highlights.map((h, i) => <Text key={i} style={s.bullet}>\u00b7  {h}</Text>)}
+                  {!!gw.duty_free && <Text style={s.sub}>Duty free: {gw.duty_free}</Text>}
+                  {!!gw.smoking && <Text style={s.sub}>Smoking: {gw.smoking}</Text>}
+                  {gw.tips.map((h, i) => <Text key={`t${i}`} style={s.bullet}>\u00b7  {h}</Text>)}
+                  <Pressable onPress={() => open(`https://www.google.com/search?q=${encodeURIComponent((gw.code || gw.name) + ' ' + (gw.kind === 'airport' ? 'airport' : gw.kind) + ' guide updates')}`)}>
+                    <Text style={[s.link, { color: accent }]}>Latest {gw.code || gw.name} updates \u203a</Text>
+                  </Pressable>
+                </Card>
+              );
+            })()}
             {trip.travel_mode === 'air' && (
               <Card>
                 <Text style={s.h}>Your flight</Text>

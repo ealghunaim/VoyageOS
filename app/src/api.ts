@@ -141,6 +141,7 @@ export type Guide = {
   health?: string[];
   visa_hint?: { status: string; note: string };
   airport?: { code: string; name: string; to_city: string; highlights: string[]; duty_free: string; smoking: string; tips: string[] };
+  gateway?: { kind: string; code: string; name: string; to_city: string; highlights: string[]; duty_free: string; smoking: string; tips: string[] };
   task_suggestions: string[];
 };
 export const getGuide = (tripId: string, regenerate = false):

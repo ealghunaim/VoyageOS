@@ -42,7 +42,13 @@ def sanitize(raw: dict) -> dict:
     st = vh.get("status")
     out["visa_hint"] = {"status": st if st in ("none", "evisa", "arrival", "required") else "unknown",
                         "note": _s(vh.get("note"), 120)}
-    ap = raw.get("airport") or {}
+    ap = raw.get("gateway") or raw.get("airport") or {}
+    kind = ap.get("kind") if ap.get("kind") in ("airport", "port", "station", "road") else "airport"
+    out["gateway"] = {"kind": kind, "code": _s(ap.get("code"), 4).upper(), "name": _s(ap.get("name"), 60),
+                      "to_city": _s(ap.get("to_city")),
+                      "highlights": [_s(x) for x in (ap.get("highlights") or [])[:4] if _s(x)],
+                      "duty_free": _s(ap.get("duty_free")), "smoking": _s(ap.get("smoking")),
+                      "tips": [_s(x) for x in (ap.get("tips") or [])[:3] if _s(x)]}
     out["airport"] = {"code": _s(ap.get("code"), 4).upper(), "name": _s(ap.get("name"), 60),
                       "to_city": _s(ap.get("to_city")),
                       "highlights": [_s(x) for x in (ap.get("highlights") or [])[:4] if _s(x)],
