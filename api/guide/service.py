@@ -45,22 +45,33 @@ def sanitize(raw: dict, travel_mode: str | None = None) -> dict:
     st = vh.get("status")
     out["visa_hint"] = {"status": st if st in ("none", "evisa", "arrival", "required") else "unknown",
                         "note": _s(vh.get("note"), 120)}
-    ap = raw.get("gateway") or raw.get("airport") or {}
-    kind = ap.get("kind") if ap.get("kind") in ("airport", "port", "station", "road") else "airport"
-    expected = MODE_KIND.get(travel_mode or "")
-    if expected and kind != expected:
-        ap = {}  # model ignored the travel mode — drop it; next rewrite must comply
-        kind = expected
-    out["gateway"] = {"kind": kind, "code": _s(ap.get("code"), 4).upper(), "name": _s(ap.get("name"), 60),
-                      "to_city": _s(ap.get("to_city")),
-                      "highlights": [_s(x) for x in (ap.get("highlights") or [])[:4] if _s(x)],
-                      "duty_free": _s(ap.get("duty_free")), "smoking": _s(ap.get("smoking")),
-                      "tips": [_s(x) for x in (ap.get("tips") or [])[:3] if _s(x)]}
-    out["airport"] = {"code": _s(ap.get("code"), 4).upper(), "name": _s(ap.get("name"), 60),
-                      "to_city": _s(ap.get("to_city")),
-                      "highlights": [_s(x) for x in (ap.get("highlights") or [])[:4] if _s(x)],
-                      "duty_free": _s(ap.get("duty_free")), "smoking": _s(ap.get("smoking")),
-                      "tips": [_s(x) for x in (ap.get("tips") or [])[:3] if _s(x)]}
+    def _gw(gw):
+        k = gw.get("kind") if gw.get("kind") in ("airport", "port", "station", "road") else "airport"
+        return {"kind": k, "code": _s(gw.get("code"), 4).upper(), "name": _s(gw.get("name"), 60),
+                "to_city": _s(gw.get("to_city")),
+                "highlights": [_s(x) for x in (gw.get("highlights") or [])[:4] if _s(x)],
+                "duty_free": _s(gw.get("duty_free")), "smoking": _s(gw.get("smoking")),
+                "tips": [_s(x) for x in (gw.get("tips") or [])[:3] if _s(x)]}
+    raw_gws = raw.get("gateways")
+    if not isinstance(raw_gws, list) or not raw_gws:
+        single = raw.get("gateway") or raw.get("airport") or {}
+        raw_gws = [single] if (single.get("name") or single.get("code")) else []
+    seen, gateways = set(), []
+    for gw in raw_gws[:4]:
+        if not isinstance(gw, dict):
+            continue
+        built = _gw(gw)
+        if not (built["name"] or built["code"]) or built["kind"] in seen:
+            continue
+        seen.add(built["kind"]); gateways.append(built)
+    want = MODE_KIND.get(travel_mode or "")
+    if want:
+        gateways.sort(key=lambda g: 0 if g["kind"] == want else 1)
+    out["gateways"] = gateways
+    default = gateways[0] if gateways else {"kind": "airport", "code": "", "name": "",
+        "to_city": "", "highlights": [], "duty_free": "", "smoking": "", "tips": []}
+    out["gateway"] = default
+    out["airport"] = default
     out["go"] = {
         "from_airport": [_s(x) for x in (go.get("from_airport") or [])[:4] if _s(x)],
         "around": [_s(x) for x in (go.get("around") or [])[:4] if _s(x)],

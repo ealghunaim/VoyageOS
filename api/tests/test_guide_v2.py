@@ -13,7 +13,14 @@ def test_gateway_kind_whitelist_and_fallback():
     assert out2["gateway"]["kind"] == "port"
 
 
-def test_gateway_mode_enforced_server_side():
-    out = sanitize({"gateway": {"kind": "airport", "name": "Capodichino", "code": "NAP"}},
-                   travel_mode="ship")
-    assert out["gateway"]["kind"] == "port" and out["gateway"]["name"] == ""
+def test_gateways_list_and_mode_ordering():
+    out = sanitize({"gateways": [
+        {"kind": "airport", "name": "Capodichino", "code": "NAP"},
+        {"kind": "port", "name": "Molo Beverello"}]}, travel_mode="ship")
+    assert {g["kind"] for g in out["gateways"]} == {"airport", "port"}
+    assert out["gateway"]["kind"] == "port"   # travel_mode=ship sorts port first
+
+
+def test_gateway_compat_single():
+    out = sanitize({"gateway": {"kind": "port", "name": "Male Ferry Terminal"}})
+    assert out["gateways"][0]["kind"] == "port" and out["gateway"]["kind"] == "port"

@@ -18,6 +18,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
   country: string | null; place: string; onBack: () => void; onTripChanged: (t: Trip) => void;
 }) {
   const [air, setAir] = useState(trip.airline ?? '');
+  const [arrivalKind, setArrivalKind] = useState<string | null>(null);
   const [tips, setTips] = useState<FoodTip[]>([]);
   const [tName, setTName] = useState('');
   const [tNote, setTNote] = useState('');
@@ -143,17 +144,36 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
               <Text style={s.disclaimer}>Cultural guidance, not legal advice — verify locally.</Text>
             </Card>
             {(() => {
-              const gw = g2.gateway?.name || g2.gateway?.code
-                ? g2.gateway
-                : g2.airport?.code ? { ...g2.airport, kind: 'airport' } : null;
-              if (!gw) return null;
+              const list = (g2.gateways && g2.gateways.length
+                ? g2.gateways
+                : (g2.gateway?.name || g2.gateway?.code) ? [g2.gateway!]
+                : (g2.airport?.code ? [{ ...g2.airport, kind: 'airport' }] : []));
+              if (!list.length) return null;
               const KINDS: Record<string, [string, string]> = {
                 airport: ['\u2708', 'Arrival airport'], port: ['\u2693', 'Arrival port'],
                 station: ['\ud83d\ude89', 'Arrival station'], road: ['\ud83d\udee3', 'Arriving by road'],
               };
+              const MODEK: Record<string, string> = { air: 'airport', ship: 'port', train: 'station', car: 'road' };
+              const modeKind = MODEK[trip.travel_mode ?? ''] ?? null;
+              const sel = arrivalKind ?? (list.find(x => x.kind === modeKind)?.kind) ?? list[0].kind;
+              const gw = list.find(x => x.kind === sel) ?? list[0];
               const [ic, lb] = KINDS[gw.kind] ?? KINDS.airport;
               return (
                 <Card>
+                  {list.length > 1 && (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 }}>
+                      {list.map(x => {
+                        const on = x.kind === sel;
+                        const km = KINDS[x.kind] ?? KINDS.airport;
+                        return (
+                          <Pressable key={x.kind} onPress={() => setArrivalKind(x.kind)}
+                            style={[sx.vChip, on && { backgroundColor: accent, borderColor: accent }]}>
+                            <Text style={[sx.vChipText, on && { color: '#fff' }]}>{km[0]} {km[1].replace('Arrival ', '').replace('Arriving by ', '')}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  )}
                   <Text style={s.h}>{ic} {lb} · {gw.code ? gw.code + ' ' : ''}{gw.name}</Text>
                   {!!gw.to_city && <Text style={s.sub}>{gw.to_city}</Text>}
                   {gw.highlights.map((h, i) => <Text key={i} style={s.bullet}>·  {h}</Text>)}
