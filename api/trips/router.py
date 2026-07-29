@@ -37,10 +37,28 @@ def create_trip(body: TripCreate, user_id: str = Depends(current_user_id)):
 @router.get("")
 def list_trips(user_id: str = Depends(current_user_id)):
     db = get_db()
-    return (
+    trips = (
         db.table("trips").select("*").eq("owner_id", user_id)
         .order("start_date", desc=True).execute()
     ).data
+    if not trips:
+        return trips
+    # enrich each trip with its first destination's place + country_code so the
+    # app's accent, currency, and landmark resolve correctly (they read trip.country_code)
+    ids = [t["id"] for t in trips]
+    dests = (
+        db.table("destinations").select("trip_id,place_name,country_code,seq")
+        .in_("trip_id", ids).order("seq").execute()
+    ).data
+    first: dict = {}
+    for d in dests:
+        first.setdefault(d["trip_id"], d)
+    for t in trips:
+        d = first.get(t["id"])
+        if d:
+            t["place"] = d.get("place_name")
+            t["country_code"] = t.get("country_code") or d.get("country_code")
+    return trips
 
 
 @router.get("/{trip_id}")
