@@ -4,6 +4,7 @@ import {
   Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { patchTrip, Segment, Trip } from '../api';
+import { airlineFromRef } from '../airlines';
 import { Btn } from '../components/ui';
 import { C, F, tint } from '../theme';
 
@@ -108,6 +109,23 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved }: {
                       </View>
                       <TextInput style={s.input} value={sg.ref ?? ''} onChangeText={t => update(i, { ref: t })}
                         placeholder="Flight no. / service (e.g. QR128)" placeholderTextColor="#9AA9BB" />
+                      {sg.mode === 'flight' && (() => {
+                        const al = airlineFromRef(sg.ref);
+                        if (!al) return null;
+                        return (
+                          <View style={{ marginBottom: 8 }}>
+                            <Text style={{ color: C.sub, marginBottom: 6 }}>✈ {al.name} · hub {al.iata} ({al.city})</Text>
+                            <View style={{ flexDirection: 'row' }}>
+                              <Pressable onPress={() => update(i, { origin: al.iata })} style={[s.chip, { marginRight: 6 }]}>
+                                <Text style={s.chipText}>From {al.iata}</Text>
+                              </Pressable>
+                              <Pressable onPress={() => update(i, { dest: al.iata })} style={s.chip}>
+                                <Text style={s.chipText}>To {al.iata}</Text>
+                              </Pressable>
+                            </View>
+                          </View>
+                        );
+                      })()}
                       <View style={{ flexDirection: 'row' }}>
                         <TextInput style={[s.input, { flex: 1, marginRight: 8 }]} value={sg.origin ?? ''} onChangeText={t => update(i, { origin: t })}
                           placeholder="From" placeholderTextColor="#9AA9BB" />
