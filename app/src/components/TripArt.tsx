@@ -1,7 +1,7 @@
 import React from 'react';
-import { View } from 'react-native';
+import { Image, View } from 'react-native';
 import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
-import { markFor } from './landmarks';
+import { landmarkImage } from './landmarkImages';
 import { tint } from '../theme';
 
 /** Generative destination art: a minimal landscape seeded by the place name.
@@ -20,7 +20,7 @@ export default function TripArt({ seed, accent, height = 72 }: {
   const m1 = 40 + r(3) * 35;   // back ridge height
   const m2 = 55 + r(4) * 40;   // front ridge height
   const waveY = H - 18 - r(5) * 10;
-  const mark = markFor(seed);
+  const mark = landmarkImage(seed);
 
   return (
     <View style={{ height, overflow: 'hidden' }}>
@@ -33,17 +33,11 @@ export default function TripArt({ seed, accent, height = 72 }: {
           fill={tint(accent, 0.48)} />
         <Path d={`M0 ${waveY} Q ${W * 0.25} ${waveY - 8}, ${W * 0.5} ${waveY} T ${W} ${waveY} L${W} ${H} L0 ${H} Z`}
           fill={tint(accent, 0.75)} />
-        {mark && (
-          <G transform={`translate(${W - 168}, ${H - 104}) scale(0.98)`}>
-            {mark.paths.map((p, i) => (
-              <Path key={i} d={p.d} fill={tint(accent, p.t ?? 0.85)} fillRule="evenodd" />
-            ))}
-            {(mark.circles ?? []).map((c, i) => (
-              <Circle key={`c${i}`} cx={c.cx} cy={c.cy} r={c.r} fill={tint(accent, c.t ?? 0.85)} />
-            ))}
-          </G>
-        )}
       </Svg>
+      {mark && (
+        <Image source={mark} resizeMode="contain"
+          style={{ position: 'absolute', right: 14, bottom: 10, width: height * 0.6, height: height * 0.6, tintColor: tint(accent, 0.9) }} />
+      )}
     </View>
   );
 }
