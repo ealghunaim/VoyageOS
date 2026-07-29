@@ -230,12 +230,16 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                   {dishes.length === 0 && restaurants.length === 0 &&
                     <Card><Text style={s.sub}>Nothing yet — tap ↻ to write the food guide.</Text></Card>}
                   {dishes.length > 0 && <Text style={sx.tipHead}>LOCAL FOOD · {place.toUpperCase()}</Text>}
-                  {dishes.map((d, i) => (
-                    <Card key={`d${i}`}>
-                      <Text style={s.h}>{d.name}</Text>
-                      {!!d.note && <Text style={s.sub}>{d.note}</Text>}
+                  {dishes.length > 0 && (
+                    <Card>
+                      {dishes.map((d, i) => (
+                        <View key={`d${i}`} style={[{ paddingVertical: 11 }, i > 0 && { borderTopWidth: 1, borderTopColor: C.border }]}>
+                          <Text style={s.h}>{d.name}</Text>
+                          {!!d.note && <Text style={[s.sub, { marginTop: 2 }]}>{d.note}</Text>}
+                        </View>
+                      ))}
                     </Card>
-                  ))}
+                  )}
                   {restaurants.length > 0 && <Text style={sx.tipHead}>RESTAURANTS</Text>}
                   {restaurants.map((r, i) => (
                     <Card key={`r${i}`}>
