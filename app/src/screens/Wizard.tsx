@@ -33,6 +33,7 @@ export default function Wizard({ onDone, onCancel }: {
   const [stay, setStay] = useState('');
   const [airline, setAirline] = useState('');
   const [cabin, setCabin] = useState('economy');
+  const [departTime, setDepartTime] = useState('');
   const [hits, setHits] = useState<PlaceHit[]>([]);
   const [chosen, setChosen] = useState(false);
   const [start, setStart] = useState(defStart);
@@ -83,6 +84,10 @@ export default function Wizard({ onDone, onCancel }: {
         start_date: start,
         end_date: end,
         trip_type: acts.values().next().value ?? 'general',
+        travel_mode: mode,
+        airline: mode === 'air' && airline.trim() ? airline.trim() : undefined,
+        cabin_class: mode === 'air' ? cabin : undefined,
+        depart_time: mode === 'air' && /^\d{1,2}:\d{2}$/.test(departTime.trim()) ? departTime.trim() : undefined,
       });
       setBusy('Adding destination…');
       await addDestination(trip.id, {
@@ -144,6 +149,8 @@ export default function Wizard({ onDone, onCancel }: {
                 <Chip key={v} label={l} selected={cabin === v} onPress={() => setCabin(v)} />
               ))}
             </View>
+            <Field label="RETURN FLIGHT TIME (OPTIONAL, HH:MM)" value={departTime} onChange={setDepartTime}
+              placeholder="e.g. 14:20 - powers your leave-by reminder" />
             </>
           )}
           <Field label="WHERE ARE YOU STAYING? (OPTIONAL)" value={stay} onChange={setStay}
