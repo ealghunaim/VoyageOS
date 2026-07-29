@@ -6,9 +6,11 @@ const APP_KEY: string = (CFG as any).APP_KEY ?? '';
 let onAuthFail: (() => void) | null = null;
 export function setAuthFailHandler(fn: () => void) { onAuthFail = fn; }
 
+export type Segment = { mode: string; ref?: string | null; origin?: string | null; dest?: string | null; depart?: string | null; arrive?: string | null };
 export type Trip = {
   place?: string | null; country_code?: string | null; travel_mode?: string | null;
   airline?: string | null; visa_status?: string | null; cabin_class?: string | null; depart_time?: string | null;
+  segments?: Segment[] | null;
   id: string; title: string; start_date: string; end_date: string;
   trip_type?: string | null; status: string;
 };
@@ -169,7 +171,7 @@ export const listNotes = (tripId: string): Promise<Note[]> => req(`/v1/trips/${t
 export const addNote = (tripId: string, body: string, photos: { b64: string; mime: string }[] = []): Promise<Note> =>
   req(`/v1/trips/${tripId}/notes`, { method: 'POST', body: JSON.stringify({ body, photos }) });
 
-export const patchTrip = (id: string, b: { title?: string; start_date?: string; end_date?: string; airline?: string; visa_status?: string; cabin_class?: string; depart_time?: string }): Promise<Trip> =>
+export const patchTrip = (id: string, b: { title?: string; start_date?: string; end_date?: string; airline?: string; visa_status?: string; cabin_class?: string; depart_time?: string; segments?: Segment[] }): Promise<Trip> =>
   req(`/v1/trips/${id}`, { method: 'PATCH', body: JSON.stringify(b) });
 export const deleteTrip = (id: string): Promise<void> =>
   req(`/v1/trips/${id}`, { method: 'DELETE' });

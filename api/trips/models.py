@@ -1,6 +1,19 @@
 """Request schemas for trip endpoints (Part 9 §1)."""
 from datetime import date
+from typing import Literal
+
 from pydantic import BaseModel, Field, model_validator
+
+
+class Segment(BaseModel):
+    """One leg of the door-to-door journey. Times are traveler-entered ISO
+    strings (a flight feed can fill these later — same shape)."""
+    mode: Literal["flight", "train", "ship", "drive"] = "flight"
+    ref: str | None = Field(default=None, max_length=20)      # flight no. / service name
+    origin: str | None = Field(default=None, max_length=60)
+    dest: str | None = Field(default=None, max_length=60)
+    depart: str | None = Field(default=None, max_length=25)   # ISO datetime
+    arrive: str | None = Field(default=None, max_length=25)
 
 
 class TripCreate(BaseModel):
@@ -43,3 +56,4 @@ class TripPatch(BaseModel):
     visa_status: str | None = Field(default=None, max_length=16)  # none|evisa|arrival|required
     cabin_class: str | None = Field(default=None, max_length=16)
     depart_time: str | None = Field(default=None, max_length=5)
+    segments: list[Segment] | None = None

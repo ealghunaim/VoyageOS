@@ -4,6 +4,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { askTrip, deleteTrip, getTripWeather, patchTrip, Trip, WxDay } from '../api';
 import TileIcon from '../components/icons';
 import DepartureCard from './DepartureCard';
+import JourneyEditor from './JourneyEditor';
 import TripArt from '../components/TripArt';
 import { Card } from '../components/ui';
 import { accentForTrip, C, tint, F, titleize } from '../theme';
@@ -32,6 +33,7 @@ export default function TripHub({ trip, onBack, onPack, onGuide, onJournal, onSO
   const [aq, setAq] = useState('');
   const [aBusy, setABusy] = useState(false);
   const [answer, setAnswer] = useState<string | null>(null);
+  const [journeyOpen, setJourneyOpen] = useState(false);
   const [wx, setWx] = useState<WxDay[]>([]);
   const past = new Date(trip.start_date + 'T00:00:00').getTime() < Date.now();
 
@@ -160,6 +162,13 @@ export default function TripHub({ trip, onBack, onPack, onGuide, onJournal, onSO
           <Text style={{ color: C.red, fontFamily: F.bold }}>Delete trip</Text>
         </Pressable>
       </View>
+      <Pressable onPress={() => setJourneyOpen(true)} style={{ alignItems: 'center', marginTop: 12 }}>
+        <Text style={{ color: accent, fontFamily: F.bold }}>✈ Your journey{trip.segments && trip.segments.length ? ` · ${trip.segments.length} legs` : ''} ›</Text>
+      </Pressable>
+      {journeyOpen && (
+        <JourneyEditor trip={trip} accent={accent}
+          onClose={() => setJourneyOpen(false)} onSaved={onTripChanged} />
+      )}
       {past && trip.status !== 'completed' && (
         <Pressable onPress={onDebrief}>
           <Text style={[s.debrief, { color: accent }]}>Close out this trip — 60-second debrief ›</Text>
