@@ -113,6 +113,7 @@ def get_guide(db, trip: dict, user_id: str, *, regenerate: bool = False) -> dict
            "month": trip["start_date"][5:7], "start_date": trip["start_date"],
            "duration_days": None, "activities": sorted(set(acts)),
            "accommodation": accommodation, "travel_mode": trip.get("travel_mode"),
+           "require_gateway": MODE_KIND.get(trip.get("travel_mode") or ""),
            "nationality": nationality}
     result = gateway.complete("guide_generate", GUIDE_SYSTEM_PROMPT,
                               json.dumps(ctx), db=db, user_id=user_id, max_tokens=3600)
