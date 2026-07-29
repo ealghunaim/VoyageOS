@@ -17,7 +17,10 @@ def _s(v, cap=140) -> str:
     return str(v)[:cap] if v is not None else ""
 
 
-def sanitize(raw: dict) -> dict:
+MODE_KIND = {"air": "airport", "ship": "port", "train": "station", "car": "road"}
+
+
+def sanitize(raw: dict, travel_mode: str | None = None) -> dict:
     """Whitelist keys, coerce shapes, clip lengths. Unknown junk never survives."""
     out: dict = {}
     power = raw.get("power") or {}
@@ -44,6 +47,10 @@ def sanitize(raw: dict) -> dict:
                         "note": _s(vh.get("note"), 120)}
     ap = raw.get("gateway") or raw.get("airport") or {}
     kind = ap.get("kind") if ap.get("kind") in ("airport", "port", "station", "road") else "airport"
+    expected = MODE_KIND.get(travel_mode or "")
+    if expected and kind != expected:
+        ap = {}  # model ignored the travel mode — drop it; next rewrite must comply
+        kind = expected
     out["gateway"] = {"kind": kind, "code": _s(ap.get("code"), 4).upper(), "name": _s(ap.get("name"), 60),
                       "to_city": _s(ap.get("to_city")),
                       "highlights": [_s(x) for x in (ap.get("highlights") or [])[:4] if _s(x)],
@@ -99,7 +106,7 @@ def get_guide(db, trip: dict, user_id: str, *, regenerate: bool = False) -> dict
     result = gateway.complete("guide_generate", GUIDE_SYSTEM_PROMPT,
                               json.dumps(ctx), db=db, user_id=user_id, max_tokens=3600)
     try:
-        guide = sanitize(_parse(result.text))
+        guide = sanitize(_parse(result.text), travel_mode=trip.get("travel_mode"))
     except Exception as e:
         print(f"[guide] parse failed: {type(e).__name__}: {e} · raw tail: {result.text[-120:]!r}")
         raise HTTPException(502, "The guide didn't generate cleanly — tap ↻ to retry.")

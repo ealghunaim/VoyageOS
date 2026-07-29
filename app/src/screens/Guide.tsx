@@ -154,14 +154,14 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
               const [ic, lb] = KINDS[gw.kind] ?? KINDS.airport;
               return (
                 <Card>
-                  <Text style={s.h}>{ic} {lb} \u00b7 {gw.code ? gw.code + ' ' : ''}{gw.name}</Text>
+                  <Text style={s.h}>{ic} {lb} · {gw.code ? gw.code + ' ' : ''}{gw.name}</Text>
                   {!!gw.to_city && <Text style={s.sub}>{gw.to_city}</Text>}
-                  {gw.highlights.map((h, i) => <Text key={i} style={s.bullet}>\u00b7  {h}</Text>)}
+                  {gw.highlights.map((h, i) => <Text key={i} style={s.bullet}>·  {h}</Text>)}
                   {!!gw.duty_free && <Text style={s.sub}>Duty free: {gw.duty_free}</Text>}
                   {!!gw.smoking && <Text style={s.sub}>Smoking: {gw.smoking}</Text>}
-                  {gw.tips.map((h, i) => <Text key={`t${i}`} style={s.bullet}>\u00b7  {h}</Text>)}
+                  {gw.tips.map((h, i) => <Text key={`t${i}`} style={s.bullet}>·  {h}</Text>)}
                   <Pressable onPress={() => open(`https://www.google.com/search?q=${encodeURIComponent((gw.code || gw.name) + ' ' + (gw.kind === 'airport' ? 'airport' : gw.kind) + ' guide updates')}`)}>
-                    <Text style={[s.link, { color: accent }]}>Latest {gw.code || gw.name} updates \u203a</Text>
+                    <Text style={[s.link, { color: accent }]}>Latest {gw.code || gw.name} updates ›</Text>
                   </Pressable>
                 </Card>
               );
