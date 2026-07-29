@@ -31,7 +31,9 @@ SCHEMA
  "gateway":{"kind":"airport|port|station|road","code":"IATA or empty","name":"...",
    "to_city":"distance + typical ways into town","highlights":["standout shops or food"],
    "duty_free":"one line or empty","smoking":"one line or empty","tips":["..."]},
-   // the ARRIVAL GATEWAY matching travel_mode: air->airport, ship->port/ferry terminal,
+   // gateway.kind MUST follow travel_mode exactly: air->"airport", ship->"port",
+   // train->"station", car->"road". Never return an airport for a ship or train trip.
+   // Mapping: air->airport, ship->port/ferry terminal,
    // train->main station, car->main entry route. Island destinations with resort stays:
    // include the onward transfer (seaplane/speedboat) in tips. Evergreen facts, verify tone.
  "task_suggestions":["..."]}     // e.g. "Check Qatar entry requirements for your nationality"

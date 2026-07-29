@@ -3,7 +3,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { addActivity, addDestination, createTrip, generateList, PlaceHit, searchPlaces, Trip } from '../api';
 import { Btn, Card, Chip, Field } from '../components/ui';
-import { C, F } from '../theme';
+import JourneyLoader from '../components/JourneyLoader';
+import { accentForTrip, C, F } from '../theme';
 
 const ACTIVITIES = [
   'hiking', 'trail_running', 'business', 'beach', 'ski',
@@ -216,12 +217,16 @@ export default function Wizard({ onDone, onCancel }: {
 
       {step === 4 && (
         <Card>
-          <Text style={s.h1}>{busy || 'Trip created.'}</Text>
-          <Text style={s.sub}>
-            {busy
-              ? 'Reading your trip · Asking Claude · Applying your quantities'
-              : 'Your packing list is ready.'}
-          </Text>
+          {busy ? (
+            <JourneyLoader
+              accent={accentForTrip(country, place)}
+              label={busy} />
+          ) : (
+            <>
+              <Text style={s.h1}>Trip created.</Text>
+              <Text style={s.sub}>Your packing list is ready.</Text>
+            </>
+          )}
         </Card>
       )}
     </ScrollView>
