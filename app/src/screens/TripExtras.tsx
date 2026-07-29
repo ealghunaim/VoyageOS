@@ -6,7 +6,7 @@ import { C, F, tint } from '../theme';
 
 export default function TripExtras({ trip, accent }: { trip: Trip; accent: string }) {
   const [open, setOpen] = useState<null | 'phrases' | 'money'>(null);
-  const [destCcy, setDestCcy] = useState(currencyForCountry(trip.country_code) ?? 'USD');
+  const [fromCcy, setFromCcy] = useState(currencyForCountry(trip.country_code) ?? 'USD'); // where you are
 
   const [phrases, setPhrases] = useState<{ language: string; phrases: Phrase[] } | null>(null);
   const [pBusy, setPBusy] = useState(false);
@@ -16,7 +16,7 @@ export default function TripExtras({ trip, accent }: { trip: Trip; accent: strin
     getPhrases(trip.id).then(setPhrases).catch(() => setPhrases({ language: '', phrases: [] })).finally(() => setPBusy(false));
   }, [open, phrases, trip.id]);
 
-  const [home, setHome] = useState('KWD');
+  const [toCcy, setToCcy] = useState('KWD'); // your home
   const ordered = (sel: string) => [sel, ...CURRENCIES.filter(c => c !== sel)];
   const [amount, setAmount] = useState('100');
   const [rate, setRate] = useState<number | null>(null);
@@ -24,8 +24,8 @@ export default function TripExtras({ trip, accent }: { trip: Trip; accent: strin
   useEffect(() => {
     if (open !== 'money') return;
     setRBusy(true); setRate(null);
-    getRate(home, destCcy).then(setRate).finally(() => setRBusy(false));
-  }, [open, home, destCcy]);
+    getRate(fromCcy, toCcy).then(setRate).finally(() => setRBusy(false));
+  }, [open, fromCcy, toCcy]);
 
   const amt = parseFloat(amount) || 0;
   const converted = rate != null ? amt * rate : null;
@@ -71,19 +71,19 @@ export default function TripExtras({ trip, accent }: { trip: Trip; accent: strin
           <TextInput style={s.amt} value={amount} onChangeText={setAmount} keyboardType="numeric" />
           <Text style={s.pickLabel}>FROM</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-            {ordered(home).map(c => (
-              <Pressable key={c} onPress={() => setHome(c)}
-                style={[s.ccyChip, c === home && { backgroundColor: accent, borderColor: accent }]}>
-                <Text style={[s.ccyChipText, c === home && { color: '#fff' }]}>{c}</Text>
+            {ordered(fromCcy).map(c => (
+              <Pressable key={c} onPress={() => setFromCcy(c)}
+                style={[s.ccyChip, c === fromCcy && { backgroundColor: accent, borderColor: accent }]}>
+                <Text style={[s.ccyChipText, c === fromCcy && { color: '#fff' }]}>{c}</Text>
               </Pressable>
             ))}
           </ScrollView>
           <Text style={s.pickLabel}>TO</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 4 }}>
-            {ordered(destCcy).map(c => (
-              <Pressable key={c} onPress={() => setDestCcy(c)}
-                style={[s.ccyChip, c === destCcy && { backgroundColor: accent, borderColor: accent }]}>
-                <Text style={[s.ccyChipText, c === destCcy && { color: '#fff' }]}>{c}</Text>
+            {ordered(toCcy).map(c => (
+              <Pressable key={c} onPress={() => setToCcy(c)}
+                style={[s.ccyChip, c === toCcy && { backgroundColor: accent, borderColor: accent }]}>
+                <Text style={[s.ccyChipText, c === toCcy && { color: '#fff' }]}>{c}</Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -91,10 +91,10 @@ export default function TripExtras({ trip, accent }: { trip: Trip; accent: strin
             {rBusy ? <ActivityIndicator color={accent} />
               : converted != null ? (
                 <>
-                  <Text style={[s.result, { color: accent }]}>{converted.toLocaleString(undefined, { maximumFractionDigits: 2 })} {destCcy}</Text>
-                  <Text style={s.en}>{amt.toLocaleString()} {home} · rate {rate?.toFixed(4)}</Text>
+                  <Text style={[s.result, { color: accent }]}>{converted.toLocaleString(undefined, { maximumFractionDigits: 2 })} {toCcy}</Text>
+                  <Text style={s.en}>{amt.toLocaleString()} {fromCcy} · rate {rate?.toFixed(4)}</Text>
                 </>
-              ) : <Text style={s.en}>Rate unavailable for {home} → {destCcy}. Check the code.</Text>}
+              ) : <Text style={s.en}>Rate unavailable for {fromCcy} → {toCcy}.</Text>}
           </View>
           <Text style={s.note}>Indicative daily rate — banks and ATMs add a margin.</Text>
         </View>
