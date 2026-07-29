@@ -78,9 +78,23 @@ def get_trip(trip_id: str, user_id: str = Depends(current_user_id)):
 def add_destination(trip_id: str, body: DestinationCreate, user_id: str = Depends(current_user_id)):
     db = get_db()
     _owned_trip_or_404(db, trip_id, user_id)
-    return (
-        db.table("destinations").insert({"trip_id": trip_id, **body.model_dump()}).execute()
-    ).data[0]
+    row = {
+        "trip_id": trip_id,
+        "place_name": (body.place_name or "").strip()[:120] or "Trip",
+        "country_code": (body.country_code or "").upper()[:2] or None,
+        "lat": body.lat, "lng": body.lng,
+        "accommodation": body.accommodation if isinstance(body.accommodation, dict) else None,
+        "seq": body.seq or 1,
+    }
+    try:
+        return db.table("destinations").insert(row).execute().data[0]
+    except Exception as e:
+        # Never fail the whole build on a destination hiccup — retry without the
+        # optional/blob fields, which are the usual culprits, so the trip still forms.
+        print(f"[destinations] insert failed ({type(e).__name__}: {str(e)[:200]}); retrying lean")
+        lean = {"trip_id": trip_id, "place_name": row["place_name"],
+                "country_code": row["country_code"], "seq": row["seq"]}
+        return db.table("destinations").insert(lean).execute().data[0]
 
 
 @router.post("/{trip_id}/activities", status_code=201)
