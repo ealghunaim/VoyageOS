@@ -136,7 +136,9 @@ export const searchPlaces = (q: string): Promise<PlaceHit[]> =>
 export type Guide = {
   power: { plugs: string; note: string };
   etiquette: string[]; customs_flags: string[];
-  eat: { name: string; note: string; order?: string; when?: string; area?: string }[];
+  eat: { name: string; note: string; order?: string; when?: string; area?: string; price?: number }[];
+  dishes?: { name: string; note: string }[];
+  restaurants?: { name: string; note: string; area?: string; price?: number }[];
   play: { name: string; note: string }[];
   visit: { name: string; note: string }[];
   go: { from_airport: string[]; around: string[] };

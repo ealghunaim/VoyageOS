@@ -222,24 +222,43 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
         )}
         {tab === 'eat' && (
           <>
-            {g2.eat.length === 0 && <Card><Text style={s.sub}>Nothing yet — tap ↻ to write the food guide.</Text></Card>}
-            {g2.eat.map((r, i) => (
-              <Card key={i}>
-                <Text style={s.h}>{r.name}</Text>
-                {!!r.area && <Text style={[s.sub, { fontFamily: F.med }]}>{r.area}</Text>}
-                {!!r.note && <Text style={s.sub}>{r.note}</Text>}
-                {!!r.order && <Text style={[s.bullet, { marginTop: 8 }]}>·  Order: {r.order}</Text>}
-                {!!r.when && <Text style={s.bullet}>·  Go: {r.when}</Text>}
-                <View style={{ flexDirection: 'row', marginTop: 6 }}>
-                  <Pressable onPress={() => open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.name + ' ' + place)}`)}>
-                    <Text style={[s.link, { color: accent, marginRight: 22 }]}>Map ›</Text>
-                  </Pressable>
-                  <Pressable onPress={() => open(`https://www.google.com/search?q=${encodeURIComponent(r.name + ' ' + place + ' reservation')}`)}>
-                    <Text style={[s.link, { color: accent }]}>Reserve ›</Text>
-                  </Pressable>
-                </View>
-              </Card>
-            ))}
+            {(() => {
+              const dishes = g2.dishes ?? [];
+              const restaurants = (g2.restaurants && g2.restaurants.length ? g2.restaurants : g2.eat) ?? [];
+              return (
+                <>
+                  {dishes.length === 0 && restaurants.length === 0 &&
+                    <Card><Text style={s.sub}>Nothing yet — tap ↻ to write the food guide.</Text></Card>}
+                  {dishes.length > 0 && <Text style={sx.tipHead}>LOCAL FOOD · {place.toUpperCase()}</Text>}
+                  {dishes.map((d, i) => (
+                    <Card key={`d${i}`}>
+                      <Text style={s.h}>{d.name}</Text>
+                      {!!d.note && <Text style={s.sub}>{d.note}</Text>}
+                    </Card>
+                  ))}
+                  {restaurants.length > 0 && <Text style={sx.tipHead}>RESTAURANTS</Text>}
+                  {restaurants.map((r, i) => (
+                    <Card key={`r${i}`}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={[s.h, { flex: 1 }]}>{r.name}</Text>
+                        <Text style={{ fontSize: 14 }}>{'🪙'.repeat((r as any).price ?? 2)}</Text>
+                      </View>
+                      {!!r.area && <Text style={[s.sub, { fontFamily: F.med }]}>{r.area}</Text>}
+                      {!!r.note && <Text style={s.sub}>{r.note}</Text>}
+                      <View style={{ flexDirection: 'row', marginTop: 6 }}>
+                        <Pressable onPress={() => open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.name + ' ' + place)}`)}>
+                          <Text style={[s.link, { color: accent, marginRight: 22 }]}>Map ›</Text>
+                        </Pressable>
+                        <Pressable onPress={() => open(`https://www.google.com/search?q=${encodeURIComponent(r.name + ' ' + place + ' reservation')}`)}>
+                          <Text style={[s.link, { color: accent }]}>Reserve ›</Text>
+                        </Pressable>
+                      </View>
+                    </Card>
+                  ))}
+                  {restaurants.length > 0 && <Text style={[s.sub, { fontSize: 12, marginBottom: 4, color: '#9AA9BB' }]}>Rankings & prices are impressions — confirm before you go.</Text>}
+                </>
+              );
+            })()}
             <Text style={sx.tipHead}>FROM TRAVELERS · {place.toUpperCase()}</Text>
             {tips.map(t => (
               <Card key={t.id}>

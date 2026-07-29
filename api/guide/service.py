@@ -27,13 +27,23 @@ def sanitize(raw: dict, travel_mode: str | None = None) -> dict:
     out["power"] = {"plugs": _s(power.get("plugs"), 60), "note": _s(power.get("note"))}
     for key in ("etiquette", "customs_flags", "task_suggestions", "health"):
         out[key] = [_s(x) for x in (raw.get(key) or [])[:_LIST_CAPS[key]] if _s(x)]
-    eat_rows = []
-    for item in (raw.get("eat") or [])[:_LIST_CAPS["eat"]]:
+    dishes = []
+    for item in (raw.get("dishes") or [])[:6]:
         if isinstance(item, dict) and item.get("name"):
-            eat_rows.append({"name": _s(item.get("name"), 60), "note": _s(item.get("note")),
-                             "order": _s(item.get("order"), 80), "when": _s(item.get("when"), 60),
-                             "area": _s(item.get("area"), 50)})
-    out["eat"] = eat_rows
+            dishes.append({"name": _s(item.get("name"), 60), "note": _s(item.get("note"))})
+    out["dishes"] = dishes
+    restaurants = []
+    for item in (raw.get("restaurants") or raw.get("eat") or [])[:6]:
+        if isinstance(item, dict) and item.get("name"):
+            rawp = item.get("price")
+            try:
+                price = int(rawp) if rawp is not None else 2
+            except (TypeError, ValueError):
+                price = 2
+            restaurants.append({"name": _s(item.get("name"), 60), "note": _s(item.get("note")),
+                                "area": _s(item.get("area"), 50), "price": max(1, min(4, price))})
+    out["restaurants"] = restaurants
+    out["eat"] = restaurants  # back-compat for older readers
     for key in ("play", "visit"):
         rows = []
         for item in (raw.get(key) or [])[:_LIST_CAPS[key]]:

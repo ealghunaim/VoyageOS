@@ -30,3 +30,11 @@ def test_souvenirs_shape_and_cap():
     out = sanitize({"souvenirs": [{"name": f"item{i}", "note": "x", "price_band": "€5"} for i in range(8)]})
     assert len(out["souvenirs"]) == 5
     assert set(out["souvenirs"][0]) == {"name", "note", "price_band"}
+
+
+def test_eat_split_dishes_restaurants_and_price_clamp():
+    out = sanitize({"dishes": [{"name": "Machboos", "note": "spiced rice"}],
+                    "restaurants": [{"name": "A", "note": "n", "area": "Souq", "price": 9},
+                                    {"name": "B", "price": 0}]})
+    assert out["dishes"][0]["name"] == "Machboos"
+    assert out["restaurants"][0]["price"] == 4 and out["restaurants"][1]["price"] == 1
