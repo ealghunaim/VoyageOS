@@ -22,6 +22,7 @@ TASK_ROUTE = {  # Part 1 §6 routing table
     "items_parse": "small",
     "trip_qa": "small",
     "family_play": "mid",
+    "phrases": "small",
     "packing_generate_complex": "frontier",
 }
 

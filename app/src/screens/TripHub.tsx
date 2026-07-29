@@ -5,6 +5,7 @@ import { askTrip, deleteTrip, getTripWeather, patchTrip, Trip, WxDay } from '../
 import TileIcon from '../components/icons';
 import DepartureCard from './DepartureCard';
 import JourneyEditor from './JourneyEditor';
+import TripExtras from './TripExtras';
 import TripArt from '../components/TripArt';
 import { Card } from '../components/ui';
 import { accentForTrip, C, tint, F, titleize } from '../theme';
@@ -89,6 +90,7 @@ export default function TripHub({ trip, onBack, onPack, onGuide, onJournal, onSO
         </View>
         {!!answer && <Text style={{ color: C.text, lineHeight: 21, marginTop: 10 }}>{answer}</Text>}
       </View>
+      <TripExtras trip={trip} accent={accent} />
       {(() => {
         const endMs = new Date(trip.end_date + 'T23:59:00').getTime();
         const hrsToEnd = (endMs - Date.now()) / 3600000;

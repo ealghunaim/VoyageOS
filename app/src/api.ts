@@ -210,3 +210,7 @@ export type FamilyActivity = {
 };
 export const getFamilyPlay = (tripId: string, regenerate = false): Promise<{ activities: FamilyActivity[] }> =>
   req(`/v1/trips/${tripId}/family-play?regenerate=${regenerate}`);
+
+export type Phrase = { en: string; local: string; pron: string };
+export const getPhrases = (tripId: string, regenerate = false): Promise<{ language: string; phrases: Phrase[] }> =>
+  req(`/v1/trips/${tripId}/phrases?regenerate=${regenerate}`);

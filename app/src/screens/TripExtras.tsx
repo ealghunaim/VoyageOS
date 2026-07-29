@@ -1,0 +1,103 @@
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { getPhrases, Phrase, Trip } from '../api';
+import { currencyForCountry, getRate } from '../fx';
+import { C, F, tint } from '../theme';
+
+export default function TripExtras({ trip, accent }: { trip: Trip; accent: string }) {
+  const [open, setOpen] = useState<null | 'phrases' | 'money'>(null);
+  const destCcy = currencyForCountry(trip.country_code) ?? 'USD';
+
+  const [phrases, setPhrases] = useState<{ language: string; phrases: Phrase[] } | null>(null);
+  const [pBusy, setPBusy] = useState(false);
+  useEffect(() => {
+    if (open !== 'phrases' || phrases) return;
+    setPBusy(true);
+    getPhrases(trip.id).then(setPhrases).catch(() => setPhrases({ language: '', phrases: [] })).finally(() => setPBusy(false));
+  }, [open, phrases, trip.id]);
+
+  const [home, setHome] = useState('KWD');
+  const [amount, setAmount] = useState('100');
+  const [rate, setRate] = useState<number | null>(null);
+  const [rBusy, setRBusy] = useState(false);
+  useEffect(() => {
+    if (open !== 'money') return;
+    setRBusy(true); setRate(null);
+    getRate(home, destCcy).then(setRate).finally(() => setRBusy(false));
+  }, [open, home, destCcy]);
+
+  const amt = parseFloat(amount) || 0;
+  const converted = rate != null ? amt * rate : null;
+
+  return (
+    <View style={{ marginBottom: 12 }}>
+      <View style={{ flexDirection: 'row' }}>
+        <Pressable onPress={() => setOpen(open === 'phrases' ? null : 'phrases')}
+          style={[s.sq, { marginRight: 10 }, open === 'phrases' && { borderColor: accent, backgroundColor: tint(accent, 0.06) }]}>
+          <Text style={s.emoji}>🗣️</Text>
+          <Text style={s.sqLabel}>Phrases</Text>
+        </Pressable>
+        <Pressable onPress={() => setOpen(open === 'money' ? null : 'money')}
+          style={[s.sq, open === 'money' && { borderColor: accent, backgroundColor: tint(accent, 0.06) }]}>
+          <Text style={s.emoji}>💱</Text>
+          <Text style={s.sqLabel}>Currency</Text>
+        </Pressable>
+      </View>
+
+      {open === 'phrases' && (
+        <View style={s.panel}>
+          {pBusy && <ActivityIndicator color={accent} />}
+          {!!phrases && phrases.phrases.length > 0 && (
+            <>
+              {!!phrases.language && <Text style={[s.lang, { color: accent }]}>{phrases.language}</Text>}
+              {phrases.phrases.map((p, i) => (
+                <View key={i} style={[{ paddingVertical: 8 }, i > 0 && { borderTopWidth: 1, borderTopColor: C.border }]}>
+                  <Text style={s.local}>{p.local}</Text>
+                  <Text style={s.en}>{p.en}{p.pron ? `  ·  ${p.pron}` : ''}</Text>
+                </View>
+              ))}
+              <Text style={s.note}>Pronunciation is a rough guide — locals will meet you halfway.</Text>
+            </>
+          )}
+          {!!phrases && phrases.phrases.length === 0 && !pBusy && (
+            <Text style={s.en}>Couldn't load phrases — try again shortly.</Text>
+          )}
+        </View>
+      )}
+
+      {open === 'money' && (
+        <View style={s.panel}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TextInput style={s.amt} value={amount} onChangeText={setAmount} keyboardType="numeric" />
+            <TextInput style={s.code} value={home} onChangeText={t => setHome(t.toUpperCase().slice(0, 3))}
+              autoCapitalize="characters" maxLength={3} />
+          </View>
+          <View style={{ alignItems: 'center', marginVertical: 8 }}>
+            {rBusy ? <ActivityIndicator color={accent} />
+              : converted != null ? (
+                <>
+                  <Text style={[s.result, { color: accent }]}>{converted.toLocaleString(undefined, { maximumFractionDigits: 2 })} {destCcy}</Text>
+                  <Text style={s.en}>{amt.toLocaleString()} {home} · rate {rate?.toFixed(4)}</Text>
+                </>
+              ) : <Text style={s.en}>Rate unavailable for {home} → {destCcy}. Check the code.</Text>}
+          </View>
+          <Text style={s.note}>Indicative daily rate — banks and ATMs add a margin.</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  sq: { flex: 1, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1.5, borderColor: C.border, paddingVertical: 12, alignItems: 'center' },
+  emoji: { fontSize: 22 },
+  sqLabel: { marginTop: 4, color: C.text, fontFamily: F.bold, fontSize: 13 },
+  panel: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 14, marginTop: 10 },
+  lang: { fontFamily: F.bold, fontSize: 13, marginBottom: 4 },
+  local: { color: C.text, fontSize: 17, fontFamily: F.bold },
+  en: { color: C.sub, fontSize: 13, marginTop: 1 },
+  note: { color: '#9AA9BB', fontSize: 12, marginTop: 8 },
+  amt: { flex: 1, backgroundColor: '#F1F4F9', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 18, fontFamily: F.bold, color: C.text, marginRight: 10 },
+  code: { width: 84, backgroundColor: '#F1F4F9', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 16, fontFamily: F.bold, color: C.text, textAlign: 'center' },
+  result: { fontSize: 26, fontFamily: F.bold },
+});

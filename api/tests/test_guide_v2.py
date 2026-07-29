@@ -51,3 +51,12 @@ def test_family_play_bands_and_price_clamp():
     assert a["bands"]["teens"] == "great" and a["bands"]["young"] == "okay"  # bogus -> okay
     assert a["bands"]["older"] == "okay"  # missing -> okay
     assert a["price"] == 4 and a["indoor"] == "outdoor"
+
+
+def test_phrases_sanitize():
+    from api.guide.phrases import sanitize_phrases
+    out = sanitize_phrases({"language": "Arabic", "phrases": [
+        {"en": "Hello", "local": "مرحبا", "pron": "marhaba"}, {"junk": 1},
+        {"en": "x" * 200, "local": "y"}]})
+    assert out["language"] == "Arabic" and len(out["phrases"]) == 2
+    assert out["phrases"][0]["pron"] == "marhaba" and len(out["phrases"][1]["en"]) == 60
