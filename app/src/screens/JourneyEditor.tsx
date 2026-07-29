@@ -28,8 +28,9 @@ function humanDur(mins: number) {
   return `${h > 0 ? `${h}h ` : ''}${m}m`;
 }
 
-export default function JourneyEditor({ trip, accent, onClose, onSaved }: {
-  trip: Trip; accent: string; onClose: () => void; onSaved: (t: Trip) => void;
+export default function JourneyEditor({ trip, accent, onClose, onSaved, onSaveLocal }: {
+  trip: Trip; accent: string; onClose: () => void;
+  onSaved?: (t: Trip) => void; onSaveLocal?: (segs: Segment[]) => void;
 }) {
   const [segs, setSegs] = useState<Segment[]>(trip.segments ?? []);
   const [editing, setEditing] = useState<number | null>(null);
@@ -56,8 +57,9 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved }: {
     setSaving(true);
     try {
       const clean = segs.filter(s => s.origin || s.dest || s.ref || s.depart);
+      if (onSaveLocal) { onSaveLocal(clean); onClose(); return; }
       const t = await patchTrip(trip.id, { segments: clean });
-      onSaved({ ...trip, ...t, segments: clean });
+      onSaved?.({ ...trip, ...t, segments: clean });
       onClose();
     } catch (e: any) { Alert.alert('Journey', e.message); }
     finally { setSaving(false); }
