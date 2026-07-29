@@ -3,7 +3,7 @@ import {
   ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Image as RNImage,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { addFoodTip, deleteFoodTip, dishPhoto, FoodTip, getGuide, getProfile, Guide as GuideT, listFoodTips, patchTrip, Trip } from '../api';
+import { getFamilyPlay, FamilyActivity, addFoodTip, deleteFoodTip, dishPhoto, FoodTip, getGuide, getProfile, Guide as GuideT, listFoodTips, patchTrip, Trip } from '../api';
 import { transitFor } from '../airlines';
 import JourneyLoader from '../components/JourneyLoader';
 import PlugArt from '../components/PlugArt';
@@ -26,6 +26,8 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
   const [tWhen, setTWhen] = useState('');
   const [tPhotos, setTPhotos] = useState<{ b64: string; mime: string; uri: string }[]>([]);
   const [tab, setTab] = useState(section);
+  const [familyPlay, setFamilyPlay] = useState<{ activities: FamilyActivity[] } | null>(null);
+  const [familyBusy, setFamilyBusy] = useState(false);
   const [dishPhotos, setDishPhotos] = useState<Record<string, string>>({});
   const [g2, setG] = useState<GuideT | null>(null);
   const [nat, setNat] = useState<string | null>(null);
@@ -36,6 +38,24 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
       setG(r.guide);
     } catch (e: any) { Alert.alert('Guide', e.message); }
   }, [tripId]);
+  useEffect(() => {
+    if (tab !== 'play' || !trip.with_kids || familyPlay) return;
+    setFamilyBusy(true);
+    getFamilyPlay(trip.id)
+      .then(setFamilyPlay)
+      .catch(() => setFamilyPlay({ activities: [] }))
+      .finally(() => setFamilyBusy(false));
+  }, [tab, trip.with_kids, trip.id, familyPlay]);
+
+  const redoFamily = () => {
+    setFamilyBusy(true);
+    getFamilyPlay(trip.id, true).then(setFamilyPlay).catch(() => {}).finally(() => setFamilyBusy(false));
+  };
+  const BANDS = [
+    { key: 'toddlers', label: '0–3' }, { key: 'young', label: '4–7' },
+    { key: 'older', label: '8–12' }, { key: 'teens', label: '13–17' },
+  ] as const;
+
   useEffect(() => {
     const dishes = g2?.dishes ?? [];
     if (!dishes.length) return;
@@ -355,7 +375,46 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
             </Card>
           </>
         )}
-        {tab === 'play' && <Card><Text style={s.h}>Experiences</Text><Rows items={g2.play} /></Card>}
+        {tab === 'play' && (trip.with_kids ? (
+          familyBusy && !familyPlay ? (
+            <Card><JourneyLoader accent={accent} label="Planning family activities…" /></Card>
+          ) : (familyPlay?.activities.length ? (
+            <>
+              <Text style={sx.tipHead}>FAMILY PICKS · {place.toUpperCase()}</Text>
+              <Text style={[s.sub, { marginBottom: 8 }]}>Each rated per age group — great · okay · skip.</Text>
+              {familyPlay.activities.map((a, i) => (
+                <Card key={i}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Text style={[s.h, { flex: 1 }]}>{a.name}</Text>
+                    <Text style={{ fontSize: 13 }}>{'🪙'.repeat(a.price)}</Text>
+                  </View>
+                  {!!a.note && <Text style={s.sub}>{a.note}</Text>}
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
+                    {BANDS.map(b => {
+                      const fit = (a.bands as any)[b.key] as string;
+                      const col = fit === 'great' ? C.green : fit === 'okay' ? '#E8A63A' : '#AEB8C4';
+                      return (
+                        <View key={b.key} style={{ backgroundColor: tint(col, 0.16), borderRadius: 8, paddingHorizontal: 9, paddingVertical: 5, marginRight: 6, marginBottom: 6 }}>
+                          <Text style={{ color: fit === 'skip' ? '#8A94A0' : col, fontSize: 12, fontFamily: F.bold }}>{b.label} · {fit}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                  <Text style={[s.sub, { marginTop: 4, fontSize: 13 }]}>
+                    {[a.duration, a.indoor, a.stroller ? '🚼 stroller-ok' : '', a.food_onsite ? '🍽 food on-site' : '', a.booking].filter(Boolean).join('  ·  ')}
+                  </Text>
+                  {!!a.verdict && <Text style={{ marginTop: 8, color: C.text, fontFamily: F.med, lineHeight: 20 }}>💬 {a.verdict}</Text>}
+                </Card>
+              ))}
+              <Pressable onPress={redoFamily}><Text style={[s.link, { color: accent, marginBottom: 8 }]}>↻ Redo family picks ›</Text></Pressable>
+              <Text style={[s.sub, { fontSize: 12, color: '#9AA9BB' }]}>Age fit & prices are impressions — confirm before you go.</Text>
+            </>
+          ) : (
+            <Card><Text style={s.sub}>Couldn't load family picks. </Text><Pressable onPress={redoFamily}><Text style={[s.link, { color: accent }]}>Try again ›</Text></Pressable></Card>
+          ))
+        ) : (
+          <Card><Text style={s.h}>Experiences</Text><Rows items={g2.play} /></Card>
+        ))}
         {tab === 'visit' && <Card><Text style={s.h}>Sights & districts</Text><Rows items={g2.visit} /></Card>}
         {tab === 'go' && (
           <>

@@ -21,6 +21,7 @@ class TripCreate(BaseModel):
     start_date: date
     end_date: date
     depart_time: str | None = Field(default=None, max_length=5)  # return flight HH:MM
+    with_kids: bool = False
     trip_type: str | None = None
     travel_mode: str | None = Field(default=None, max_length=12)  # air|train|ship|car
     airline: str | None = Field(default=None, max_length=60)
@@ -57,3 +58,4 @@ class TripPatch(BaseModel):
     cabin_class: str | None = Field(default=None, max_length=16)
     depart_time: str | None = Field(default=None, max_length=5)
     segments: list[Segment] | None = None
+    with_kids: bool | None = None

@@ -11,6 +11,7 @@ export type Trip = {
   place?: string | null; country_code?: string | null; travel_mode?: string | null;
   airline?: string | null; visa_status?: string | null; cabin_class?: string | null; depart_time?: string | null;
   segments?: Segment[] | null;
+  with_kids?: boolean | null;
   id: string; title: string; start_date: string; end_date: string;
   trip_type?: string | null; status: string;
 };
@@ -173,7 +174,7 @@ export const listNotes = (tripId: string): Promise<Note[]> => req(`/v1/trips/${t
 export const addNote = (tripId: string, body: string, photos: { b64: string; mime: string }[] = []): Promise<Note> =>
   req(`/v1/trips/${tripId}/notes`, { method: 'POST', body: JSON.stringify({ body, photos }) });
 
-export const patchTrip = (id: string, b: { title?: string; start_date?: string; end_date?: string; airline?: string; visa_status?: string; cabin_class?: string; depart_time?: string; segments?: Segment[] }): Promise<Trip> =>
+export const patchTrip = (id: string, b: { title?: string; start_date?: string; end_date?: string; airline?: string; visa_status?: string; cabin_class?: string; depart_time?: string; segments?: Segment[]; with_kids?: boolean }): Promise<Trip> =>
   req(`/v1/trips/${id}`, { method: 'PATCH', body: JSON.stringify(b) });
 export const deleteTrip = (id: string): Promise<void> =>
   req(`/v1/trips/${id}`, { method: 'DELETE' });
@@ -200,3 +201,12 @@ export const lookupFlight = (number: string, date: string): Promise<{ number: st
 
 export const dishPhoto = (name: string, place: string): Promise<{ name: string; url: string | null; credit?: string }> =>
   req(`/v1/photos/dish?name=${encodeURIComponent(name)}&place=${encodeURIComponent(place)}`);
+
+export type FamilyActivity = {
+  name: string; note: string;
+  bands: { toddlers: string; young: string; older: string; teens: string };
+  duration: string; price: number; indoor: string;
+  stroller: boolean; food_onsite: boolean; booking: string; verdict: string;
+};
+export const getFamilyPlay = (tripId: string, regenerate = false): Promise<{ activities: FamilyActivity[] }> =>
+  req(`/v1/trips/${tripId}/family-play?regenerate=${regenerate}`);

@@ -38,3 +38,16 @@ def test_eat_split_dishes_restaurants_and_price_clamp():
                                     {"name": "B", "price": 0}]})
     assert out["dishes"][0]["name"] == "Machboos"
     assert out["restaurants"][0]["price"] == 4 and out["restaurants"][1]["price"] == 1
+
+
+def test_family_play_bands_and_price_clamp():
+    from api.guide.family import sanitize_family_play
+    out = sanitize_family_play({"activities": [
+        {"name": "Desert safari", "bands": {"toddlers": "skip", "teens": "great", "young": "bogus"},
+         "price": 9, "indoor": "outdoor", "stroller": False},
+        {"junk": 1}]})
+    a = out["activities"][0]
+    assert len(out["activities"]) == 1
+    assert a["bands"]["teens"] == "great" and a["bands"]["young"] == "okay"  # bogus -> okay
+    assert a["bands"]["older"] == "okay"  # missing -> okay
+    assert a["price"] == 4 and a["indoor"] == "outdoor"
