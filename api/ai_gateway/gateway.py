@@ -91,12 +91,25 @@ def complete(task: str, system: str, user_content: str, *,
         [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]
         if len(system) >= 4000 else system
     )
-    resp = _client().messages.create(
-        model=model,
-        max_tokens=max_tokens,
-        system=system_payload,
-        messages=[{"role": "user", "content": user_content}],
-    )
+    resp = None
+    for attempt in range(2):
+        try:
+            resp = _client().messages.create(
+                model=model,
+                max_tokens=max_tokens,
+                system=system_payload,
+                messages=[{"role": "user", "content": user_content}],
+            )
+            break
+        except HTTPException:
+            raise
+        except Exception as e:
+            if attempt == 0:
+                print(f"[ai] {task} transient {type(e).__name__} — retrying once")
+                time.sleep(1.0)
+                continue
+            print(f"[ai] {task} model call failed: {type(e).__name__}: {e}")
+            raise HTTPException(502, "The AI service is busy right now — tap retry in a moment.")
     latency_ms = int((time.monotonic() - t0) * 1000)
 
     text = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
