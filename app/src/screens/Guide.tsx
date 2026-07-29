@@ -5,6 +5,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { addFoodTip, deleteFoodTip, FoodTip, getGuide, getProfile, Guide as GuideT, listFoodTips, patchTrip, Trip } from '../api';
 import { transitFor } from '../airlines';
+import JourneyLoader from '../components/JourneyLoader';
 import PlugArt from '../components/PlugArt';
 import { countryName, flagOf } from '../countries';
 import { Card, Chip } from '../components/ui';
@@ -45,7 +46,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
   if (!g2) {
     return (
       <View style={s.center}>
-        <ActivityIndicator size="large" color={accent} />
+        <JourneyLoader accent={accent} label="Writing your guide..." />
         <Text style={s.loading}>Writing your {tripTitle} guide…</Text>
       </View>
     );

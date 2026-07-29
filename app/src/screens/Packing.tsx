@@ -6,6 +6,7 @@ import {
 import { addKitItem, applyKit, createKit, quickAddItems, generateList, getPackingList, getTimeline, getTripWeather, getWeight, Kit, listKits, PackItem, refreshTripWeather, setBagLimit, Task, updateItem, WeightInfo, WxDay } from '../api';
 import { deviceTz, permissionStatus, requestPermission, syncReminders, testPing } from '../notifications';
 import { Btn, Card, Progress } from '../components/ui';
+import JourneyLoader from '../components/JourneyLoader';
 import { C, F } from '../theme';
 
 export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }: {
@@ -87,7 +88,7 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
   if (items === null || busy) {
     return (
       <View style={s.center}>
-        <ActivityIndicator size="large" color={C.blue} />
+        <JourneyLoader accent={ac} label="Packing your trip..." />
         <Text style={s.loading}>
           {busy ? 'Asking Claude · Applying your quantities…' : 'Loading…'}
         </Text>
