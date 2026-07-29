@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     llm_api_key: str = ""                    # Anthropic API key
     accuweather_api_key: str = ""            # weather provider
     aerodatabox_api_key: str = ""            # RapidAPI key, flight lookup
+    pexels_api_key: str = ""                 # Pexels, dish photos
     # --- AI gateway routing (Part 1 §6 routing table) ---
     model_small: str = "claude-haiku-4-5"    # extraction, copywriting, parse, Q&A
     model_mid: str = "claude-sonnet-5"       # guide & packing generation

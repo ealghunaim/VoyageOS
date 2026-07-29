@@ -3,7 +3,7 @@ import {
   ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Image as RNImage,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { addFoodTip, deleteFoodTip, FoodTip, getGuide, getProfile, Guide as GuideT, listFoodTips, patchTrip, Trip } from '../api';
+import { addFoodTip, deleteFoodTip, dishPhoto, FoodTip, getGuide, getProfile, Guide as GuideT, listFoodTips, patchTrip, Trip } from '../api';
 import { transitFor } from '../airlines';
 import JourneyLoader from '../components/JourneyLoader';
 import PlugArt from '../components/PlugArt';
@@ -26,6 +26,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
   const [tWhen, setTWhen] = useState('');
   const [tPhotos, setTPhotos] = useState<{ b64: string; mime: string; uri: string }[]>([]);
   const [tab, setTab] = useState(section);
+  const [dishPhotos, setDishPhotos] = useState<Record<string, string>>({});
   const [g2, setG] = useState<GuideT | null>(null);
   const [nat, setNat] = useState<string | null>(null);
 
@@ -35,6 +36,22 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
       setG(r.guide);
     } catch (e: any) { Alert.alert('Guide', e.message); }
   }, [tripId]);
+  useEffect(() => {
+    const dishes = g2?.dishes ?? [];
+    if (!dishes.length) return;
+    let cancelled = false;
+    (async () => {
+      for (const d of dishes) {
+        if (dishPhotos[d.name]) continue;
+        try {
+          const r = await dishPhoto(d.name, place);
+          if (!cancelled && r.url) setDishPhotos(p => ({ ...p, [d.name]: r.url as string }));
+        } catch { /* skip */ }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [g2?.dishes, place]);
+
   useEffect(() => {
     load();
     getProfile().then(p => setNat(p.nationality)).catch(() => {});
@@ -233,9 +250,12 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                   {dishes.length > 0 && (
                     <Card>
                       {dishes.map((d, i) => (
-                        <View key={`d${i}`} style={[{ paddingVertical: 11 }, i > 0 && { borderTopWidth: 1, borderTopColor: C.border }]}>
-                          <Text style={s.h}>{d.name}</Text>
-                          {!!d.note && <Text style={[s.sub, { marginTop: 2 }]}>{d.note}</Text>}
+                        <View key={`d${i}`} style={[{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11 }, i > 0 && { borderTopWidth: 1, borderTopColor: C.border }]}>
+                          {!!dishPhotos[d.name] && <RNImage source={{ uri: dishPhotos[d.name] }} style={{ width: 58, height: 58, borderRadius: 10, marginRight: 12 }} />}
+                          <View style={{ flex: 1 }}>
+                            <Text style={s.h}>{d.name}</Text>
+                            {!!d.note && <Text style={[s.sub, { marginTop: 2 }]}>{d.note}</Text>}
+                          </View>
                         </View>
                       ))}
                     </Card>

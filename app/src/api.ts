@@ -197,3 +197,6 @@ export const askTrip = (tripId: string, question: string): Promise<{ answer: str
 
 export const lookupFlight = (number: string, date: string): Promise<{ number: string; origin: string | null; dest: string | null; depart: string | null; arrive: string | null; status: string | null }> =>
   req(`/v1/flights/${encodeURIComponent(number)}/${date}`);
+
+export const dishPhoto = (name: string, place: string): Promise<{ name: string; url: string | null; credit?: string }> =>
+  req(`/v1/photos/dish?name=${encodeURIComponent(name)}&place=${encodeURIComponent(place)}`);
