@@ -1,9 +1,9 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useState } from 'react';
 import {
-  Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  Alert, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
-import { patchTrip, Segment, Trip } from '../api';
+import { lookupFlight, patchTrip, Segment, Trip } from '../api';
 import { airlineFromRef } from '../airlines';
 import { Btn } from '../components/ui';
 import { C, F, tint } from '../theme';
@@ -35,6 +35,7 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved }: {
   const [editing, setEditing] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [picking, setPicking] = useState<{ i: number; field: 'depart' | 'arrive' } | null>(null);
+  const [lookingUp, setLookingUp] = useState<number | null>(null);
 
   const update = (i: number, patch: Partial<Segment>) =>
     setSegs(segs.map((s, j) => (j === i ? { ...s, ...patch } : s)));
@@ -62,11 +63,27 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved }: {
     finally { setSaving(false); }
   }
 
+  async function doLookup(i: number) {
+    const sg = segs[i];
+    const ref = (sg.ref ?? '').trim();
+    if (!ref) return;
+    const date = sg.depart ? sg.depart.slice(0, 10) : trip.start_date;
+    setLookingUp(i);
+    try {
+      const f = await lookupFlight(ref, date);
+      update(i, {
+        origin: f.origin ?? sg.origin, dest: f.dest ?? sg.dest,
+        depart: f.depart ?? sg.depart, arrive: f.arrive ?? sg.arrive,
+      });
+    } catch (e: any) { Alert.alert('Flight lookup', e.message || 'Could not find that flight.'); }
+    finally { setLookingUp(null); }
+  }
+
   const totalMins = segs.length >= 1 ? gapMins(segs[0].depart, segs[segs.length - 1].arrive) : null;
 
   return (
     <Modal visible animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: C.bg }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
         <View style={s.top}>
           <Pressable onPress={onClose} hitSlop={10}><Text style={[s.close, { color: accent }]}>Close</Text></Pressable>
           <Text style={s.title}>Your journey</Text>
@@ -107,8 +124,11 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved }: {
                           </Pressable>
                         ))}
                       </View>
-                      <TextInput style={s.input} value={sg.ref ?? ''} onChangeText={t => update(i, { ref: t })}
-                        placeholder="Flight no. / service (e.g. QR128)" placeholderTextColor="#9AA9BB" />
+                      {sg.mode !== 'drive' && (
+                        <TextInput style={s.input} value={sg.ref ?? ''} onChangeText={t => update(i, { ref: t })}
+                          placeholder={sg.mode === 'flight' ? 'Flight no. (e.g. QR128)' : sg.mode === 'train' ? 'Train service / number' : 'Ferry name / service'}
+                          placeholderTextColor="#9AA9BB" />
+                      )}
                       {sg.mode === 'flight' && (() => {
                         const al = airlineFromRef(sg.ref);
                         if (!al) return null;
@@ -126,6 +146,11 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved }: {
                           </View>
                         );
                       })()}
+                      {sg.mode === 'flight' && !!(sg.ref ?? '').trim() && (
+                        <Pressable disabled={lookingUp === i} onPress={() => doLookup(i)} style={s.lookup}>
+                          <Text style={[s.lookupText, { color: accent }]}>{lookingUp === i ? 'Looking up…' : '\u21bb Look up flight times'}</Text>
+                        </Pressable>
+                      )}
                       <View style={{ flexDirection: 'row' }}>
                         <TextInput style={[s.input, { flex: 1, marginRight: 8 }]} value={sg.origin ?? ''} onChangeText={t => update(i, { origin: t })}
                           placeholder="From" placeholderTextColor="#9AA9BB" />
@@ -182,7 +207,7 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved }: {
           <Btn label={saving ? 'Saving…' : 'Save journey'} color={accent} disabled={saving} onPress={save} />
           <Text style={s.note}>Times are what you enter — tap a flight number elsewhere to look it up. A live flight feed can fill these automatically later.</Text>
         </ScrollView>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }
@@ -209,6 +234,8 @@ const s = StyleSheet.create({
   small: { fontFamily: F.bold, color: C.text },
   layover: { backgroundColor: '#EEF2F7', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 12, marginVertical: 8, alignSelf: 'center' },
   layoverText: { color: C.sub, fontSize: 13, fontFamily: F.bold },
+  lookup: { backgroundColor: '#EEF2F7', borderRadius: 12, paddingVertical: 9, alignItems: 'center', marginBottom: 8 },
+  lookupText: { fontFamily: F.bold, fontSize: 14 },
   addBtn: { paddingVertical: 14, alignItems: 'center' },
   addText: { fontFamily: F.bold, fontSize: 15 },
   total: { color: C.text, fontFamily: F.bold, textAlign: 'center', marginTop: 4 },

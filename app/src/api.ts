@@ -192,3 +192,6 @@ export const quickAddItems = (tripId: string, text: string): Promise<PackItem[]>
 
 export const askTrip = (tripId: string, question: string): Promise<{ answer: string }> =>
   req(`/v1/trips/${tripId}/ask`, { method: 'POST', body: JSON.stringify({ question }) });
+
+export const lookupFlight = (number: string, date: string): Promise<{ number: string; origin: string | null; dest: string | null; depart: string | null; arrive: string | null; status: string | null }> =>
+  req(`/v1/flights/${encodeURIComponent(number)}/${date}`);
