@@ -4,7 +4,7 @@ import {
   Alert, Animated, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import {
-  addActivity, addDestination, createTrip, generateList, patchTrip,
+  addActivity, addDestination, createTrip, generateList, getProfile, patchTrip,
   PlaceHit, searchPlaces, Segment, Trip,
 } from '../api';
 import { Btn, Card, Chip, Field } from '../components/ui';
@@ -54,6 +54,13 @@ export default function Wizard({ onDone, onCancel }: {
   const [acts, setActs] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState('');
   const [picking, setPicking] = useState<'start' | 'end' | null>(null);
+  // Travelling-from: prefilled from the profile home, overridable per trip.
+  const [origin, setOrigin] = useState('');
+  const [originCountry, setOriginCountry] = useState('');
+  const [originCoords, setOriginCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [originHits, setOriginHits] = useState<PlaceHit[]>([]);
+  const [originChosen, setOriginChosen] = useState(false);
+  const [originTouched, setOriginTouched] = useState(false);
 
   const hasDest = chosen || place.trim().length >= 2;
   const accent = hasDest ? accentForTrip(country, place) : C.blue;
@@ -77,12 +84,44 @@ export default function Wizard({ onDone, onCancel }: {
     return () => clearTimeout(t);
   }, [place, chosen]);
 
+  // Prefill "travelling from" with the saved home origin (once, unless typed).
+  useEffect(() => {
+    getProfile().then(p => {
+      const h = p.home_origin;
+      if (h?.name && !originTouched) {
+        setOrigin(h.name);
+        setOriginCountry(h.country ?? '');
+        setOriginCoords(h.lat != null && h.lng != null ? { lat: h.lat, lng: h.lng } : null);
+        setOriginChosen(true);
+      }
+    }).catch(() => {});
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (originChosen || origin.trim().length < 2) { setOriginHits([]); return; }
+    const t = setTimeout(() => {
+      searchPlaces(origin).then(res => {
+        const seen = new Set<string>();
+        setOriginHits(res.filter(h => {
+          const k = `${h.name}|${h.admin ?? ''}|${h.country_code}`;
+          if (seen.has(k)) return false;
+          seen.add(k); return true;
+        }));
+      }).catch(() => setOriginHits([]));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [origin, originChosen]);
+
   const flag = (cc: string) =>
     cc.length === 2 ? String.fromCodePoint(...cc.split('').map(c => 127397 + c.charCodeAt(0))) : '';
 
   const pick = (h: PlaceHit) => {
     setPlace(h.name); setCountry(h.country_code);
     setCoords({ lat: h.lat, lng: h.lng }); setChosen(true); setHits([]);
+  };
+  const pickOrigin = (h: PlaceHit) => {
+    setOrigin(h.name); setOriginCountry(h.country_code);
+    setOriginCoords({ lat: h.lat, lng: h.lng }); setOriginChosen(true); setOriginHits([]);
   };
   const toggleAct = (a: string) => {
     const next = new Set(acts);
@@ -104,6 +143,10 @@ export default function Wizard({ onDone, onCancel }: {
         cabin_class: mode === 'air' ? cabin : undefined,
         depart_time: mode === 'air' && /^\d{1,2}:\d{2}$/.test(departTime.trim()) ? departTime.trim() : undefined,
         with_kids: withKids,
+        origin: origin.trim() || undefined,
+        origin_country: originCountry ? originCountry.toUpperCase().slice(0, 2) : undefined,
+        origin_lat: originCoords?.lat ?? undefined,
+        origin_lng: originCoords?.lng ?? undefined,
       });
       setBusy('Adding destination…');
       await addDestination(trip.id, {
@@ -192,6 +235,16 @@ export default function Wizard({ onDone, onCancel }: {
         {!validDates && <Text style={s.warn}>End must be on or after start.</Text>}
 
         <Text style={[s.label, { marginTop: 16 }]}>GETTING THERE</Text>
+        <Field label="TRAVELLING FROM (OPTIONAL)" value={origin}
+          onChange={(t) => { setOrigin(t); setOriginTouched(true); setOriginChosen(false); setOriginCoords(null); }}
+          placeholder="Your departure city — e.g. Kuwait City" />
+        {originHits.map((h, i) => (
+          <Pressable key={`o-${h.name}-${h.lat}-${h.lng}-${i}`} onPress={() => pickOrigin(h)} style={s.hit}>
+            <Text style={s.hitText}>{flag(h.country_code)}  {h.name}</Text>
+            <Text style={s.hitSub}>{[h.admin, h.country_code].filter(Boolean).join(' · ')}</Text>
+          </Pressable>
+        ))}
+        {originChosen && !!origin.trim() && <Text style={s.picked}>{flag(originCountry)}  {origin} · from ✓</Text>}
         <View style={s.chipWrap}>
           {MODES.map(([v, l]) => (
             <Chip key={v} label={l} selected={mode === v} onPress={() => setMode(v)} />

@@ -14,7 +14,7 @@ from api.core.db import get_db
 
 router = APIRouter(prefix="/v1/me", tags=["me"])
 
-PROFILE_KEYS = ("dob", "gender", "nationality", "members", "emergency_contact")
+PROFILE_KEYS = ("dob", "gender", "nationality", "members", "emergency_contact", "home_origin")
 
 
 class Member(BaseModel):
@@ -28,12 +28,21 @@ class EmergencyContact(BaseModel):
     phone: str = Field(min_length=3, max_length=24)
 
 
+class HomeOrigin(BaseModel):
+    """The traveler's usual starting point — the default 'from' for new trips."""
+    name: str = Field(min_length=1, max_length=80)
+    country: str | None = Field(default=None, min_length=2, max_length=2)
+    lat: float | None = None
+    lng: float | None = None
+
+
 class ProfileBody(BaseModel):
     dob: date | None = None
     gender: Literal["female", "male", "other", "na"] | None = None
     nationality: str | None = Field(default=None, min_length=2, max_length=2)
     members: list[Member] | None = Field(default=None, max_length=8)
     emergency_contact: EmergencyContact | None = None
+    home_origin: HomeOrigin | None = None
 
 
 def merge(old: dict, incoming: dict) -> dict:
@@ -61,6 +70,8 @@ def put_profile(body: ProfileBody, user_id: str = Depends(current_user_id)):
     incoming = body.model_dump(mode="json", exclude_none=True)
     if incoming.get("nationality"):
         incoming["nationality"] = incoming["nationality"].upper()
+    if incoming.get("home_origin", {}).get("country"):
+        incoming["home_origin"]["country"] = incoming["home_origin"]["country"].upper()
     extras = merge(old, incoming)
     db.table("user_preferences").upsert(
         {"user_id": user_id, "extras": extras}, on_conflict="user_id").execute()

@@ -26,6 +26,12 @@ class TripCreate(BaseModel):
     travel_mode: str | None = Field(default=None, max_length=12)  # air|train|ship|car
     airline: str | None = Field(default=None, max_length=60)
     cabin_class: str | None = Field(default=None, max_length=16)
+    # where the traveler sets out from — anchors Go transit advice and
+    # departure-weather packing. Prefilled from the profile home, overridable.
+    origin: str | None = Field(default=None, max_length=80)
+    origin_country: str | None = Field(default=None, max_length=2)
+    origin_lat: float | None = None
+    origin_lng: float | None = None
 
     @model_validator(mode="after")
     def dates_ordered(self):
@@ -59,3 +65,7 @@ class TripPatch(BaseModel):
     depart_time: str | None = Field(default=None, max_length=5)
     segments: list[Segment] | None = None
     with_kids: bool | None = None
+    origin: str | None = Field(default=None, max_length=80)
+    origin_country: str | None = Field(default=None, max_length=2)
+    origin_lat: float | None = None
+    origin_lng: float | None = None

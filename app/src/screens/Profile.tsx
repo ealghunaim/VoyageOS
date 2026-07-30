@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
-import { Companion, getProfile, putProfile } from '../api';
+import { Companion, getProfile, HomeOrigin, PlaceHit, putProfile, searchPlaces } from '../api';
 import { getEmail, signOut } from '../auth';
 import { Btn, Card, Chip, Field } from '../components/ui';
 import { COUNTRIES, countryName, flagOf } from '../countries';
@@ -22,6 +22,11 @@ export default function Profile({ onSignedOut }: { onSignedOut: () => void }) {
   const [mRel, setMRel] = useState<Companion['relation']>('partner');
   const [ecName, setEcName] = useState('');
   const [ecPhone, setEcPhone] = useState('');
+  const [home, setHome] = useState('');
+  const [homeCountry, setHomeCountry] = useState('');
+  const [homeCoords, setHomeCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [homeHits, setHomeHits] = useState<PlaceHit[]>([]);
+  const [homeChosen, setHomeChosen] = useState(false);
   const [picking, setPicking] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -30,9 +35,31 @@ export default function Profile({ onSignedOut }: { onSignedOut: () => void }) {
       setDob(p.dob); setGender(p.gender); setNat(p.nationality);
       setMembers(p.members ?? []);
       setEcName(p.emergency_contact?.name ?? ''); setEcPhone(p.emergency_contact?.phone ?? '');
+      if (p.home_origin?.name) {
+        setHome(p.home_origin.name);
+        setHomeCountry(p.home_origin.country ?? '');
+        setHomeCoords(p.home_origin.lat != null && p.home_origin.lng != null
+          ? { lat: p.home_origin.lat, lng: p.home_origin.lng } : null);
+        setHomeChosen(true);
+      }
       setLoaded(true);
     }).catch(() => setLoaded(true));
   }, []);
+
+  useEffect(() => {
+    if (homeChosen || home.trim().length < 2) { setHomeHits([]); return; }
+    const t = setTimeout(() => {
+      searchPlaces(home).then(res => {
+        const seen = new Set<string>();
+        setHomeHits(res.filter(h => {
+          const k = `${h.name}|${h.admin ?? ''}|${h.country_code}`;
+          if (seen.has(k)) return false;
+          seen.add(k); return true;
+        }));
+      }).catch(() => setHomeHits([]));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [home, homeChosen]);
 
   const natHits = natQ.trim().length >= 1 && !nat
     ? COUNTRIES.filter(([c, n]) =>
@@ -43,8 +70,13 @@ export default function Profile({ onSignedOut }: { onSignedOut: () => void }) {
   async function save() {
     setSaving(true);
     try {
+      const home_origin: HomeOrigin | undefined = home.trim()
+        ? { name: home.trim(), country: homeCountry ? homeCountry.toUpperCase().slice(0, 2) : null,
+            lat: homeCoords?.lat ?? null, lng: homeCoords?.lng ?? null }
+        : undefined;
       await putProfile({ dob, gender: gender as any, nationality: nat, members,
-        emergency_contact: ecName.trim() && ecPhone.trim() ? { name: ecName.trim(), phone: ecPhone.trim() } : undefined });
+        emergency_contact: ecName.trim() && ecPhone.trim() ? { name: ecName.trim(), phone: ecPhone.trim() } : undefined,
+        home_origin });
       Alert.alert('Saved', 'Your profile now personalizes visa links and family packing to come.');
     } catch (e: any) { Alert.alert('Could not save', e.message); }
     finally { setSaving(false); }
@@ -77,6 +109,29 @@ export default function Profile({ onSignedOut }: { onSignedOut: () => void }) {
           </>
         )}
         <Text style={s.hint}>Used only to link you to official visa sources for each trip.</Text>
+      </Card>
+
+      <Card>
+        <Text style={s.section}>HOME / STARTING POINT</Text>
+        {homeChosen && home.trim() ? (
+          <Pressable onPress={() => setHomeChosen(false)}>
+            <Text style={s.natPicked}>{homeCountry ? flagOf(homeCountry) + '  ' : ''}{home}  ·  change</Text>
+          </Pressable>
+        ) : (
+          <>
+            <TextInput style={s.input} value={home}
+              onChangeText={(t) => { setHome(t); setHomeChosen(false); setHomeCoords(null); }}
+              placeholder="Your departure city — e.g. Kuwait City" placeholderTextColor="#9AA9BB" />
+            {homeHits.map((h, i) => (
+              <Pressable key={`${h.name}-${h.lat}-${h.lng}-${i}`} style={s.hit}
+                onPress={() => { setHome(h.name); setHomeCountry(h.country_code); setHomeCoords({ lat: h.lat, lng: h.lng }); setHomeChosen(true); setHomeHits([]); }}>
+                <Text style={{ color: C.text, fontWeight: '600' }}>{flagOf(h.country_code)}  {h.name}</Text>
+                <Text style={{ color: C.sub, fontSize: 13 }}>{[h.admin, h.country_code].filter(Boolean).join(' · ')}</Text>
+              </Pressable>
+            ))}
+          </>
+        )}
+        <Text style={s.hint}>Prefilled as “travelling from” on new trips — powers transit tips and departure-day packing. Override it per trip anytime.</Text>
       </Card>
 
       <Card>

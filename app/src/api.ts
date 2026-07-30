@@ -12,6 +12,7 @@ export type Trip = {
   airline?: string | null; visa_status?: string | null; cabin_class?: string | null; depart_time?: string | null;
   segments?: Segment[] | null;
   with_kids?: boolean | null;
+  origin?: string | null; origin_country?: string | null; origin_lat?: number | null; origin_lng?: number | null;
   id: string; title: string; start_date: string; end_date: string;
   trip_type?: string | null; status: string;
 };
@@ -156,10 +157,12 @@ export const getGuide = (tripId: string, regenerate = false):
   req(`/v1/trips/${tripId}/guide?regenerate=${regenerate}`);
 
 export type Companion = { name: string; relation: 'partner' | 'child' | 'parent' | 'friend' | 'other'; dob?: string | null };
+export type HomeOrigin = { name: string; country?: string | null; lat?: number | null; lng?: number | null };
 export type Profile = {
   dob: string | null; gender: string | null; nationality: string | null;
   members: Companion[] | null;
   emergency_contact?: { name: string; phone: string } | null;
+  home_origin?: HomeOrigin | null;
 };
 export const getProfile = (): Promise<Profile> => req('/v1/me/profile');
 export const putProfile = (b: Partial<Profile>): Promise<Profile> =>
@@ -174,7 +177,7 @@ export const listNotes = (tripId: string): Promise<Note[]> => req(`/v1/trips/${t
 export const addNote = (tripId: string, body: string, photos: { b64: string; mime: string }[] = []): Promise<Note> =>
   req(`/v1/trips/${tripId}/notes`, { method: 'POST', body: JSON.stringify({ body, photos }) });
 
-export const patchTrip = (id: string, b: { title?: string; start_date?: string; end_date?: string; airline?: string; visa_status?: string; cabin_class?: string; depart_time?: string; segments?: Segment[]; with_kids?: boolean }): Promise<Trip> =>
+export const patchTrip = (id: string, b: { title?: string; start_date?: string; end_date?: string; airline?: string; visa_status?: string; cabin_class?: string; depart_time?: string; segments?: Segment[]; with_kids?: boolean; origin?: string; origin_country?: string; origin_lat?: number; origin_lng?: number }): Promise<Trip> =>
   req(`/v1/trips/${id}`, { method: 'PATCH', body: JSON.stringify(b) });
 export const deleteTrip = (id: string): Promise<void> =>
   req(`/v1/trips/${id}`, { method: 'DELETE' });
