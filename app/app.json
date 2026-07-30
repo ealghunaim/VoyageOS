@@ -30,6 +30,10 @@
       "expo-secure-store"
     ],
     "extra": {
+      "apiUrl": "https://voyageos-0k6u.onrender.com",
+      "appKey": "700ea172a90b6a95d63786a803c7b420",
+      "supabaseUrl": "https://njvpjzojnzbynwlqsdbw.supabase.co",
+      "supabaseAnonKey": "sb_publishable_tBcNLlKZ3p9-Ue5wpuJ-Ww_zXuvJn-c",
       "eas": {
         "projectId": "06a65f98-0b5e-4af2-bd15-5e61247a5bc9"
       }
