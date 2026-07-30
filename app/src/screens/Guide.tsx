@@ -104,6 +104,30 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
     </>
   );
 
+  const FEE_LABEL: Record<string, string> = { free: 'Free', low: '$', mid: '$$', high: '$$$' };
+  const VisitRows = ({ items }: { items: GuideT['visit'] }) => (
+    <>
+      {items.length === 0 && <Text style={s.sub}>Nothing here yet — try ↻ regenerate.</Text>}
+      {items.map((it, i) => (
+        <View key={i} style={s.row}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={[s.rowName, { flex: 1 }]}>{it.name}</Text>
+            {typeof it.rating === 'number' && (
+              <Text style={{ color: '#E8A63A', fontSize: 13, fontFamily: F.bold }}>★ {it.rating.toFixed(1)}</Text>
+            )}
+          </View>
+          {!!it.note && <Text style={s.sub}>{it.note}</Text>}
+          {(!!it.fee || !!it.access) && (
+            <Text style={[s.sub, { marginTop: 4, fontSize: 13 }]}>
+              {[it.fee ? (FEE_LABEL[it.fee] ?? it.fee) : '', it.access ? '♿ ' + it.access : ''].filter(Boolean).join('  ·  ')}
+            </Text>
+          )}
+        </View>
+      ))}
+      {items.length > 0 && <Text style={[s.sub, { fontSize: 12, color: '#9AA9BB', marginTop: 4 }]}>Ratings & fees are AI estimates — confirm before you go.</Text>}
+    </>
+  );
+
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <View style={{ padding: 20, paddingBottom: 8 }}>
@@ -417,9 +441,16 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
         ) : (
           <Card><Text style={s.h}>Experiences</Text><Rows items={g2.play} /></Card>
         ))}
-        {tab === 'visit' && <Card><Text style={s.h}>Sights & districts</Text><Rows items={g2.visit} /></Card>}
+        {tab === 'visit' && <Card><Text style={s.h}>Sights & districts</Text><VisitRows items={g2.visit} /></Card>}
         {tab === 'go' && (
           <>
+            {!!g2.go.from_origin?.length && (
+              <Card>
+                <Text style={s.h}>{trip.origin ? `From ${trip.origin}` : 'Getting there'}</Text>
+                {g2.go.from_origin.map((e, i) => <Text key={i} style={s.bullet}>·  {e}</Text>)}
+                <Text style={[s.sub, { fontSize: 12, color: '#9AA9BB', marginTop: 6 }]}>Routes are impressions — check live schedules & fares.</Text>
+              </Card>
+            )}
             <Card>
               <Text style={s.h}>From the airport</Text>
               {g2.go.from_airport.map((e, i) => <Text key={i} style={s.bullet}>·  {e}</Text>)}

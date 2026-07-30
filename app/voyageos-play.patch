@@ -1,0 +1,362 @@
+diff --git a/api/guide/family.py b/api/guide/family.py
+index 9ad63a7..225b243 100644
+--- a/api/guide/family.py
++++ b/api/guide/family.py
+@@ -1,44 +1,83 @@
+-"""Family Play — a dedicated, richer generation for trips traveling with kids.
++"""Party Play — a dedicated, richer generation for the trip's travel party.
+ Its own model call so it can be detailed without truncating the main guide.
+-Per-activity fit across four age bands, logistics, and an honest verdict."""
++Per-activity fit across the selected cohorts (solo/partner/adults/teens/
++elderly, plus kid age bands), logistics, and an honest verdict.
++"""
+ import json
+ 
+ from api.ai_gateway import gateway
+ from api.guide.service import _parse, _s
+ 
+-FAMILY_PLAY_VERSION = "family-v1"
++# bumped from family-v1: payload now carries dynamic cohorts, not fixed kid bands
++FAMILY_PLAY_VERSION = "party-v2"
+ 
+-FAMILY_PLAY_PROMPT = """You are VoyageOS's family activities planner. For the destination, suggest
+-experiences and rate each for four age bands. Output ONLY valid JSON, no prose:
+-{"activities":[{
++# Every cohort we can rate, with the definition fed to the model. Order here
++# fixes both prompt order and display order. 'kids' is NOT here — it expands
++# into the three under-13 bands so it can coexist with a separate 'teens' pick.
++COHORT_DEFS = {
++    "toddlers": "toddlers aged 0-3",
++    "young":    "young kids aged 4-7",
++    "older":    "older kids aged 8-12",
++    "teens":    "teenagers aged 13-17",
++    "solo":     "a solo adult traveler",
++    "partner":  "a couple traveling together",
++    "adults":   "a group of adults",
++    "elderly":  "elderly travelers who want a gentle pace, seating, and low mobility demands",
++}
++_ORDER = ("toddlers", "young", "older", "teens", "solo", "partner", "adults", "elderly")
++_FIT = {"great", "okay", "skip"}
++
++
++def cohorts_for(trip: dict) -> list[str]:
++    """The cohorts to rate for this trip, from its selected traveler_types.
++    'kids' expands into the three under-13 bands. Falls back gracefully for
++    legacy trips created before traveler_types existed."""
++    types = trip.get("traveler_types") or []
++    if not types:
++        if trip.get("with_kids"):            # legacy kids trip
++            return ["toddlers", "young", "older", "teens"]
++        return ["adults"]
++    picked: set[str] = set()
++    for t in types:
++        if t == "kids":
++            picked.update(("toddlers", "young", "older"))
++        elif t in COHORT_DEFS:
++            picked.add(t)
++    return [c for c in _ORDER if c in picked] or ["adults"]
++
++
++def _build_prompt(cohorts: list[str]) -> str:
++    party = "\n".join(f"   - {c}: {COHORT_DEFS[c]}" for c in cohorts)
++    keys = ",".join(f'"{c}":"great|okay|skip"' for c in cohorts)
++    return f"""You are VoyageOS's activities planner. For the destination, suggest
++experiences and rate each for the travel party below. Output ONLY valid JSON, no prose:
++{{"activities":[{{
+   "name":"...","note":"one line: what it is",
+-  "bands":{"toddlers":"great|okay|skip","young":"great|okay|skip",
+-           "older":"great|okay|skip","teens":"great|okay|skip"},
++  "bands":{{{keys}}},
+   "duration":"e.g. 2-3 hours","price":2,
+   "indoor":"indoor|outdoor|mixed","stroller":true,
+   "food_onsite":true,"booking":"walk-up|book ahead|either",
+-  "verdict":"honest one-line real-talk for parents"}]}
++  "verdict":"honest one-line real-talk for this party"}}]}}
++
++PARTY — rate every activity for each of these, using the "bands" keys shown:
++{party}
+ 
+ RULES
+-1. 5-7 activities, most family-friendly FIRST.
+-2. Age bands: toddlers 0-3, young kids 4-7, older kids 8-12, teens 13-17.
+-   great = genuinely good; okay = works with caveats; skip = unsuitable or boring for that age.
+-3. price: 1=cheap .. 4=expensive, family-of-four feel.
+-4. verdict is real talk, not marketing — name the catch (heat, queues, nap timing, cost).
++1. 5-7 activities, best-fit-for-this-party FIRST.
++2. great = genuinely good for that cohort; okay = works with caveats; skip = unsuitable or dull for them.
++3. price: 1=cheap .. 4=expensive.
++4. verdict is real talk, not marketing — name the catch (heat, queues, pace, cost, mobility, nap timing).
+ 5. Impressions for orientation only. NEVER invent exact prices, hours, or booking rules.
+ 6. Keep every string under 120 characters."""
+ 
+-_BANDS = ("toddlers", "young", "older", "teens")
+-_FIT = {"great", "okay", "skip"}
+-
+ 
+-def sanitize_family_play(raw: dict) -> dict:
++def sanitize_family_play(raw: dict, cohorts: list[str]) -> dict:
+     acts = []
+     for item in (raw.get("activities") or [])[:8]:
+         if not isinstance(item, dict) or not item.get("name"):
+             continue
+         b = item.get("bands") or {}
+-        bands = {k: (b.get(k) if b.get(k) in _FIT else "okay") for k in _BANDS}
++        bands = {k: (b.get(k) if b.get(k) in _FIT else "okay") for k in cohorts}
+         rawp = item.get("price")
+         try:
+             price = int(rawp) if rawp is not None else 2
+@@ -52,23 +91,29 @@ def sanitize_family_play(raw: dict) -> dict:
+             "stroller": bool(item.get("stroller")), "food_onsite": bool(item.get("food_onsite")),
+             "booking": _s(item.get("booking"), 20), "verdict": _s(item.get("verdict"), 120),
+         })
+-    return {"activities": acts, "version": FAMILY_PLAY_VERSION}
++    return {"activities": acts, "version": FAMILY_PLAY_VERSION, "cohorts": cohorts}
+ 
+ 
+ def generate_family_play(db, trip: dict, user_id: str, *, regenerate: bool = False) -> dict:
+     tid = trip["id"]
++    cohorts = cohorts_for(trip)
+     if not regenerate:
+         cached = db.table("trip_family_play").select("payload").eq("trip_id", tid).limit(1).execute().data
+-        if cached and cached[0].get("payload", {}).get("activities"):
+-            return cached[0]["payload"]
++        if cached:
++            pay = cached[0].get("payload") or {}
++            # reuse only if it's the current version AND rated for the same party;
++            # otherwise fall through and regenerate (party changed, or legacy payload)
++            if pay.get("activities") and pay.get("version") == FAMILY_PLAY_VERSION and pay.get("cohorts") == cohorts:
++                return pay
+     dests = db.table("destinations").select("place_name,country_code").eq("trip_id", tid).execute().data
+     place = dests[0]["place_name"] if dests else trip.get("title", "")
+     country = dests[0].get("country_code") if dests else ""
+     gateway.check_budget(db, user_id)
+-    ctx = {"place": place, "country": country, "month": str(trip.get("start_date", ""))[:7]}
+-    result = gateway.complete("family_play", FAMILY_PLAY_PROMPT, json.dumps(ctx),
++    ctx = {"place": place, "country": country, "month": str(trip.get("start_date", ""))[:7],
++           "party": cohorts}
++    result = gateway.complete("family_play", _build_prompt(cohorts), json.dumps(ctx),
+                               db=db, user_id=user_id, max_tokens=4000)
+-    data = sanitize_family_play(_parse(result.text))
++    data = sanitize_family_play(_parse(result.text), cohorts)
+     db.table("trip_family_play").upsert({
+         "trip_id": tid, "payload": data, "model": result.model,
+     }).execute()
+diff --git a/api/trips/models.py b/api/trips/models.py
+index a11cdd9..4ca77aa 100644
+--- a/api/trips/models.py
++++ b/api/trips/models.py
+@@ -32,6 +32,9 @@ class TripCreate(BaseModel):
+     origin_country: str | None = Field(default=None, max_length=2)
+     origin_lat: float | None = None
+     origin_lng: float | None = None
++    # party composition — any of solo/partner/adults/teens/elderly/kids.
++    # Play rates activities per selected cohort; with_kids is derived from this.
++    traveler_types: list[str] | None = None
+ 
+     @model_validator(mode="after")
+     def dates_ordered(self):
+@@ -69,3 +72,4 @@ class TripPatch(BaseModel):
+     origin_country: str | None = Field(default=None, max_length=2)
+     origin_lat: float | None = None
+     origin_lng: float | None = None
++    traveler_types: list[str] | None = None
+diff --git a/app/src/api.ts b/app/src/api.ts
+index 915fed2..c91c1e5 100644
+--- a/app/src/api.ts
++++ b/app/src/api.ts
+@@ -12,6 +12,7 @@ export type Trip = {
+   airline?: string | null; visa_status?: string | null; cabin_class?: string | null; depart_time?: string | null;
+   segments?: Segment[] | null;
+   with_kids?: boolean | null;
++  traveler_types?: string[] | null;
+   origin?: string | null; origin_country?: string | null; origin_lat?: number | null; origin_lng?: number | null;
+   id: string; title: string; start_date: string; end_date: string;
+   trip_type?: string | null; status: string;
+@@ -177,7 +178,7 @@ export const listNotes = (tripId: string): Promise<Note[]> => req(`/v1/trips/${t
+ export const addNote = (tripId: string, body: string, photos: { b64: string; mime: string }[] = []): Promise<Note> =>
+   req(`/v1/trips/${tripId}/notes`, { method: 'POST', body: JSON.stringify({ body, photos }) });
+ 
+-export const patchTrip = (id: string, b: { title?: string; start_date?: string; end_date?: string; airline?: string; visa_status?: string; cabin_class?: string; depart_time?: string; segments?: Segment[]; with_kids?: boolean; origin?: string; origin_country?: string; origin_lat?: number; origin_lng?: number }): Promise<Trip> =>
++export const patchTrip = (id: string, b: { title?: string; start_date?: string; end_date?: string; airline?: string; visa_status?: string; cabin_class?: string; depart_time?: string; segments?: Segment[]; with_kids?: boolean; traveler_types?: string[]; origin?: string; origin_country?: string; origin_lat?: number; origin_lng?: number }): Promise<Trip> =>
+   req(`/v1/trips/${id}`, { method: 'PATCH', body: JSON.stringify(b) });
+ export const deleteTrip = (id: string): Promise<void> =>
+   req(`/v1/trips/${id}`, { method: 'DELETE' });
+@@ -207,11 +208,11 @@ export const dishPhoto = (name: string, place: string): Promise<{ name: string;
+ 
+ export type FamilyActivity = {
+   name: string; note: string;
+-  bands: { toddlers: string; young: string; older: string; teens: string };
++  bands: Record<string, string>;   // cohort key -> 'great'|'okay'|'skip'
+   duration: string; price: number; indoor: string;
+   stroller: boolean; food_onsite: boolean; booking: string; verdict: string;
+ };
+-export const getFamilyPlay = (tripId: string, regenerate = false): Promise<{ activities: FamilyActivity[] }> =>
++export const getFamilyPlay = (tripId: string, regenerate = false): Promise<{ activities: FamilyActivity[]; cohorts?: string[] }> =>
+   req(`/v1/trips/${tripId}/family-play?regenerate=${regenerate}`);
+ 
+ export type Phrase = { en: string; local: string; pron: string };
+diff --git a/app/src/screens/Guide.tsx b/app/src/screens/Guide.tsx
+index fd79082..44ef2ba 100644
+--- a/app/src/screens/Guide.tsx
++++ b/app/src/screens/Guide.tsx
+@@ -38,23 +38,25 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
+       setG(r.guide);
+     } catch (e: any) { Alert.alert('Guide', e.message); }
+   }, [tripId]);
++  const hasParty = (trip.traveler_types?.length ?? 0) > 0 || !!trip.with_kids;
+   useEffect(() => {
+-    if (tab !== 'play' || !trip.with_kids || familyPlay) return;
++    if (tab !== 'play' || !hasParty || familyPlay) return;
+     setFamilyBusy(true);
+     getFamilyPlay(trip.id)
+       .then(setFamilyPlay)
+       .catch(() => setFamilyPlay({ activities: [] }))
+       .finally(() => setFamilyBusy(false));
+-  }, [tab, trip.with_kids, trip.id, familyPlay]);
++  }, [tab, hasParty, trip.id, familyPlay]);
+ 
+   const redoFamily = () => {
+     setFamilyBusy(true);
+     getFamilyPlay(trip.id, true).then(setFamilyPlay).catch(() => {}).finally(() => setFamilyBusy(false));
+   };
+-  const BANDS = [
+-    { key: 'toddlers', label: '0–3' }, { key: 'young', label: '4–7' },
+-    { key: 'older', label: '8–12' }, { key: 'teens', label: '13–17' },
+-  ] as const;
++  const COHORT_LABEL: Record<string, string> = {
++    toddlers: '0–3', young: '4–7', older: '8–12', teens: 'Teens',
++    solo: 'Solo', partner: 'Partner', adults: 'Adults', elderly: 'Elderly',
++  };
++  const COHORT_ORDER = ['toddlers', 'young', 'older', 'teens', 'solo', 'partner', 'adults', 'elderly'];
+ 
+   useEffect(() => {
+     const dishes = g2?.dishes ?? [];
+@@ -375,13 +377,13 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
+             </Card>
+           </>
+         )}
+-        {tab === 'play' && (trip.with_kids ? (
++        {tab === 'play' && (hasParty ? (
+           familyBusy && !familyPlay ? (
+             <Card><JourneyLoader accent={accent} label="Planning family activities…" /></Card>
+           ) : (familyPlay?.activities.length ? (
+             <>
+-              <Text style={sx.tipHead}>FAMILY PICKS · {place.toUpperCase()}</Text>
+-              <Text style={[s.sub, { marginBottom: 8 }]}>Each rated per age group — great · okay · skip.</Text>
++              <Text style={sx.tipHead}>PARTY PICKS · {place.toUpperCase()}</Text>
++              <Text style={[s.sub, { marginBottom: 8 }]}>Each rated for your party — great · okay · skip.</Text>
+               {familyPlay.activities.map((a, i) => (
+                 <Card key={i}>
+                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+@@ -390,12 +392,12 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
+                   </View>
+                   {!!a.note && <Text style={s.sub}>{a.note}</Text>}
+                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
+-                    {BANDS.map(b => {
+-                      const fit = (a.bands as any)[b.key] as string;
++                    {COHORT_ORDER.filter(k => (a.bands as any)[k]).map(k => {
++                      const fit = (a.bands as any)[k] as string;
+                       const col = fit === 'great' ? C.green : fit === 'okay' ? '#E8A63A' : '#AEB8C4';
+                       return (
+-                        <View key={b.key} style={{ backgroundColor: tint(col, 0.16), borderRadius: 8, paddingHorizontal: 9, paddingVertical: 5, marginRight: 6, marginBottom: 6 }}>
+-                          <Text style={{ color: fit === 'skip' ? '#8A94A0' : col, fontSize: 12, fontFamily: F.bold }}>{b.label} · {fit}</Text>
++                        <View key={k} style={{ backgroundColor: tint(col, 0.16), borderRadius: 8, paddingHorizontal: 9, paddingVertical: 5, marginRight: 6, marginBottom: 6 }}>
++                          <Text style={{ color: fit === 'skip' ? '#8A94A0' : col, fontSize: 12, fontFamily: F.bold }}>{COHORT_LABEL[k]} · {fit}</Text>
+                         </View>
+                       );
+                     })}
+@@ -406,8 +408,8 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
+                   {!!a.verdict && <Text style={{ marginTop: 8, color: C.text, fontFamily: F.med, lineHeight: 20 }}>💬 {a.verdict}</Text>}
+                 </Card>
+               ))}
+-              <Pressable onPress={redoFamily}><Text style={[s.link, { color: accent, marginBottom: 8 }]}>↻ Redo family picks ›</Text></Pressable>
+-              <Text style={[s.sub, { fontSize: 12, color: '#9AA9BB' }]}>Age fit & prices are impressions — confirm before you go.</Text>
++              <Pressable onPress={redoFamily}><Text style={[s.link, { color: accent, marginBottom: 8 }]}>↻ Redo picks ›</Text></Pressable>
++              <Text style={[s.sub, { fontSize: 12, color: '#9AA9BB' }]}>Fit & prices are impressions — confirm before you go.</Text>
+             </>
+           ) : (
+             <Card><Text style={s.sub}>Couldn't load family picks. </Text><Pressable onPress={redoFamily}><Text style={[s.link, { color: accent }]}>Try again ›</Text></Pressable></Card>
+diff --git a/app/src/screens/Wizard.tsx b/app/src/screens/Wizard.tsx
+index df6beaf..02729c3 100644
+--- a/app/src/screens/Wizard.tsx
++++ b/app/src/screens/Wizard.tsx
+@@ -19,6 +19,10 @@ const ACTIVITIES = [
+ ];
+ const MODES: [string, string][] = [['air', '✈ Air'], ['train', '🚆 Train'], ['ship', '🚢 Ship'], ['car', '🚗 Car']];
+ const MODE_ICON: Record<string, string> = { air: '✈', train: '🚆', ship: '🚢', car: '🚗' };
++const TRAVELER_TYPES: [string, string][] = [
++  ['solo', '🧍 Solo'], ['partner', '💑 Partner'], ['adults', '👥 Adults'],
++  ['teens', '🧑 Teens'], ['elderly', '🧓 Elderly'], ['kids', '👶 Kids'],
++];
+ 
+ function iso(d: Date) { return d.toISOString().slice(0, 10); }
+ function plusDays(base: string, n: number) {
+@@ -45,7 +49,7 @@ export default function Wizard({ onDone, onCancel }: {
+   const [cabin, setCabin] = useState('economy');
+   const [departTime, setDepartTime] = useState('');
+   const [segments, setSegments] = useState<Segment[]>([]);
+-  const [withKids, setWithKids] = useState(false);
++  const [party, setParty] = useState<Set<string>>(new Set());
+   const [journeyOpen, setJourneyOpen] = useState(false);
+   const [hits, setHits] = useState<PlaceHit[]>([]);
+   const [chosen, setChosen] = useState(false);
+@@ -128,6 +132,11 @@ export default function Wizard({ onDone, onCancel }: {
+     next.has(a) ? next.delete(a) : next.add(a);
+     setActs(next);
+   };
++  const toggleParty = (t: string) => {
++    const next = new Set(party);
++    next.has(t) ? next.delete(t) : next.add(t);
++    setParty(next);
++  };
+   const validDates = DATE_RE.test(start) && DATE_RE.test(end) && end >= start;
+   const canBuild = !!place.trim() && validDates && acts.size > 0;
+ 
+@@ -142,7 +151,8 @@ export default function Wizard({ onDone, onCancel }: {
+         airline: mode === 'air' && airline.trim() ? airline.trim() : undefined,
+         cabin_class: mode === 'air' ? cabin : undefined,
+         depart_time: mode === 'air' && /^\d{1,2}:\d{2}$/.test(departTime.trim()) ? departTime.trim() : undefined,
+-        with_kids: withKids,
++        with_kids: party.has('kids'),
++        traveler_types: party.size ? [...party] : undefined,
+         origin: origin.trim() || undefined,
+         origin_country: originCountry ? originCountry.toUpperCase().slice(0, 2) : undefined,
+         origin_lat: originCoords?.lat ?? undefined,
+@@ -273,14 +283,13 @@ export default function Wizard({ onDone, onCancel }: {
+           ))}
+         </View>
+ 
+-        <Pressable onPress={() => setWithKids(v => !v)}
+-          style={[s.kidsRow, withKids && { borderColor: accent, backgroundColor: '#fff' }]}>
+-          <Text style={{ fontSize: 16 }}>{withKids ? '👨‍👩‍👧 ' : ''}Traveling with kids?</Text>
+-          <View style={[s.kidsDot, withKids && { backgroundColor: accent, borderColor: accent }]}>
+-            {withKids && <Text style={{ color: '#fff', fontSize: 13, fontFamily: F.bold }}>✓</Text>}
+-          </View>
+-        </Pressable>
+-        {withKids && <Text style={[s.sub, { marginTop: -4 }]}>Play will rate every activity by age group — toddlers to teens.</Text>}
++        <Text style={[s.label, { marginTop: 16 }]}>WHO'S GOING</Text>
++        <View style={s.chipWrap}>
++          {TRAVELER_TYPES.map(([v, l]) => (
++            <Chip key={v} label={l} selected={party.has(v)} onPress={() => toggleParty(v)} />
++          ))}
++        </View>
++        {party.size > 0 && <Text style={[s.sub, { marginTop: 4 }]}>Play will rate every activity for your party.</Text>}
+ 
+         <Text style={[s.label, { marginTop: 16 }]}>YOUR JOURNEY (OPTIONAL)</Text>
+         <Pressable onPress={() => setJourneyOpen(true)} style={s.journeyRow}>
+diff --git a/supabase/migrations/0005_trip_traveler_types.sql b/supabase/migrations/0005_trip_traveler_types.sql
+new file mode 100644
+index 0000000..1b14e60
+--- /dev/null
++++ b/supabase/migrations/0005_trip_traveler_types.sql
+@@ -0,0 +1,10 @@
++-- 0005: trip traveler types (party composition)  — applied 2026-07-30
++-- Multi-select party for a trip: any of solo/partner/adults/teens/elderly/kids.
++-- Play rates each activity for exactly these cohorts. `with_kids` stays derived
++-- (true when 'kids' is present) so existing gating keeps working.
++-- Nullable + default '[]' so old inserts and null payloads are both fine.
++--
++-- IMPORTANT: run this in the Supabase SQL editor BEFORE deploying the backend
++-- that sends this field (PostgREST rejects inserts with unknown columns).
++alter table public.trips
++  add column if not exists traveler_types jsonb default '[]'::jsonb;

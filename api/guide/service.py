@@ -44,12 +44,26 @@ def sanitize(raw: dict, travel_mode: str | None = None) -> dict:
                                 "area": _s(item.get("area"), 50), "price": max(1, min(4, price))})
     out["restaurants"] = restaurants
     out["eat"] = restaurants  # back-compat for older readers
-    for key in ("play", "visit"):
-        rows = []
-        for item in (raw.get(key) or [])[:_LIST_CAPS[key]]:
-            if isinstance(item, dict) and item.get("name"):
-                rows.append({"name": _s(item.get("name"), 60), "note": _s(item.get("note"))})
-        out[key] = rows
+    play_rows = []
+    for item in (raw.get("play") or [])[:_LIST_CAPS["play"]]:
+        if isinstance(item, dict) and item.get("name"):
+            play_rows.append({"name": _s(item.get("name"), 60), "note": _s(item.get("note"))})
+    out["play"] = play_rows
+    _FEE = {"free", "low", "mid", "high"}
+    visit_rows = []
+    for item in (raw.get("visit") or [])[:_LIST_CAPS["visit"]]:
+        if isinstance(item, dict) and item.get("name"):
+            rawr = item.get("rating")
+            try:
+                rating = round(float(rawr), 1) if rawr is not None else None
+            except (TypeError, ValueError):
+                rating = None
+            if rating is not None:
+                rating = max(0.0, min(5.0, rating))
+            fee = item.get("fee") if item.get("fee") in _FEE else ""
+            visit_rows.append({"name": _s(item.get("name"), 60), "note": _s(item.get("note")),
+                               "rating": rating, "fee": fee, "access": _s(item.get("access"), 80)})
+    out["visit"] = visit_rows
     go = raw.get("go") or {}
     vh = raw.get("visa_hint") or {}
     st = vh.get("status")
@@ -83,6 +97,7 @@ def sanitize(raw: dict, travel_mode: str | None = None) -> dict:
     out["gateway"] = default
     out["airport"] = default
     out["go"] = {
+        "from_origin": [_s(x) for x in (go.get("from_origin") or [])[:4] if _s(x)],
         "from_airport": [_s(x) for x in (go.get("from_airport") or [])[:4] if _s(x)],
         "around": [_s(x) for x in (go.get("around") or [])[:4] if _s(x)],
     }
@@ -130,6 +145,7 @@ def get_guide(db, trip: dict, user_id: str, *, regenerate: bool = False) -> dict
            "duration_days": None, "activities": sorted(set(acts)),
            "accommodation": accommodation, "travel_mode": trip.get("travel_mode"),
            "require_gateway": MODE_KIND.get(trip.get("travel_mode") or ""),
+           "origin": trip.get("origin"),
            "nationality": nationality}
     result = gateway.complete("guide_generate", GUIDE_SYSTEM_PROMPT,
                               json.dumps(ctx), db=db, user_id=user_id, max_tokens=6000)

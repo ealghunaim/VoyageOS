@@ -143,8 +143,8 @@ export type Guide = {
   dishes?: { name: string; note: string }[];
   restaurants?: { name: string; note: string; area?: string; price?: number }[];
   play: { name: string; note: string }[];
-  visit: { name: string; note: string }[];
-  go: { from_airport: string[]; around: string[] };
+  visit: { name: string; note: string; rating?: number | null; fee?: string; access?: string }[];
+  go: { from_origin?: string[]; from_airport: string[]; around: string[] };
   health?: string[];
   souvenirs?: { name: string; note: string; price_band: string }[];
   visa_hint?: { status: string; note: string };
