@@ -12,6 +12,7 @@ export type Trip = {
   airline?: string | null; visa_status?: string | null; cabin_class?: string | null; depart_time?: string | null;
   segments?: Segment[] | null;
   with_kids?: boolean | null;
+  traveler_types?: string[] | null;
   origin?: string | null; origin_country?: string | null; origin_lat?: number | null; origin_lng?: number | null;
   id: string; title: string; start_date: string; end_date: string;
   trip_type?: string | null; status: string;
@@ -177,7 +178,7 @@ export const listNotes = (tripId: string): Promise<Note[]> => req(`/v1/trips/${t
 export const addNote = (tripId: string, body: string, photos: { b64: string; mime: string }[] = []): Promise<Note> =>
   req(`/v1/trips/${tripId}/notes`, { method: 'POST', body: JSON.stringify({ body, photos }) });
 
-export const patchTrip = (id: string, b: { title?: string; start_date?: string; end_date?: string; airline?: string; visa_status?: string; cabin_class?: string; depart_time?: string; segments?: Segment[]; with_kids?: boolean; origin?: string; origin_country?: string; origin_lat?: number; origin_lng?: number }): Promise<Trip> =>
+export const patchTrip = (id: string, b: { title?: string; start_date?: string; end_date?: string; airline?: string; visa_status?: string; cabin_class?: string; depart_time?: string; segments?: Segment[]; with_kids?: boolean; traveler_types?: string[]; origin?: string; origin_country?: string; origin_lat?: number; origin_lng?: number }): Promise<Trip> =>
   req(`/v1/trips/${id}`, { method: 'PATCH', body: JSON.stringify(b) });
 export const deleteTrip = (id: string): Promise<void> =>
   req(`/v1/trips/${id}`, { method: 'DELETE' });
@@ -207,11 +208,11 @@ export const dishPhoto = (name: string, place: string): Promise<{ name: string; 
 
 export type FamilyActivity = {
   name: string; note: string;
-  bands: { toddlers: string; young: string; older: string; teens: string };
+  bands: Record<string, string>;   // cohort key -> 'great'|'okay'|'skip'
   duration: string; price: number; indoor: string;
   stroller: boolean; food_onsite: boolean; booking: string; verdict: string;
 };
-export const getFamilyPlay = (tripId: string, regenerate = false): Promise<{ activities: FamilyActivity[] }> =>
+export const getFamilyPlay = (tripId: string, regenerate = false): Promise<{ activities: FamilyActivity[]; cohorts?: string[] }> =>
   req(`/v1/trips/${tripId}/family-play?regenerate=${regenerate}`);
 
 export type Phrase = { en: string; local: string; pron: string };

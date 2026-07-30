@@ -19,6 +19,10 @@ const ACTIVITIES = [
 ];
 const MODES: [string, string][] = [['air', '✈ Air'], ['train', '🚆 Train'], ['ship', '🚢 Ship'], ['car', '🚗 Car']];
 const MODE_ICON: Record<string, string> = { air: '✈', train: '🚆', ship: '🚢', car: '🚗' };
+const TRAVELER_TYPES: [string, string][] = [
+  ['solo', '🧍 Solo'], ['partner', '💑 Partner'], ['adults', '👥 Adults'],
+  ['teens', '🧑 Teens'], ['elderly', '🧓 Elderly'], ['kids', '👶 Kids'],
+];
 
 function iso(d: Date) { return d.toISOString().slice(0, 10); }
 function plusDays(base: string, n: number) {
@@ -45,7 +49,7 @@ export default function Wizard({ onDone, onCancel }: {
   const [cabin, setCabin] = useState('economy');
   const [departTime, setDepartTime] = useState('');
   const [segments, setSegments] = useState<Segment[]>([]);
-  const [withKids, setWithKids] = useState(false);
+  const [party, setParty] = useState<Set<string>>(new Set());
   const [journeyOpen, setJourneyOpen] = useState(false);
   const [hits, setHits] = useState<PlaceHit[]>([]);
   const [chosen, setChosen] = useState(false);
@@ -128,6 +132,11 @@ export default function Wizard({ onDone, onCancel }: {
     next.has(a) ? next.delete(a) : next.add(a);
     setActs(next);
   };
+  const toggleParty = (t: string) => {
+    const next = new Set(party);
+    next.has(t) ? next.delete(t) : next.add(t);
+    setParty(next);
+  };
   const validDates = DATE_RE.test(start) && DATE_RE.test(end) && end >= start;
   const canBuild = !!place.trim() && validDates && acts.size > 0;
 
@@ -142,7 +151,8 @@ export default function Wizard({ onDone, onCancel }: {
         airline: mode === 'air' && airline.trim() ? airline.trim() : undefined,
         cabin_class: mode === 'air' ? cabin : undefined,
         depart_time: mode === 'air' && /^\d{1,2}:\d{2}$/.test(departTime.trim()) ? departTime.trim() : undefined,
-        with_kids: withKids,
+        with_kids: party.has('kids'),
+        traveler_types: party.size ? [...party] : undefined,
         origin: origin.trim() || undefined,
         origin_country: originCountry ? originCountry.toUpperCase().slice(0, 2) : undefined,
         origin_lat: originCoords?.lat ?? undefined,
@@ -273,14 +283,13 @@ export default function Wizard({ onDone, onCancel }: {
           ))}
         </View>
 
-        <Pressable onPress={() => setWithKids(v => !v)}
-          style={[s.kidsRow, withKids && { borderColor: accent, backgroundColor: '#fff' }]}>
-          <Text style={{ fontSize: 16 }}>{withKids ? '👨‍👩‍👧 ' : ''}Traveling with kids?</Text>
-          <View style={[s.kidsDot, withKids && { backgroundColor: accent, borderColor: accent }]}>
-            {withKids && <Text style={{ color: '#fff', fontSize: 13, fontFamily: F.bold }}>✓</Text>}
-          </View>
-        </Pressable>
-        {withKids && <Text style={[s.sub, { marginTop: -4 }]}>Play will rate every activity by age group — toddlers to teens.</Text>}
+        <Text style={[s.label, { marginTop: 16 }]}>WHO'S GOING</Text>
+        <View style={s.chipWrap}>
+          {TRAVELER_TYPES.map(([v, l]) => (
+            <Chip key={v} label={l} selected={party.has(v)} onPress={() => toggleParty(v)} />
+          ))}
+        </View>
+        {party.size > 0 && <Text style={[s.sub, { marginTop: 4 }]}>Play will rate every activity for your party.</Text>}
 
         <Text style={[s.label, { marginTop: 16 }]}>YOUR JOURNEY (OPTIONAL)</Text>
         <Pressable onPress={() => setJourneyOpen(true)} style={s.journeyRow}>

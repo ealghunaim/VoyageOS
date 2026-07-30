@@ -32,6 +32,9 @@ class TripCreate(BaseModel):
     origin_country: str | None = Field(default=None, max_length=2)
     origin_lat: float | None = None
     origin_lng: float | None = None
+    # party composition — any of solo/partner/adults/teens/elderly/kids.
+    # Play rates activities per selected cohort; with_kids is derived from this.
+    traveler_types: list[str] | None = None
 
     @model_validator(mode="after")
     def dates_ordered(self):
@@ -69,3 +72,4 @@ class TripPatch(BaseModel):
     origin_country: str | None = Field(default=None, max_length=2)
     origin_lat: float | None = None
     origin_lng: float | None = None
+    traveler_types: list[str] | None = None

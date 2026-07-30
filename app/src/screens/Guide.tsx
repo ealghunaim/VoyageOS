@@ -38,23 +38,25 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
       setG(r.guide);
     } catch (e: any) { Alert.alert('Guide', e.message); }
   }, [tripId]);
+  const hasParty = (trip.traveler_types?.length ?? 0) > 0 || !!trip.with_kids;
   useEffect(() => {
-    if (tab !== 'play' || !trip.with_kids || familyPlay) return;
+    if (tab !== 'play' || !hasParty || familyPlay) return;
     setFamilyBusy(true);
     getFamilyPlay(trip.id)
       .then(setFamilyPlay)
       .catch(() => setFamilyPlay({ activities: [] }))
       .finally(() => setFamilyBusy(false));
-  }, [tab, trip.with_kids, trip.id, familyPlay]);
+  }, [tab, hasParty, trip.id, familyPlay]);
 
   const redoFamily = () => {
     setFamilyBusy(true);
     getFamilyPlay(trip.id, true).then(setFamilyPlay).catch(() => {}).finally(() => setFamilyBusy(false));
   };
-  const BANDS = [
-    { key: 'toddlers', label: '0–3' }, { key: 'young', label: '4–7' },
-    { key: 'older', label: '8–12' }, { key: 'teens', label: '13–17' },
-  ] as const;
+  const COHORT_LABEL: Record<string, string> = {
+    toddlers: '0–3', young: '4–7', older: '8–12', teens: 'Teens',
+    solo: 'Solo', partner: 'Partner', adults: 'Adults', elderly: 'Elderly',
+  };
+  const COHORT_ORDER = ['toddlers', 'young', 'older', 'teens', 'solo', 'partner', 'adults', 'elderly'];
 
   useEffect(() => {
     const dishes = g2?.dishes ?? [];
@@ -375,13 +377,13 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
             </Card>
           </>
         )}
-        {tab === 'play' && (trip.with_kids ? (
+        {tab === 'play' && (hasParty ? (
           familyBusy && !familyPlay ? (
             <Card><JourneyLoader accent={accent} label="Planning family activities…" /></Card>
           ) : (familyPlay?.activities.length ? (
             <>
-              <Text style={sx.tipHead}>FAMILY PICKS · {place.toUpperCase()}</Text>
-              <Text style={[s.sub, { marginBottom: 8 }]}>Each rated per age group — great · okay · skip.</Text>
+              <Text style={sx.tipHead}>PARTY PICKS · {place.toUpperCase()}</Text>
+              <Text style={[s.sub, { marginBottom: 8 }]}>Each rated for your party — great · okay · skip.</Text>
               {familyPlay.activities.map((a, i) => (
                 <Card key={i}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -390,12 +392,12 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                   </View>
                   {!!a.note && <Text style={s.sub}>{a.note}</Text>}
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
-                    {BANDS.map(b => {
-                      const fit = (a.bands as any)[b.key] as string;
+                    {COHORT_ORDER.filter(k => (a.bands as any)[k]).map(k => {
+                      const fit = (a.bands as any)[k] as string;
                       const col = fit === 'great' ? C.green : fit === 'okay' ? '#E8A63A' : '#AEB8C4';
                       return (
-                        <View key={b.key} style={{ backgroundColor: tint(col, 0.16), borderRadius: 8, paddingHorizontal: 9, paddingVertical: 5, marginRight: 6, marginBottom: 6 }}>
-                          <Text style={{ color: fit === 'skip' ? '#8A94A0' : col, fontSize: 12, fontFamily: F.bold }}>{b.label} · {fit}</Text>
+                        <View key={k} style={{ backgroundColor: tint(col, 0.16), borderRadius: 8, paddingHorizontal: 9, paddingVertical: 5, marginRight: 6, marginBottom: 6 }}>
+                          <Text style={{ color: fit === 'skip' ? '#8A94A0' : col, fontSize: 12, fontFamily: F.bold }}>{COHORT_LABEL[k]} · {fit}</Text>
                         </View>
                       );
                     })}
@@ -406,8 +408,8 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                   {!!a.verdict && <Text style={{ marginTop: 8, color: C.text, fontFamily: F.med, lineHeight: 20 }}>💬 {a.verdict}</Text>}
                 </Card>
               ))}
-              <Pressable onPress={redoFamily}><Text style={[s.link, { color: accent, marginBottom: 8 }]}>↻ Redo family picks ›</Text></Pressable>
-              <Text style={[s.sub, { fontSize: 12, color: '#9AA9BB' }]}>Age fit & prices are impressions — confirm before you go.</Text>
+              <Pressable onPress={redoFamily}><Text style={[s.link, { color: accent, marginBottom: 8 }]}>↻ Redo picks ›</Text></Pressable>
+              <Text style={[s.sub, { fontSize: 12, color: '#9AA9BB' }]}>Fit & prices are impressions — confirm before you go.</Text>
             </>
           ) : (
             <Card><Text style={s.sub}>Couldn't load family picks. </Text><Pressable onPress={redoFamily}><Text style={[s.link, { color: accent }]}>Try again ›</Text></Pressable></Card>
