@@ -133,6 +133,11 @@ def delete_trip(trip_id: str, user_id: str = Depends(current_user_id)):
     db = get_db()
     if not db.table("trips").select("id").eq("id", trip_id).eq("owner_id", user_id).execute().data:
         raise HTTPException(404, "Trip not found")
+    # notification_log has no trip_id — it reaches a trip only via schedule_id,
+    # so collect those ids BEFORE the schedules they point at are deleted.
+    sched_ids = [r["id"] for r in db.table("notification_schedule").select("id")
+                 .eq("trip_id", trip_id).execute().data]
+    if sched_ids:
+        db.table("notification_log").delete().in_("schedule_id", sched_ids).execute()
     db.table("notification_schedule").delete().eq("trip_id", trip_id).execute()
-    db.table("notification_log").delete().eq("trip_id", trip_id).execute()
     db.table("trips").delete().eq("id", trip_id).execute()  # FK cascade takes the rest
