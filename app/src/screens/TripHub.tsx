@@ -164,6 +164,11 @@ export default function TripHub({ trip, onBack, onPack, onGuide, onJournal, onSO
           <Text style={{ color: C.red, fontFamily: F.bold }}>Delete trip</Text>
         </Pressable>
       </View>
+      {(trip as any).destinations?.length > 1 && (
+        <Text style={{ color: C.sub, textAlign: 'center', marginTop: 12, fontSize: 13 }}>
+          {(trip as any).destinations.map((d: any) => d.place_name).join('  →  ')}
+        </Text>
+      )}
       <Pressable onPress={() => setJourneyOpen(true)} style={{ alignItems: 'center', marginTop: 12 }}>
         <Text style={{ color: accent, fontFamily: F.bold }}>✈ Your journey{trip.segments && trip.segments.length ? ` · ${trip.segments.length} legs` : ''} ›</Text>
       </Pressable>

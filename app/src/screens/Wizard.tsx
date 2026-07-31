@@ -53,6 +53,10 @@ export default function Wizard({ onDone, onCancel }: {
   const [journeyOpen, setJourneyOpen] = useState(false);
   const [hits, setHits] = useState<PlaceHit[]>([]);
   const [chosen, setChosen] = useState(false);
+  // Extra stops beyond the primary destination — a multi-city itinerary.
+  const [stops, setStops] = useState<{ name: string; country: string; lat: number | null; lng: number | null }[]>([]);
+  const [stopQ, setStopQ] = useState('');
+  const [stopHits, setStopHits] = useState<PlaceHit[]>([]);
   const [start, setStart] = useState(defStart);
   const [end, setEnd] = useState(plusDays(defStart, 6));
   const [acts, setActs] = useState<Set<string>>(new Set());
@@ -116,6 +120,21 @@ export default function Wizard({ onDone, onCancel }: {
     return () => clearTimeout(t);
   }, [origin, originChosen]);
 
+  useEffect(() => {
+    if (stopQ.trim().length < 2) { setStopHits([]); return; }
+    const t = setTimeout(() => {
+      searchPlaces(stopQ).then(res => {
+        const seen = new Set<string>();
+        setStopHits(res.filter(h => {
+          const k = `${h.name}|${h.admin ?? ''}|${h.country_code}`;
+          if (seen.has(k)) return false;
+          seen.add(k); return true;
+        }));
+      }).catch(() => setStopHits([]));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [stopQ]);
+
   const flag = (cc: string) =>
     cc.length === 2 ? String.fromCodePoint(...cc.split('').map(c => 127397 + c.charCodeAt(0))) : '';
 
@@ -127,6 +146,11 @@ export default function Wizard({ onDone, onCancel }: {
     setOrigin(h.name); setOriginCountry(h.country_code);
     setOriginCoords({ lat: h.lat, lng: h.lng }); setOriginChosen(true); setOriginHits([]);
   };
+  const addStop = (h: PlaceHit) => {
+    setStops(prev => [...prev, { name: h.name, country: h.country_code, lat: h.lat, lng: h.lng }]);
+    setStopQ(''); setStopHits([]);
+  };
+  const removeStop = (i: number) => setStops(prev => prev.filter((_, j) => j !== i));
   const toggleAct = (a: string) => {
     const next = new Set(acts);
     next.has(a) ? next.delete(a) : next.add(a);
@@ -164,7 +188,19 @@ export default function Wizard({ onDone, onCancel }: {
         country_code: country ? country.toUpperCase().slice(0, 2) : null,
         lat: coords?.lat ?? null, lng: coords?.lng ?? null,
         accommodation: stay.trim() ? { name: stay.trim() } : null,
+        seq: 1,
       });
+      if (stops.length) {
+        setBusy('Adding your stops…');
+        let seq = 2;
+        for (const stp of stops) {
+          await addDestination(trip.id, {
+            place_name: stp.name,
+            country_code: stp.country ? stp.country.toUpperCase().slice(0, 2) : null,
+            lat: stp.lat, lng: stp.lng, seq: seq++,
+          });
+        }
+      }
       for (const a of acts) await addActivity(trip.id, { type: a });
       if (segments.length) { setBusy('Saving your journey…'); await patchTrip(trip.id, { segments }); }
       setBusy('Asking Claude to pack…');
@@ -218,6 +254,24 @@ export default function Wizard({ onDone, onCancel }: {
             <Text style={s.hitSub}>e.g. the Dolomites, the French Riviera</Text>
           </Pressable>
         )}
+
+        <Text style={[s.label, { marginTop: 16 }]}>MORE STOPS (OPTIONAL)</Text>
+        {stops.map((st, i) => (
+          <Pressable key={`${st.name}-${i}`} onPress={() => removeStop(i)} style={s.hit}>
+            <Text style={s.hitText}>{i + 2}.  {flag(st.country)}  {st.name}</Text>
+            <Text style={s.hitSub}>tap to remove ✕</Text>
+          </Pressable>
+        ))}
+        <Field label="" value={stopQ}
+          onChange={(t) => setStopQ(t)}
+          placeholder="Add another city — e.g. Lake District" />
+        {stopHits.map((h, i) => (
+          <Pressable key={`s-${h.name}-${h.lat}-${h.lng}-${i}`} onPress={() => addStop(h)} style={s.hit}>
+            <Text style={s.hitText}>{flag(h.country_code)}  {h.name}</Text>
+            <Text style={s.hitSub}>{[h.admin, h.country_code].filter(Boolean).join(' · ')}</Text>
+          </Pressable>
+        ))}
+        {stops.length > 0 && <Text style={[s.sub, { marginTop: 4 }]}>Route: {[place || '…', ...stops.map(s2 => s2.name)].join('  →  ')}</Text>}
 
         <Text style={[s.label, { marginTop: 16 }]}>WHEN</Text>
         <View style={{ flexDirection: 'row', marginBottom: 4 }}>

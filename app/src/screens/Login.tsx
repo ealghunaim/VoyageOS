@@ -35,7 +35,7 @@ export default function Login({ onDone }: { onDone: () => void }) {
       <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={s.wrap}
         keyboardShouldPersistTaps="handled">
         <Wordmark size={26} />
-        <Text style={s.tag}>Operate your journey.</Text>
+        <Text style={s.tag}>Journey. Optimized.</Text>
         <Card>
           <Text style={s.h2}>{mode === 'signin' ? 'Sign in' : 'Create your account'}</Text>
           <Field label="EMAIL" value={email} onChange={setEmail} placeholder="you@example.com" />
