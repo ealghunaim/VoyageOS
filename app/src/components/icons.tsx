@@ -56,6 +56,15 @@ export default function TileIcon({ kind, accent, size = 30 }: {
         <Path d="M44 34 h20 v4 H44 Z M44 46 h20 v4 H44 Z M44 58 h14 v4 H44 Z" fill={A(0.35)} />
       </>
     ),
+    plan: (
+      <>
+        <Rect x="20" y="26" width="60" height="56" rx="8" fill={A()} />
+        <Rect x="20" y="26" width="60" height="15" rx="8" fill={A(0.6)} />
+        <Rect x="34" y="18" width="6" height="14" rx="3" fill={A(0.6)} />
+        <Rect x="60" y="18" width="6" height="14" rx="3" fill={A(0.6)} />
+        <Path d="M34 55 l7 7 15 -17" stroke="#fff" strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </>
+    ),
     sos: (
       <>
         <Path d="M50 12 l30 10 v22 c0 22 -14 34 -30 42 C34 78 20 66 20 44 V22 Z" fill={A()} />

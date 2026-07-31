@@ -12,6 +12,7 @@ import { accentForTrip, C, tint, F, titleize } from '../theme';
 
 const TILES: { key: string; label: string; sub: string }[] = [
   { key: 'pack', label: 'Pack', sub: 'Your list, with reasons' },
+  { key: 'plan', label: 'Plan', sub: 'Day-by-day itinerary' },
   { key: 'know', label: 'Know', sub: 'Entry, plugs, customs' },
   { key: 'eat', label: 'Eat', sub: 'Dishes worth the trip' },
   { key: 'play', label: 'Play', sub: 'Experiences' },
@@ -21,8 +22,8 @@ const TILES: { key: string; label: string; sub: string }[] = [
   { key: 'sos', label: 'SOS', sub: 'Emergency & care' },
 ];
 
-export default function TripHub({ trip, onBack, onPack, onGuide, onJournal, onSOS, onDebrief, onTripChanged }: {
-  trip: Trip; onBack: () => void; onPack: () => void;
+export default function TripHub({ trip, onBack, onPack, onPlan, onGuide, onJournal, onSOS, onDebrief, onTripChanged }: {
+  trip: Trip; onBack: () => void; onPack: () => void; onPlan: () => void;
   onGuide: (section: string) => void; onJournal: () => void; onSOS: () => void; onDebrief: () => void;
   onTripChanged: (t: Trip | null) => void;
 }) {
@@ -104,6 +105,7 @@ export default function TripHub({ trip, onBack, onPack, onGuide, onJournal, onSO
             style={[s.tile, { backgroundColor: '#fff' }]}
             onPress={() =>
               t.key === 'pack' ? onPack()
+              : t.key === 'plan' ? onPlan()
               : t.key === 'journal' ? onJournal()
               : t.key === 'sos' ? onSOS()
               : onGuide(t.key)}

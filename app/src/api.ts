@@ -197,6 +197,16 @@ export const addFoodTip = (b: { place_name: string; country_code?: string | null
 export const deleteFoodTip = (id: string): Promise<void> =>
   req(`/v1/food-tips/${id}`, { method: 'DELETE' });
 
+export type PlanItem = { id: string; trip_id: string; day: number; time: string | null; title: string; note: string | null; done: boolean; seq: number };
+export const listPlan = (tripId: string): Promise<PlanItem[]> =>
+  req(`/v1/trips/${tripId}/plan`);
+export const addPlanItem = (tripId: string, b: { day: number; title: string; time?: string; note?: string }): Promise<PlanItem> =>
+  req(`/v1/trips/${tripId}/plan`, { method: 'POST', body: JSON.stringify(b) });
+export const patchPlanItem = (tripId: string, itemId: string, b: { title?: string; time?: string; note?: string; done?: boolean; day?: number }): Promise<PlanItem> =>
+  req(`/v1/trips/${tripId}/plan/${itemId}`, { method: 'PATCH', body: JSON.stringify(b) });
+export const deletePlanItem = (tripId: string, itemId: string): Promise<void> =>
+  req(`/v1/trips/${tripId}/plan/${itemId}`, { method: 'DELETE' });
+
 export const quickAddItems = (tripId: string, text: string): Promise<PackItem[]> =>
   req(`/v1/trips/${tripId}/items/quick-add`, { method: 'POST', body: JSON.stringify({ text }) });
 

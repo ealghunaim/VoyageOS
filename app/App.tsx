@@ -15,6 +15,7 @@ import Guide from './src/screens/Guide';
 import Packing from './src/screens/Packing';
 import Profile from './src/screens/Profile';
 import Journal from './src/screens/Journal';
+import Planner from './src/screens/Planner';
 import SOS from './src/screens/SOS';
 import TripHub from './src/screens/TripHub';
 import Wizard from './src/screens/Wizard';
@@ -29,6 +30,7 @@ type Route =
   | { name: 'packing'; trip: Trip }
   | { name: 'guide'; trip: Trip; section: string }
   | { name: 'journal'; trip: Trip }
+  | { name: 'plan'; trip: Trip }
   | { name: 'sos'; trip: Trip }
   | { name: 'debrief'; trip: Trip }
   | { name: 'kits' }
@@ -102,6 +104,7 @@ export default function App() {
       {route.name === 'hub' && (
         <TripHub trip={route.trip} onBack={goHome}
           onPack={() => setRoute({ name: 'packing', trip: route.trip })}
+          onPlan={() => setRoute({ name: 'plan', trip: route.trip })}
           onGuide={(section) => setRoute({ name: 'guide', trip: route.trip, section })}
           onJournal={() => setRoute({ name: 'journal', trip: route.trip })}
           onSOS={() => setRoute({ name: 'sos', trip: route.trip })}
@@ -129,6 +132,12 @@ export default function App() {
       {route.name === 'journal' && (
         <Journal tripId={route.trip.id} tripTitle={titleize(route.trip.title)}
           accent={accentForTrip(route.trip.country_code, route.trip.title)}
+          onBack={() => setRoute({ name: 'hub', trip: route.trip })} />
+      )}
+      {route.name === 'plan' && (
+        <Planner tripId={route.trip.id} tripTitle={titleize(route.trip.title)}
+          accent={accentForTrip(route.trip.country_code, route.trip.title)}
+          startDate={route.trip.start_date} endDate={route.trip.end_date}
           onBack={() => setRoute({ name: 'hub', trip: route.trip })} />
       )}
       {route.name === 'sos' && (
