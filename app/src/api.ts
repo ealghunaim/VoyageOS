@@ -156,6 +156,9 @@ export type Guide = {
 export const getGuide = (tripId: string, regenerate = false):
   Promise<{ guide: Guide; cached: boolean; cost_usd: number }> =>
   req(`/v1/trips/${tripId}/guide?regenerate=${regenerate}`);
+export const getGuidePart = (tripId: string, phase: 'a' | 'b', regenerate = false):
+  Promise<{ guide: Partial<Guide>; phase: string; cached: boolean; cost_usd: number }> =>
+  req(`/v1/trips/${tripId}/guide/part/${phase}?regenerate=${regenerate}`);
 
 export type Companion = { name: string; relation: 'partner' | 'child' | 'parent' | 'friend' | 'other'; dob?: string | null };
 export type HomeOrigin = { name: string; country?: string | null; lat?: number | null; lng?: number | null };

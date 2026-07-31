@@ -110,6 +110,155 @@ def sanitize(raw: dict, travel_mode: str | None = None) -> dict:
     return out
 
 
+# --- Two-phase progressive guide -------------------------------------------
+# Phase A (Know + Eat) and Phase B (Play + Visit + Go) generate independently
+# and cache in trip_guide_parts, so the first tab paints while the rest loads.
+# Each sanitizer reuses the exact field logic from sanitize() above.
+
+def sanitize_a(raw: dict) -> dict:
+    out: dict = {}
+    power = raw.get("power") or {}
+    out["power"] = {"plugs": _s(power.get("plugs"), 60), "note": _s(power.get("note"))}
+    for key in ("etiquette", "customs_flags", "task_suggestions", "health"):
+        out[key] = [_s(x) for x in (raw.get(key) or [])[:_LIST_CAPS[key]] if _s(x)]
+    dishes = []
+    for item in (raw.get("dishes") or [])[:6]:
+        if isinstance(item, dict) and item.get("name"):
+            dishes.append({"name": _s(item.get("name"), 60), "note": _s(item.get("note"))})
+    out["dishes"] = dishes
+    restaurants = []
+    for item in (raw.get("restaurants") or raw.get("eat") or [])[:6]:
+        if isinstance(item, dict) and item.get("name"):
+            rawp = item.get("price")
+            try:
+                price = int(rawp) if rawp is not None else 2
+            except (TypeError, ValueError):
+                price = 2
+            restaurants.append({"name": _s(item.get("name"), 60), "note": _s(item.get("note")),
+                                "area": _s(item.get("area"), 50), "price": max(1, min(4, price))})
+    out["restaurants"] = restaurants
+    out["eat"] = restaurants
+    vh = raw.get("visa_hint") or {}
+    st = vh.get("status")
+    out["visa_hint"] = {"status": st if st in ("none", "evisa", "arrival", "required") else "unknown",
+                        "note": _s(vh.get("note"), 120)}
+    out["souvenirs"] = [
+        {"name": _s(x.get("name"), 60), "note": _s(x.get("note"), 100),
+         "price_band": _s(x.get("price_band"), 30)}
+        for x in (raw.get("souvenirs") or [])[:5]
+        if isinstance(x, dict) and _s(x.get("name"))
+    ]
+    return out
+
+
+def sanitize_b(raw: dict, travel_mode: str | None = None) -> dict:
+    out: dict = {}
+    play_rows = []
+    for item in (raw.get("play") or [])[:_LIST_CAPS["play"]]:
+        if isinstance(item, dict) and item.get("name"):
+            play_rows.append({"name": _s(item.get("name"), 60), "note": _s(item.get("note"))})
+    out["play"] = play_rows
+    _FEE = {"free", "low", "mid", "high"}
+    visit_rows = []
+    for item in (raw.get("visit") or [])[:_LIST_CAPS["visit"]]:
+        if isinstance(item, dict) and item.get("name"):
+            rawr = item.get("rating")
+            try:
+                rating = round(float(rawr), 1) if rawr is not None else None
+            except (TypeError, ValueError):
+                rating = None
+            if rating is not None:
+                rating = max(0.0, min(5.0, rating))
+            fee = item.get("fee") if item.get("fee") in _FEE else ""
+            visit_rows.append({"name": _s(item.get("name"), 60), "note": _s(item.get("note")),
+                               "rating": rating, "fee": fee, "access": _s(item.get("access"), 80)})
+    out["visit"] = visit_rows
+    go = raw.get("go") or {}
+
+    def _gw(gw):
+        k = gw.get("kind") if gw.get("kind") in ("airport", "port", "station", "road") else "airport"
+        return {"kind": k, "code": _s(gw.get("code"), 4).upper(), "name": _s(gw.get("name"), 60),
+                "to_city": _s(gw.get("to_city")),
+                "highlights": [_s(x) for x in (gw.get("highlights") or [])[:4] if _s(x)],
+                "duty_free": _s(gw.get("duty_free")), "smoking": _s(gw.get("smoking")),
+                "tips": [_s(x) for x in (gw.get("tips") or [])[:3] if _s(x)]}
+    raw_gws = raw.get("gateways")
+    if not isinstance(raw_gws, list) or not raw_gws:
+        single = raw.get("gateway") or raw.get("airport") or {}
+        raw_gws = [single] if (single.get("name") or single.get("code")) else []
+    seen, gateways = set(), []
+    for gw in raw_gws[:4]:
+        if not isinstance(gw, dict):
+            continue
+        built = _gw(gw)
+        if not (built["name"] or built["code"]) or built["kind"] in seen:
+            continue
+        seen.add(built["kind"]); gateways.append(built)
+    want = MODE_KIND.get(travel_mode or "")
+    if want:
+        gateways.sort(key=lambda g: 0 if g["kind"] == want else 1)
+    out["gateways"] = gateways
+    default = gateways[0] if gateways else {"kind": "airport", "code": "", "name": "",
+        "to_city": "", "highlights": [], "duty_free": "", "smoking": "", "tips": []}
+    out["gateway"] = default
+    out["airport"] = default
+    out["go"] = {
+        "from_origin": [_s(x) for x in (go.get("from_origin") or [])[:4] if _s(x)],
+        "from_airport": [_s(x) for x in (go.get("from_airport") or [])[:4] if _s(x)],
+        "around": [_s(x) for x in (go.get("around") or [])[:4] if _s(x)],
+    }
+    return out
+
+
+def _guide_ctx(db, trip: dict, user_id: str) -> dict:
+    dests = db.table("destinations").select("place_name,country_code,accommodation") \
+        .eq("trip_id", trip["id"]).order("seq").limit(1).execute().data
+    place = dests[0]["place_name"] if dests else trip["title"]
+    country = (dests[0].get("country_code") if dests else None) or ""
+    acts = [a["type"] for a in db.table("activities").select("type")
+            .eq("trip_id", trip["id"]).execute().data]
+    accommodation = (dests[0].get("accommodation") or {}).get("name") if dests else None
+    nat_rows = db.table("user_preferences").select("extras").eq("user_id", user_id).execute().data
+    nationality = ((nat_rows[0].get("extras") if nat_rows else {}) or {}).get("nationality")
+    return {"destination": {"place": place, "country": country},
+            "month": trip["start_date"][5:7], "start_date": trip["start_date"],
+            "activities": sorted(set(acts)), "accommodation": accommodation,
+            "travel_mode": trip.get("travel_mode"),
+            "require_gateway": MODE_KIND.get(trip.get("travel_mode") or ""),
+            "origin": trip.get("origin"), "nationality": nationality}
+
+
+_PART_TASK = {"a": "guide_a", "b": "guide_b"}
+
+
+def get_guide_part(db, trip: dict, user_id: str, phase: str, *, regenerate: bool = False) -> dict:
+    from api.guide.prompts import GUIDE_PROMPT_A, GUIDE_PROMPT_B
+    if phase not in ("a", "b"):
+        raise HTTPException(400, "bad guide phase")
+    tid = trip["id"]
+    if not regenerate:
+        rows = db.table("trip_guide_parts").select("payload,model") \
+            .eq("trip_id", tid).eq("phase", phase).limit(1).execute().data
+        if rows:
+            return {"guide": rows[0]["payload"], "phase": phase, "cached": True, "cost_usd": 0.0}
+    ctx = _guide_ctx(db, trip, user_id)
+    gateway.check_budget(db, user_id)
+    prompt = GUIDE_PROMPT_A if phase == "a" else GUIDE_PROMPT_B
+    result = gateway.complete(_PART_TASK[phase], prompt, json.dumps(ctx),
+                              db=db, user_id=user_id, max_tokens=3000)
+    try:
+        part = (sanitize_a(_parse(result.text)) if phase == "a"
+                else sanitize_b(_parse(result.text), travel_mode=trip.get("travel_mode")))
+    except Exception as e:
+        print(f"[guide/{phase}] parse failed: {type(e).__name__}: {e} · tail {result.text[-120:]!r}")
+        raise HTTPException(502, "The guide didn't generate cleanly — tap ↻ to retry.")
+    db.table("trip_guide_parts").upsert(
+        {"trip_id": tid, "phase": phase, "payload": part,
+         "model": f"{result.model}·{GUIDE_PROMPT_VERSION}"},
+        on_conflict="trip_id,phase").execute()
+    return {"guide": part, "phase": phase, "cached": False, "cost_usd": result.cost_usd}
+
+
 def _parse(text: str) -> dict:
     cleaned = text.strip()
     if cleaned.startswith("```"):

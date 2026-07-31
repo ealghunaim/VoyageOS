@@ -3,7 +3,7 @@ import {
   ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Image as RNImage,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { getFamilyPlay, FamilyActivity, addFoodTip, deleteFoodTip, dishPhoto, FoodTip, getGuide, getProfile, Guide as GuideT, listFoodTips, patchTrip, Trip } from '../api';
+import { getFamilyPlay, FamilyActivity, addFoodTip, deleteFoodTip, dishPhoto, FoodTip, getGuidePart, getProfile, Guide as GuideT, listFoodTips, patchTrip, Trip } from '../api';
 import { transitFor } from '../airlines';
 import JourneyLoader from '../components/JourneyLoader';
 import PlugArt from '../components/PlugArt';
@@ -12,6 +12,18 @@ import { Card, Chip } from '../components/ui';
 import { C, tint, F } from '../theme';
 
 const SECTIONS = ['know', 'eat', 'play', 'visit', 'go'];
+
+// Full-shape guide with empty defaults, so a half-loaded (phase A or B only)
+// guide renders without touching an undefined field.
+const _emptyGw = { kind: 'airport', code: '', name: '', to_city: '', highlights: [], duty_free: '', smoking: '', tips: [] };
+const blankGuide = (): GuideT => ({
+  power: { plugs: '', note: '' },
+  etiquette: [], customs_flags: [], task_suggestions: [], health: [],
+  dishes: [], restaurants: [], eat: [], play: [], visit: [], souvenirs: [],
+  visa_hint: { status: 'unknown', note: '' },
+  gateways: [], gateway: { ..._emptyGw }, airport: { ..._emptyGw },
+  go: { from_origin: [], from_airport: [], around: [] },
+} as any);
 
 export default function Guide({ trip, tripId, tripTitle, section, accent, country, place, onBack, onTripChanged }: {
   trip: Trip; tripId: string; tripTitle: string; section: string; accent: string;
@@ -30,13 +42,22 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
   const [familyBusy, setFamilyBusy] = useState(false);
   const [dishPhotos, setDishPhotos] = useState<Record<string, string>>({});
   const [g2, setG] = useState<GuideT | null>(null);
+  const [aReady, setAReady] = useState(false);
+  const [bReady, setBReady] = useState(false);
   const [nat, setNat] = useState<string | null>(null);
 
   const load = useCallback(async (regen = false) => {
-    try {
-      const r = await getGuide(tripId, regen);
-      setG(r.guide);
-    } catch (e: any) { Alert.alert('Guide', e.message); }
+    if (regen) { setAReady(false); setBReady(false); }
+    // Two-phase: A (Know+Eat, fast) and B (Play/Visit/Go) fetch in parallel and
+    // merge as each lands. A and B write disjoint fields, so merge order is safe.
+    const merge = (part: Partial<GuideT>) => setG(prev => ({ ...(prev ?? blankGuide()), ...part } as GuideT));
+    const pa = getGuidePart(tripId, 'a', regen)
+      .then(r => { merge(r.guide); setAReady(true); })
+      .catch(e => Alert.alert('Guide', e.message));
+    getGuidePart(tripId, 'b', regen)
+      .then(r => { merge(r.guide); setBReady(true); })
+      .catch(() => {});   // a phase-B hiccup shouldn't block the whole guide
+    await pa;
   }, [tripId]);
   const hasParty = (trip.traveler_types?.length ?? 0) > 0 || !!trip.with_kids;
   useEffect(() => {
@@ -152,7 +173,8 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingTop: 8 }}>
-        {tab === 'know' && (
+        {tab === 'know' && !aReady && <Card><JourneyLoader accent={accent} label="Loading essentials…" /></Card>}
+        {tab === 'know' && aReady && (
           <>
             <Card style={{ backgroundColor: tint(accent, 0.10), borderColor: tint(accent, 0.2) }}>
               <Text style={s.h}>Entry & visa</Text>
@@ -283,7 +305,8 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
             )}
           </>
         )}
-        {tab === 'eat' && (
+        {tab === 'eat' && !aReady && <Card><JourneyLoader accent={accent} label="Loading food picks…" /></Card>}
+        {tab === 'eat' && aReady && (
           <>
             {(() => {
               const dishes = g2.dishes ?? [];
@@ -439,10 +462,15 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
             <Card><Text style={s.sub}>Couldn't load family picks. </Text><Pressable onPress={redoFamily}><Text style={[s.link, { color: accent }]}>Try again ›</Text></Pressable></Card>
           ))
         ) : (
-          <Card><Text style={s.h}>Experiences</Text><Rows items={g2.play} /></Card>
+          bReady
+            ? <Card><Text style={s.h}>Experiences</Text><Rows items={g2.play} /></Card>
+            : <Card><JourneyLoader accent={accent} label="Finding experiences…" /></Card>
         ))}
-        {tab === 'visit' && <Card><Text style={s.h}>Sights & districts</Text><VisitRows items={g2.visit} /></Card>}
-        {tab === 'go' && (
+        {tab === 'visit' && (bReady
+          ? <Card><Text style={s.h}>Sights & districts</Text><VisitRows items={g2.visit} /></Card>
+          : <Card><JourneyLoader accent={accent} label="Mapping sights…" /></Card>)}
+        {tab === 'go' && !bReady && <Card><JourneyLoader accent={accent} label="Working out transit…" /></Card>}
+        {tab === 'go' && bReady && (
           <>
             {!!g2.go.from_origin?.length && (
               <Card>

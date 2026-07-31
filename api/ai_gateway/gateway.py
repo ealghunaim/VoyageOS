@@ -19,6 +19,8 @@ TASK_ROUTE = {  # Part 1 §6 routing table
     "notification_copy": "small",
     "packing_generate": "mid",
     "guide_generate": "mid",
+    "guide_a": "small",   # Know + Eat — fast first paint; bump to "mid" for more nuance
+    "guide_b": "mid",     # Play + Visit + Go — richer content stays on Sonnet
     "items_parse": "small",
     "trip_qa": "small",
     "family_play": "mid",
