@@ -19,8 +19,13 @@ create table if not exists public.trip_family_play (
   generated_at timestamptz default now()
 );
 
--- NOTE: prod has RLS DISABLED on this table, so this file deliberately does not
--- enable it — these migrations document what exists, they don't change it.
--- The fix is staged separately in supabase/manual/enable_rls_guide_cache.sql
--- and still needs to be applied. Once it is, this file should gain the matching
--- enable + policy so fresh databases and prod agree.
+-- RLS was disabled on this table until 2026-07-31, when the statements below
+-- were applied by hand to prod to bring it in line with trip_guides (0009);
+-- verified afterwards with relrowsecurity = true. Backend uses the
+-- service-role key and bypasses RLS; this guards direct client reads.
+alter table public.trip_family_play enable row level security;
+
+drop policy if exists "read own family play" on public.trip_family_play;
+create policy "read own family play" on public.trip_family_play for select
+  using (exists (select 1 from public.trips t
+                 where t.id = trip_family_play.trip_id and t.owner_id = auth.uid()));

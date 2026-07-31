@@ -25,8 +25,9 @@ create table if not exists public.trip_guides (
 
 -- RLS is already enabled on this table in prod, with exactly this policy.
 -- Backend uses the service-role key and bypasses RLS; this guards direct
--- client reads. trip_family_play and trip_phrases are NOT protected this way
--- today — see supabase/manual/enable_rls_guide_cache.sql.
+-- client reads. trip_family_play and trip_phrases (0010/0011) had RLS disabled
+-- until 2026-07-31 and were brought in line then — all three guide caches now
+-- enable RLS with an owner read-own policy.
 alter table public.trip_guides enable row level security;
 
 drop policy if exists "read own guides" on public.trip_guides;

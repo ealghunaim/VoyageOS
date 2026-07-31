@@ -1,14 +1,15 @@
 -- ============================================================================
--- NOT A MIGRATION — NOT YET APPLIED. Run this by hand in the Supabase SQL
--- editor against prod, then say so, and it gets folded into migrations
--- 0010/0011 so fresh databases and prod agree.
+-- NOT A MIGRATION — APPLIED 2026-07-31. Kept as the record of what was run by
+-- hand against prod in the Supabase SQL editor; verified afterwards with
+-- relrowsecurity = true on all three tables. These same statements now live in
+-- migrations 0010/0011 so fresh databases match prod. Idempotent if re-run.
 -- ============================================================================
 --
--- WHY
--- trip_guides has RLS enabled with a "read own guides" owner policy.
+-- WHY (state before this was run)
+-- trip_guides had RLS enabled with a "read own guides" owner policy.
 -- trip_family_play and trip_phrases — same kind of per-trip cache, same
--- trip_id → trips(id) ownership chain — have RLS DISABLED and no policies.
--- Confirmed 2026-07-31 by reading pg_class.relrowsecurity and pg_policies.
+-- trip_id → trips(id) ownership chain — had RLS disabled and no policies.
+-- Found 2026-07-31 by reading pg_class.relrowsecurity and pg_policies.
 --
 -- IMPACT
 -- Not exploitable today: the backend talks to Supabase with the service-role
