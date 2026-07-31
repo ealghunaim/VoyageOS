@@ -18,12 +18,13 @@ def guide(trip_id: str, regenerate: bool = False, user_id: str = Depends(current
 
 
 @router.get("/{trip_id}/guide/part/{phase}")
-def guide_part(trip_id: str, phase: str, regenerate: bool = False, user_id: str = Depends(current_user_id)):
+def guide_part(trip_id: str, phase: str, destination_id: str | None = None,
+                regenerate: bool = False, user_id: str = Depends(current_user_id)):
     db = get_db()
     rows = db.table("trips").select("*").eq("id", trip_id).eq("owner_id", user_id).execute().data
     if not rows:
         raise HTTPException(404, "Trip not found")
-    return get_guide_part(db, rows[0], user_id, phase, regenerate=regenerate)
+    return get_guide_part(db, rows[0], user_id, phase, destination_id=destination_id, regenerate=regenerate)
 
 
 @router.get("/{trip_id}/family-play")

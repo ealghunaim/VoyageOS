@@ -3,7 +3,7 @@ import {
   ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Image as RNImage,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { getFamilyPlay, FamilyActivity, addFoodTip, deleteFoodTip, dishPhoto, FoodTip, getGuidePart, getProfile, Guide as GuideT, listFoodTips, patchTrip, Trip } from '../api';
+import { getFamilyPlay, FamilyActivity, addFoodTip, deleteFoodTip, dishPhoto, FoodTip, getGuidePart, getProfile, getTrip, Guide as GuideT, listFoodTips, patchTrip, Trip, TripDetail } from '../api';
 import { transitFor } from '../airlines';
 import JourneyLoader from '../components/JourneyLoader';
 import PlugArt from '../components/PlugArt';
@@ -25,7 +25,7 @@ const blankGuide = (): GuideT => ({
   go: { from_origin: [], from_airport: [], around: [] },
 } as any);
 
-export default function Guide({ trip, tripId, tripTitle, section, accent, country, place, onBack, onTripChanged }: {
+export default function Guide({ trip, tripId, tripTitle, section, accent, country: countryProp, place: placeProp, onBack, onTripChanged }: {
   trip: Trip; tripId: string; tripTitle: string; section: string; accent: string;
   country: string | null; place: string; onBack: () => void; onTripChanged: (t: Trip) => void;
 }) {
@@ -45,20 +45,43 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
   const [aReady, setAReady] = useState(false);
   const [bReady, setBReady] = useState(false);
   const [nat, setNat] = useState<string | null>(null);
+  const [destinations, setDestinations] = useState<TripDetail['destinations']>([]);
+  const [destId, setDestId] = useState<string | undefined>(undefined);
+
+  // Which stop is showing. destId stays undefined until the user actually
+  // switches, so the very first load matches the old single-destination
+  // behavior exactly (backend defaults to the first stop by seq).
+  const activeDestId = destId ?? destinations[0]?.id;
+  const selectedDest = destinations.find(d => d.id === activeDestId);
+  const place = selectedDest?.place_name ?? placeProp;
+  const country = selectedDest?.country_code ?? countryProp;
+
+  useEffect(() => {
+    getTrip(tripId).then(t => setDestinations(t.destinations ?? [])).catch(() => {});
+  }, [tripId]);
+
+  const selectDestination = (id: string) => {
+    if (id === activeDestId) return;
+    setDestId(id);
+    setG(null);
+    setAReady(false);
+    setBReady(false);
+    setDishPhotos({});
+  };
 
   const load = useCallback(async (regen = false) => {
     if (regen) { setAReady(false); setBReady(false); }
     // Two-phase: A (Know+Eat, fast) and B (Play/Visit/Go) fetch in parallel and
     // merge as each lands. A and B write disjoint fields, so merge order is safe.
     const merge = (part: Partial<GuideT>) => setG(prev => ({ ...(prev ?? blankGuide()), ...part } as GuideT));
-    const pa = getGuidePart(tripId, 'a', regen)
+    const pa = getGuidePart(tripId, 'a', destId, regen)
       .then(r => { merge(r.guide); setAReady(true); })
       .catch(e => Alert.alert('Guide', e.message));
-    getGuidePart(tripId, 'b', regen)
+    getGuidePart(tripId, 'b', destId, regen)
       .then(r => { merge(r.guide); setBReady(true); })
       .catch(() => {});   // a phase-B hiccup shouldn't block the whole guide
     await pa;
-  }, [tripId]);
+  }, [tripId, destId]);
   const hasParty = (trip.traveler_types?.length ?? 0) > 0 || !!trip.with_kids;
   useEffect(() => {
     if (tab !== 'play' || !hasParty || familyPlay) return;
@@ -164,6 +187,16 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
             <Text style={{ color: accent, fontSize: 18 }}>↻</Text>
           </Pressable>
         </View>
+        {destinations.length > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+            {destinations.map(d => (
+              <Pressable key={d.id} onPress={() => selectDestination(d.id)}
+                style={[sx.vChip, d.id === activeDestId && { backgroundColor: accent, borderColor: accent }]}>
+                <Text style={[sx.vChipText, d.id === activeDestId && { color: '#fff' }]}>{d.place_name}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {SECTIONS.map(k => (
             <Chip key={k} label={k[0].toUpperCase() + k.slice(1)} selected={tab === k}

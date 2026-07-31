@@ -210,14 +210,23 @@ def sanitize_b(raw: dict, travel_mode: str | None = None) -> dict:
     return out
 
 
-def _guide_ctx(db, trip: dict, user_id: str) -> dict:
-    dests = db.table("destinations").select("place_name,country_code,accommodation") \
-        .eq("trip_id", trip["id"]).order("seq").limit(1).execute().data
-    place = dests[0]["place_name"] if dests else trip["title"]
-    country = (dests[0].get("country_code") if dests else None) or ""
+def _resolve_destination(db, trip_id: str, destination_id: str | None) -> dict | None:
+    q = db.table("destinations").select("id,place_name,country_code,accommodation").eq("trip_id", trip_id)
+    if destination_id:
+        rows = q.eq("id", destination_id).limit(1).execute().data
+        if not rows:
+            raise HTTPException(404, "Destination not found on this trip")
+        return rows[0]
+    rows = q.order("seq").limit(1).execute().data
+    return rows[0] if rows else None
+
+
+def _guide_ctx(db, trip: dict, user_id: str, dest: dict | None) -> dict:
+    place = dest["place_name"] if dest else trip["title"]
+    country = (dest.get("country_code") if dest else None) or ""
     acts = [a["type"] for a in db.table("activities").select("type")
             .eq("trip_id", trip["id"]).execute().data]
-    accommodation = (dests[0].get("accommodation") or {}).get("name") if dests else None
+    accommodation = (dest.get("accommodation") or {}).get("name") if dest else None
     nat_rows = db.table("user_preferences").select("extras").eq("user_id", user_id).execute().data
     nationality = ((nat_rows[0].get("extras") if nat_rows else {}) or {}).get("nationality")
     return {"destination": {"place": place, "country": country},
@@ -231,17 +240,23 @@ def _guide_ctx(db, trip: dict, user_id: str) -> dict:
 _PART_TASK = {"a": "guide_a", "b": "guide_b"}
 
 
-def get_guide_part(db, trip: dict, user_id: str, phase: str, *, regenerate: bool = False) -> dict:
+def get_guide_part(db, trip: dict, user_id: str, phase: str, *,
+                    destination_id: str | None = None, regenerate: bool = False) -> dict:
     from api.guide.prompts import GUIDE_PROMPT_A, GUIDE_PROMPT_B
     if phase not in ("a", "b"):
         raise HTTPException(400, "bad guide phase")
     tid = trip["id"]
+    dest = _resolve_destination(db, tid, destination_id)
+    if not dest:
+        raise HTTPException(400, "Add a destination before generating a guide")
+    did = dest["id"]
     if not regenerate:
         rows = db.table("trip_guide_parts").select("payload,model") \
-            .eq("trip_id", tid).eq("phase", phase).limit(1).execute().data
+            .eq("trip_id", tid).eq("destination_id", did).eq("phase", phase).limit(1).execute().data
         if rows:
-            return {"guide": rows[0]["payload"], "phase": phase, "cached": True, "cost_usd": 0.0}
-    ctx = _guide_ctx(db, trip, user_id)
+            return {"guide": rows[0]["payload"], "phase": phase, "destination_id": did,
+                    "cached": True, "cost_usd": 0.0}
+    ctx = _guide_ctx(db, trip, user_id, dest)
     gateway.check_budget(db, user_id)
     prompt = GUIDE_PROMPT_A if phase == "a" else GUIDE_PROMPT_B
     result = gateway.complete(_PART_TASK[phase], prompt, json.dumps(ctx),
@@ -253,10 +268,10 @@ def get_guide_part(db, trip: dict, user_id: str, phase: str, *, regenerate: bool
         print(f"[guide/{phase}] parse failed: {type(e).__name__}: {e} · tail {result.text[-120:]!r}")
         raise HTTPException(502, "The guide didn't generate cleanly — tap ↻ to retry.")
     db.table("trip_guide_parts").upsert(
-        {"trip_id": tid, "phase": phase, "payload": part,
+        {"trip_id": tid, "destination_id": did, "phase": phase, "payload": part,
          "model": f"{result.model}·{GUIDE_PROMPT_VERSION}"},
-        on_conflict="trip_id,phase").execute()
-    return {"guide": part, "phase": phase, "cached": False, "cost_usd": result.cost_usd}
+        on_conflict="trip_id,destination_id,phase").execute()
+    return {"guide": part, "phase": phase, "destination_id": did, "cached": False, "cost_usd": result.cost_usd}
 
 
 def _parse(text: str) -> dict:

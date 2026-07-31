@@ -156,9 +156,10 @@ export type Guide = {
 export const getGuide = (tripId: string, regenerate = false):
   Promise<{ guide: Guide; cached: boolean; cost_usd: number }> =>
   req(`/v1/trips/${tripId}/guide?regenerate=${regenerate}`);
-export const getGuidePart = (tripId: string, phase: 'a' | 'b', regenerate = false):
-  Promise<{ guide: Partial<Guide>; phase: string; cached: boolean; cost_usd: number }> =>
-  req(`/v1/trips/${tripId}/guide/part/${phase}?regenerate=${regenerate}`);
+export const getGuidePart = (tripId: string, phase: 'a' | 'b', destinationId?: string, regenerate = false):
+  Promise<{ guide: Partial<Guide>; phase: string; destination_id: string; cached: boolean; cost_usd: number }> =>
+  req(`/v1/trips/${tripId}/guide/part/${phase}?regenerate=${regenerate}` +
+    (destinationId ? `&destination_id=${destinationId}` : ''));
 
 export type Companion = { name: string; relation: 'partner' | 'child' | 'parent' | 'friend' | 'other'; dob?: string | null };
 export type HomeOrigin = { name: string; country?: string | null; lat?: number | null; lng?: number | null };
@@ -173,7 +174,7 @@ export const putProfile = (b: Partial<Profile>): Promise<Profile> =>
   req('/v1/me/profile', { method: 'PUT', body: JSON.stringify(b) });
 
 export type TripDetail = Trip & {
-  destinations: { place_name: string; country_code: string | null }[];
+  destinations: { id: string; place_name: string; country_code: string | null; seq: number }[];
 };
 export const getTrip = (id: string): Promise<TripDetail> => req(`/v1/trips/${id}`);
 export type Note = { id: string; body: string; created_at: string; photos?: string[] };
