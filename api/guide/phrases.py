@@ -36,7 +36,8 @@ def generate_phrases(db, trip: dict, user_id: str, *, regenerate: bool = False) 
         cached = db.table("trip_phrases").select("payload").eq("trip_id", tid).limit(1).execute().data
         if cached and cached[0].get("payload", {}).get("phrases"):
             return cached[0]["payload"]
-    dests = db.table("destinations").select("place_name,country_code").eq("trip_id", tid).execute().data
+    dests = db.table("destinations").select("place_name,country_code") \
+        .eq("trip_id", tid).order("seq").limit(1).execute().data
     place = dests[0]["place_name"] if dests else trip.get("title", "")
     country = dests[0].get("country_code") if dests else ""
     gateway.check_budget(db, user_id)

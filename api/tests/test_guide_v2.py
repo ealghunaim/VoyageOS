@@ -45,7 +45,7 @@ def test_family_play_bands_and_price_clamp():
     out = sanitize_family_play({"activities": [
         {"name": "Desert safari", "bands": {"toddlers": "skip", "teens": "great", "young": "bogus"},
          "price": 9, "indoor": "outdoor", "stroller": False},
-        {"junk": 1}]})
+        {"junk": 1}]}, ["toddlers", "young", "older", "teens"])
     a = out["activities"][0]
     assert len(out["activities"]) == 1
     assert a["bands"]["teens"] == "great" and a["bands"]["young"] == "okay"  # bogus -> okay

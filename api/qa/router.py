@@ -29,7 +29,8 @@ def ask(trip_id: str, body: Ask, user_id: str = Depends(current_user_id)):
     if not trips:
         raise HTTPException(404, "Trip not found")
     trip = trips[0]
-    dests = db.table("destinations").select("place_name,country_code").eq("trip_id", trip_id).execute().data
+    dests = db.table("destinations").select("place_name,country_code") \
+        .eq("trip_id", trip_id).order("seq").limit(1).execute().data
     wx = db.table("weather_snapshots").select("forecast_date,temp_min,temp_max,precip_prob,provider") \
         .in_("destination_id", [d2["id"] for d2 in db.table("destinations").select("id")
              .eq("trip_id", trip_id).execute().data] or ["-"]) \

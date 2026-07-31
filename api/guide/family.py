@@ -105,7 +105,8 @@ def generate_family_play(db, trip: dict, user_id: str, *, regenerate: bool = Fal
             # otherwise fall through and regenerate (party changed, or legacy payload)
             if pay.get("activities") and pay.get("version") == FAMILY_PLAY_VERSION and pay.get("cohorts") == cohorts:
                 return pay
-    dests = db.table("destinations").select("place_name,country_code").eq("trip_id", tid).execute().data
+    dests = db.table("destinations").select("place_name,country_code") \
+        .eq("trip_id", tid).order("seq").limit(1).execute().data
     place = dests[0]["place_name"] if dests else trip.get("title", "")
     country = dests[0].get("country_code") if dests else ""
     gateway.check_budget(db, user_id)
