@@ -3,13 +3,13 @@ import {
   ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Image as RNImage,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { getFamilyPlay, FamilyActivity, addFoodTip, deleteFoodTip, dishPhoto, FoodTip, getGuidePart, getProfile, getTrip, Guide as GuideT, listFoodTips, patchTrip, Trip, TripDetail } from '../api';
+import { getFamilyPlay, FamilyActivity, addFoodTip, deleteFoodTip, dishPhoto, FoodTip, getGuidePart, getProfile, getTrip, Guide as GuideT, listFoodTips, patchTrip, TipCategory, Trip, TripDetail } from '../api';
 import { transitFor } from '../airlines';
 import JourneyLoader from '../components/JourneyLoader';
 import PlugArt from '../components/PlugArt';
 import { countryName, flagOf } from '../countries';
 import { Card, Chip } from '../components/ui';
-import { C, tint, F } from '../theme';
+import { tint, F, P, S, RA, T } from '../theme';
 
 const SECTIONS = ['know', 'eat', 'play', 'visit', 'go'];
 
@@ -31,7 +31,8 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
 }) {
   const [air, setAir] = useState(trip.airline ?? '');
   const [arrivalKind, setArrivalKind] = useState<string | null>(null);
-  const [tips, setTips] = useState<FoodTip[]>([]);
+  // findings are per guide section; keyed so switching tabs doesn't mix them
+  const [tips, setTips] = useState<Record<string, FoodTip[]>>({});
   const [tName, setTName] = useState('');
   const [tNote, setTNote] = useState('');
   const [tOrder, setTOrder] = useState('');
@@ -121,7 +122,10 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
   useEffect(() => {
     load();
     getProfile().then(p => setNat(p.nationality)).catch(() => {});
-    listFoodTips(place, country).then(setTips).catch(() => {});
+    (['eat', 'play', 'visit', 'go'] as TipCategory[]).forEach(c =>
+      listFoodTips(place, country, c)
+        .then(rows => setTips(prev => ({ ...prev, [c]: rows })))
+        .catch(() => {}));
   }, [load, place, country]);
 
   const open = (url: string) => Linking.openURL(url).catch(() => {});
@@ -136,6 +140,105 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
     );
   }
 
+
+  /** What a find is called in each section, so the form never says
+   *  "Restaurant name" under Visit. */
+  const FIND_COPY: Record<TipCategory, { head: string; name: string; a: string; b: string }> = {
+    eat:   { head: 'FROM TRAVELERS', name: 'Restaurant name', a: 'What to order', b: 'When to go' },
+    play:  { head: 'TRAVELER FINDS', name: 'Experience name', a: 'What to book',  b: 'Best time' },
+    visit: { head: 'TRAVELER FINDS', name: 'Place name',      a: 'What to see',   b: 'Best time' },
+    go:    { head: 'TRAVELER TIPS',  name: 'Route or stop',    a: 'Which line / pass', b: 'When it runs' },
+  };
+
+  /** Search links rather than model-supplied URLs — the guide prompts forbid
+   *  inventing addresses, and a wrong link is worse than one extra tap. */
+  const linksFor = (name: string) => (
+    <View style={{ flexDirection: 'row', marginTop: S[1] }}>
+      <Pressable onPress={() => open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + ' ' + place)}`)}>
+        <Text style={[s.link, { color: accent, marginRight: S[6] }]}>Map ›</Text>
+      </Pressable>
+      <Pressable onPress={() => open(`https://www.google.com/search?q=${encodeURIComponent(name + ' ' + place + ' official site')}`)}>
+        <Text style={[s.link, { color: accent }]}>Website ›</Text>
+      </Pressable>
+    </View>
+  );
+
+  const Findings = ({ category }: { category: TipCategory }) => {
+    const copy = FIND_COPY[category];
+    const rows = tips[category] ?? [];
+    return (
+      <>
+        <Text style={sx.tipHead}>{copy.head} · {place.toUpperCase()}</Text>
+        {rows.map(t => (
+          <Card key={t.id}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={[s.h, { flex: 1, marginBottom: 0 }]}>{t.restaurant}</Text>
+              {t.is_mine && (
+                <Pressable hitSlop={10} onPress={async () => {
+                  try {
+                    await deleteFoodTip(t.id);
+                    setTips(prev => ({ ...prev, [category]: (prev[category] ?? []).filter(x => x.id !== t.id) }));
+                  } catch {}
+                }}>
+                  <Text style={{ color: P.textSec }}>✕</Text>
+                </Pressable>
+              )}
+            </View>
+            <Text style={[s.sub, { fontFamily: F.med }]}>{t.author}</Text>
+            {!!t.note && <Text style={s.sub}>{t.note}</Text>}
+            {!!t.order_rec && <Text style={[s.bullet, { marginTop: S[2] }]}>·  {t.order_rec}</Text>}
+            {!!t.when_rec && <Text style={s.bullet}>·  {t.when_rec}</Text>}
+            {!!t.photos?.length && (
+              <View style={{ flexDirection: 'row', marginTop: S[2] }}>
+                {t.photos.map((u, pi) => <RNImage key={pi} source={{ uri: u }} style={sx.tipImg} />)}
+              </View>
+            )}
+            {linksFor(t.restaurant)}
+          </Card>
+        ))}
+        <Card style={{ backgroundColor: tint(accent, 0.06) }}>
+          <Text style={s.h}>Share a find</Text>
+          <TextInput style={sx.tipInput} value={tName} onChangeText={setTName}
+            placeholder={copy.name} placeholderTextColor={P.textMuted} />
+          <TextInput style={sx.tipInput} value={tOrder} onChangeText={setTOrder}
+            placeholder={copy.a} placeholderTextColor={P.textMuted} />
+          <TextInput style={sx.tipInput} value={tWhen} onChangeText={setTWhen}
+            placeholder={copy.b} placeholderTextColor={P.textMuted} />
+          <TextInput style={[sx.tipInput, { minHeight: 60 }]} value={tNote} onChangeText={setTNote}
+            multiline placeholder="Why it's worth it…" placeholderTextColor={P.textMuted} />
+          <View style={{ flexDirection: 'row', marginBottom: S[2] }}>
+            {tPhotos.map((p, pi) => (
+              <Pressable key={pi} onPress={() => setTPhotos(tPhotos.filter((_, j) => j !== pi))}>
+                <RNImage source={{ uri: p.uri }} style={sx.tipThumb} />
+              </Pressable>
+            ))}
+            {tPhotos.length < 2 && (
+              <Pressable style={sx.tipAdd} onPress={async () => {
+                const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.4, base64: true });
+                const a2 = r.assets?.[0];
+                if (!r.canceled && a2?.base64) setTPhotos([...tPhotos, { b64: a2.base64, mime: a2.mimeType ?? 'image/jpeg', uri: a2.uri }]);
+              }}>
+                <Text style={{ color: accent, fontSize: 20, fontFamily: F.bold }}>+</Text>
+              </Pressable>
+            )}
+          </View>
+          <Pressable disabled={tName.trim().length < 2} onPress={async () => {
+            try {
+              const t = await addFoodTip({ category, place_name: place, country_code: country,
+                restaurant: tName.trim(), note: tNote.trim(), order_rec: tOrder.trim(),
+                when_rec: tWhen.trim(), photos: tPhotos.map(p => ({ b64: p.b64, mime: p.mime })) });
+              setTips(prev => ({ ...prev, [category]: [t, ...(prev[category] ?? [])] }));
+              setTName(''); setTNote(''); setTOrder(''); setTWhen(''); setTPhotos([]);
+            } catch (e: any) { Alert.alert('Find', e.message); }
+          }}>
+            <Text style={[s.link, { color: accent, textAlign: 'center' }]}>Post it ›</Text>
+          </Pressable>
+          <Text style={s.disclaimer}>Visible to every VoyageOS traveler headed to {place}.</Text>
+        </Card>
+      </>
+    );
+  };
+
   const Rows = ({ items }: { items: { name: string; note: string }[] }) => (
     <>
       {items.length === 0 && <Text style={s.sub}>Nothing here yet — try ↻ regenerate.</Text>}
@@ -143,6 +246,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
         <View key={i} style={s.row}>
           <Text style={s.rowName}>{it.name}</Text>
           {!!it.note && <Text style={s.sub}>{it.note}</Text>}
+          {linksFor(it.name)}
         </View>
       ))}
     </>
@@ -157,7 +261,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text style={[s.rowName, { flex: 1 }]}>{it.name}</Text>
             {typeof it.rating === 'number' && (
-              <Text style={{ color: '#E8A63A', fontSize: 13, fontFamily: F.bold }}>★ {it.rating.toFixed(1)}</Text>
+              <Text style={{ color: P.warning, fontSize: 13, fontFamily: F.bold }}>★ {it.rating.toFixed(1)}</Text>
             )}
           </View>
           {!!it.note && <Text style={s.sub}>{it.note}</Text>}
@@ -168,12 +272,12 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
           )}
         </View>
       ))}
-      {items.length > 0 && <Text style={[s.sub, { fontSize: 12, color: '#9AA9BB', marginTop: 4 }]}>Ratings & fees are AI estimates — confirm before you go.</Text>}
+      {items.length > 0 && <Text style={[s.sub, { fontSize: 12, color: P.textMuted, marginTop: 4 }]}>Ratings & fees are AI estimates — confirm before you go.</Text>}
     </>
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.bg }}>
+    <View style={{ flex: 1, backgroundColor: P.pageBg }}>
       <View style={{ padding: 20, paddingBottom: 8 }}>
         <View style={s.header}>
           <Pressable onPress={onBack} hitSlop={10}>
@@ -192,7 +296,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
             {destinations.map(d => (
               <Pressable key={d.id} onPress={() => selectDestination(d.id)}
                 style={[sx.vChip, d.id === activeDestId && { backgroundColor: accent, borderColor: accent }]}>
-                <Text style={[sx.vChipText, d.id === activeDestId && { color: '#fff' }]}>{d.place_name}</Text>
+                <Text style={[sx.vChipText, d.id === activeDestId && { color: P.textOnDark }]}>{d.place_name}</Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -231,7 +335,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                       try { const t = await patchTrip(trip.id, { visa_status: v }); onTripChanged({ ...trip, ...t }); }
                       catch (e: any) { Alert.alert('Visa', e.message); }
                     }}>
-                    <Text style={[sx.vChipText, trip.visa_status === v && { color: '#fff' }]}>{l}{suggested ? ' · suggested' : ''}</Text>
+                    <Text style={[sx.vChipText, trip.visa_status === v && { color: P.textOnDark }]}>{l}{suggested ? ' · suggested' : ''}</Text>
                   </Pressable>
                   );
                 })}
@@ -286,7 +390,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                         return (
                           <Pressable key={x.kind} onPress={() => setArrivalKind(x.kind)}
                             style={[sx.vChip, on && { backgroundColor: accent, borderColor: accent }]}>
-                            <Text style={[sx.vChipText, on && { color: '#fff' }]}>{km[0]} {km[1].replace('Arrival ', '').replace('Arriving by ', '')}</Text>
+                            <Text style={[sx.vChipText, on && { color: P.textOnDark }]}>{km[0]} {km[1].replace('Arrival ', '').replace('Arriving by ', '')}</Text>
                           </Pressable>
                         );
                       })}
@@ -308,7 +412,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
               <Card>
                 <Text style={s.h}>Your flight</Text>
                 <TextInput style={sx.airInput} value={air} onChangeText={setAir}
-                  placeholder="Airline name" placeholderTextColor="#9AA9BB" />
+                  placeholder="Airline name" placeholderTextColor={P.textMuted} />
                 {air.trim() !== (trip.airline ?? '') && (
                   <Pressable onPress={async () => {
                     try { const t = await patchTrip(trip.id, { airline: air.trim() }); onTripChanged({ ...trip, ...t }); }
@@ -352,7 +456,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                   {dishes.length > 0 && (
                     <Card>
                       {dishes.map((d, i) => (
-                        <View key={`d${i}`} style={[{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11 }, i > 0 && { borderTopWidth: 1, borderTopColor: C.border }]}>
+                        <View key={`d${i}`} style={[{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11 }, i > 0 && { borderTopWidth: 1, borderTopColor: P.hairline }]}>
                           {!!dishPhotos[d.name] && <RNImage source={{ uri: dishPhotos[d.name] }} style={{ width: 58, height: 58, borderRadius: 10, marginRight: 12 }} />}
                           <View style={{ flex: 1 }}>
                             <Text style={s.h}>{d.name}</Text>
@@ -381,80 +485,11 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                       </View>
                     </Card>
                   ))}
-                  {restaurants.length > 0 && <Text style={[s.sub, { fontSize: 12, marginBottom: 4, color: '#9AA9BB' }]}>Rankings & prices are impressions — confirm before you go.</Text>}
+                  {restaurants.length > 0 && <Text style={[s.sub, { fontSize: 12, marginBottom: 4, color: P.textMuted }]}>Rankings & prices are impressions — confirm before you go.</Text>}
                 </>
               );
             })()}
-            <Text style={sx.tipHead}>FROM TRAVELERS · {place.toUpperCase()}</Text>
-            {tips.map(t => (
-              <Card key={t.id}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={[s.h, { flex: 1, marginBottom: 0 }]}>{t.restaurant}</Text>
-                  {t.is_mine && (
-                    <Pressable hitSlop={10} onPress={async () => {
-                      try { await deleteFoodTip(t.id); setTips(tips.filter(x => x.id !== t.id)); } catch {}
-                    }}>
-                      <Text style={{ color: C.sub }}>✕</Text>
-                    </Pressable>
-                  )}
-                </View>
-                <Text style={[s.sub, { fontFamily: F.med }]}>{t.author}</Text>
-                {!!t.note && <Text style={s.sub}>{t.note}</Text>}
-                {!!t.order_rec && <Text style={[s.bullet, { marginTop: 6 }]}>·  Order: {t.order_rec}</Text>}
-                {!!t.when_rec && <Text style={s.bullet}>·  Go: {t.when_rec}</Text>}
-                {!!t.photos?.length && (
-                  <View style={{ flexDirection: 'row', marginTop: 8 }}>
-                    {t.photos.map((u, pi) => <RNImage key={pi} source={{ uri: u }} style={sx.tipImg} />)}
-                  </View>
-                )}
-                <View style={{ flexDirection: 'row', marginTop: 4 }}>
-                  <Pressable onPress={() => open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.restaurant + ' ' + place)}`)}>
-                    <Text style={[s.link, { color: accent, marginRight: 22 }]}>Map ›</Text>
-                  </Pressable>
-                  <Pressable onPress={() => open(`https://www.google.com/search?q=${encodeURIComponent(t.restaurant + ' ' + place + ' reservation')}`)}>
-                    <Text style={[s.link, { color: accent }]}>Reserve ›</Text>
-                  </Pressable>
-                </View>
-              </Card>
-            ))}
-            <Card style={{ backgroundColor: tint(accent, 0.06) }}>
-              <Text style={s.h}>Share a find</Text>
-              <TextInput style={sx.tipInput} value={tName} onChangeText={setTName}
-                placeholder="Restaurant name" placeholderTextColor="#9AA9BB" />
-              <TextInput style={sx.tipInput} value={tOrder} onChangeText={setTOrder}
-                placeholder="What to order" placeholderTextColor="#9AA9BB" />
-              <TextInput style={sx.tipInput} value={tWhen} onChangeText={setTWhen}
-                placeholder="When to go" placeholderTextColor="#9AA9BB" />
-              <TextInput style={[sx.tipInput, { minHeight: 60 }]} value={tNote} onChangeText={setTNote}
-                multiline placeholder="Why it's worth it…" placeholderTextColor="#9AA9BB" />
-              <View style={{ flexDirection: 'row', marginBottom: 8 }}>
-                {tPhotos.map((p, pi) => (
-                  <Pressable key={pi} onPress={() => setTPhotos(tPhotos.filter((_, j) => j !== pi))}>
-                    <RNImage source={{ uri: p.uri }} style={sx.tipThumb} />
-                  </Pressable>
-                ))}
-                {tPhotos.length < 2 && (
-                  <Pressable style={sx.tipAdd} onPress={async () => {
-                    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.4, base64: true });
-                    const a2 = r.assets?.[0];
-                    if (!r.canceled && a2?.base64) setTPhotos([...tPhotos, { b64: a2.base64, mime: a2.mimeType ?? 'image/jpeg', uri: a2.uri }]);
-                  }}>
-                    <Text style={{ color: accent, fontSize: 20, fontFamily: F.bold }}>+</Text>
-                  </Pressable>
-                )}
-              </View>
-              <Pressable disabled={tName.trim().length < 2} onPress={async () => {
-                try {
-                  const t = await addFoodTip({ place_name: place, country_code: country,
-                    restaurant: tName.trim(), note: tNote.trim(), order_rec: tOrder.trim(), when_rec: tWhen.trim(),
-                    photos: tPhotos.map(p => ({ b64: p.b64, mime: p.mime })) });
-                  setTips([t, ...tips]); setTName(''); setTNote(''); setTOrder(''); setTWhen(''); setTPhotos([]);
-                } catch (e: any) { Alert.alert('Tip', e.message); }
-              }}>
-                <Text style={[s.link, { color: accent, textAlign: 'center' }]}>Post it ›</Text>
-              </Pressable>
-              <Text style={s.disclaimer}>Visible to every VoyageOS traveler headed to {place}.</Text>
-            </Card>
+            <Findings category="eat" />
           </>
         )}
         {tab === 'play' && (hasParty ? (
@@ -474,10 +509,10 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
                     {COHORT_ORDER.filter(k => (a.bands as any)[k]).map(k => {
                       const fit = (a.bands as any)[k] as string;
-                      const col = fit === 'great' ? C.green : fit === 'okay' ? '#E8A63A' : '#AEB8C4';
+                      const col = fit === 'great' ? P.success : fit === 'okay' ? P.warning : '#AEB8C4';
                       return (
                         <View key={k} style={{ backgroundColor: tint(col, 0.16), borderRadius: 8, paddingHorizontal: 9, paddingVertical: 5, marginRight: 6, marginBottom: 6 }}>
-                          <Text style={{ color: fit === 'skip' ? '#8A94A0' : col, fontSize: 12, fontFamily: F.bold }}>{COHORT_LABEL[k]} · {fit}</Text>
+                          <Text style={{ color: fit === 'skip' ? P.textMuted : col, fontSize: 12, fontFamily: F.bold }}>{COHORT_LABEL[k]} · {fit}</Text>
                         </View>
                       );
                     })}
@@ -485,22 +520,25 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                   <Text style={[s.sub, { marginTop: 4, fontSize: 13 }]}>
                     {[a.duration, a.indoor, a.stroller ? '🚼 stroller-ok' : '', a.food_onsite ? '🍽 food on-site' : '', a.booking].filter(Boolean).join('  ·  ')}
                   </Text>
-                  {!!a.verdict && <Text style={{ marginTop: 8, color: C.text, fontFamily: F.med, lineHeight: 20 }}>💬 {a.verdict}</Text>}
+                  {!!a.verdict && <Text style={{ marginTop: 8, color: P.textPri, fontFamily: F.med, lineHeight: 20 }}>💬 {a.verdict}</Text>}
                 </Card>
               ))}
-              <Pressable onPress={redoFamily}><Text style={[s.link, { color: accent, marginBottom: 8 }]}>↻ Redo picks ›</Text></Pressable>
-              <Text style={[s.sub, { fontSize: 12, color: '#9AA9BB' }]}>Fit & prices are impressions — confirm before you go.</Text>
+              <Pressable onPress={redoFamily}><Text style={[s.link, { color: accent, marginBottom: S[2] }]}>↻ Redo picks ›</Text></Pressable>
+              <Text style={[s.sub, { fontSize: 12, color: P.textMuted }]}>Fit & prices are impressions — confirm before you go.</Text>
+              <Findings category="play" />
             </>
           ) : (
             <Card><Text style={s.sub}>Couldn't load family picks. </Text><Pressable onPress={redoFamily}><Text style={[s.link, { color: accent }]}>Try again ›</Text></Pressable></Card>
           ))
         ) : (
           bReady
-            ? <Card><Text style={s.h}>Experiences</Text><Rows items={g2.play} /></Card>
+            ? <><Card><Text style={s.h}>Experiences</Text><Rows items={g2.play} /></Card>
+                <Findings category="play" /></>
             : <Card><JourneyLoader accent={accent} label="Finding experiences…" /></Card>
         ))}
         {tab === 'visit' && (bReady
-          ? <Card><Text style={s.h}>Sights & districts</Text><VisitRows items={g2.visit} /></Card>
+          ? <><Card><Text style={s.h}>Sights & districts</Text><VisitRows items={g2.visit} /></Card>
+              <Findings category="visit" /></>
           : <Card><JourneyLoader accent={accent} label="Mapping sights…" /></Card>)}
         {tab === 'go' && !bReady && <Card><JourneyLoader accent={accent} label="Working out transit…" /></Card>}
         {tab === 'go' && bReady && (
@@ -509,7 +547,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
               <Card>
                 <Text style={s.h}>{trip.origin ? `From ${trip.origin}` : 'Getting there'}</Text>
                 {g2.go.from_origin.map((e, i) => <Text key={i} style={s.bullet}>·  {e}</Text>)}
-                <Text style={[s.sub, { fontSize: 12, color: '#9AA9BB', marginTop: 6 }]}>Routes are impressions — check live schedules & fares.</Text>
+                <Text style={[s.sub, { fontSize: 12, color: P.textMuted, marginTop: 6 }]}>Routes are impressions — check live schedules & fares.</Text>
               </Card>
             )}
             <Card>
@@ -526,6 +564,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                 <Text style={[s.link, { color: accent }]}>Open the map ›</Text>
               </Pressable>
             </Card>
+            <Findings category="go" />
           </>
         )}
         <Text style={s.disclaimer}>Written by AI from general knowledge — taste is opinion, logistics deserve a double-check.</Text>
@@ -535,25 +574,32 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
 }
 
 const s = StyleSheet.create({
-  center: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
-  loading: { color: C.sub, marginTop: 12 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  h: { fontSize: 16, fontFamily: F.bold, color: C.text, marginBottom: 8 },
-  row: { marginBottom: 12 },
-  rowName: { fontSize: 15, fontFamily: F.med, color: C.text },
-  sub: { color: C.sub, marginTop: 3, lineHeight: 19 },
-  bullet: { color: C.text, marginBottom: 7, lineHeight: 20 },
-  link: { fontFamily: F.bold, marginTop: 10 },
-  disclaimer: { color: '#9AA9BB', fontSize: 11, marginTop: 10, textAlign: 'center', lineHeight: 16 },
+  center: { flex: 1, backgroundColor: P.pageBg, alignItems: 'center', justifyContent: 'center' },
+  loading: { ...T.body, color: P.textSec, marginTop: S[3] },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: S[3] },
+  h: { ...T.h2, color: P.textPri, marginBottom: S[2] },
+  row: { marginBottom: S[3] },
+  rowName: { ...T.title, color: P.textPri },
+  sub: { ...T.caption, color: P.textSec, marginTop: S[1] },
+  bullet: { ...T.body, color: P.textPri, marginBottom: S[2] },
+  link: { ...T.title, marginTop: S[2] },
+  disclaimer: { ...T.caption, fontSize: 11, color: P.textMuted, marginTop: S[3],
+                textAlign: 'center', lineHeight: 16 },
 });
 
 const sx = StyleSheet.create({
-  vChip: { borderWidth: 1.5, borderColor: C.border, backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, marginRight: 6, marginBottom: 6 },
-  vChipText: { color: C.text, fontFamily: F.bold, fontSize: 12 },
-  tipHead: { color: C.sub, fontSize: 12, fontFamily: F.bold, letterSpacing: 0.8, marginTop: 6, marginBottom: 10 },
-  tipImg: { width: 110, height: 110, borderRadius: 12, marginRight: 8 },
-  tipThumb: { width: 50, height: 50, borderRadius: 10, marginRight: 8 },
-  tipAdd: { width: 50, height: 50, borderRadius: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
-  tipInput: { backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, color: C.text, marginBottom: 8, borderWidth: 1, borderColor: C.border },
-  airInput: { backgroundColor: '#F1F4F9', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, color: C.text },
+  vChip: { borderWidth: 1, borderColor: P.hairlineStrong, backgroundColor: P.card,
+           paddingHorizontal: S[3], paddingVertical: S[2], borderRadius: RA.pill,
+           marginRight: S[2], marginBottom: S[2] },
+  vChipText: { ...T.caption, color: P.textPri },
+  tipHead: { ...T.label, color: P.textMuted, marginTop: S[2], marginBottom: S[3] },
+  tipImg: { width: 110, height: 110, borderRadius: RA.md, marginRight: S[2] },
+  tipThumb: { width: 50, height: 50, borderRadius: RA.sm, marginRight: S[2] },
+  tipAdd: { width: 50, height: 50, borderRadius: RA.sm, backgroundColor: P.card,
+            borderWidth: 1, borderColor: P.hairline, alignItems: 'center', justifyContent: 'center' },
+  tipInput: { ...T.body, backgroundColor: P.sunken, borderRadius: RA.md,
+              paddingHorizontal: S[4], paddingVertical: S[3], color: P.textPri,
+              marginBottom: S[2] },
+  airInput: { ...T.body, backgroundColor: P.sunken, borderRadius: RA.md,
+              paddingHorizontal: S[4], paddingVertical: S[3], color: P.textPri },
 });

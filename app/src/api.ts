@@ -193,9 +193,10 @@ export type FoodTip = {
   id: string; restaurant: string; note: string; order_rec: string; when_rec: string;
   author: string; is_mine: boolean; created_at: string; photos?: string[];
 };
-export const listFoodTips = (place: string, cc?: string | null): Promise<FoodTip[]> =>
-  req(`/v1/food-tips?place=${encodeURIComponent(place)}${cc ? `&cc=${cc}` : ''}`);
-export const addFoodTip = (b: { place_name: string; country_code?: string | null; restaurant: string; note?: string; order_rec?: string; when_rec?: string; photos?: { b64: string; mime: string }[] }): Promise<FoodTip> =>
+export type TipCategory = 'eat' | 'play' | 'visit' | 'go';
+export const listFoodTips = (place: string, cc?: string | null, category: TipCategory = 'eat'): Promise<FoodTip[]> =>
+  req(`/v1/food-tips?place=${encodeURIComponent(place)}${cc ? `&cc=${cc}` : ''}&category=${category}`);
+export const addFoodTip = (b: { category?: TipCategory; place_name: string; country_code?: string | null; restaurant: string; note?: string; order_rec?: string; when_rec?: string; photos?: { b64: string; mime: string }[] }): Promise<FoodTip> =>
   req('/v1/food-tips', { method: 'POST', body: JSON.stringify(b) });
 export const deleteFoodTip = (id: string): Promise<void> =>
   req(`/v1/food-tips/${id}`, { method: 'DELETE' });
