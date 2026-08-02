@@ -111,13 +111,17 @@ export const setBagLimit = (tripId: string, limit_g: number | null) =>
   req(`/v1/trips/${tripId}/bag`, { method: 'PUT', body: JSON.stringify({ limit_g }) });
 
 export type Doc = {
-  id: string; type: string; label: string; expiry_date: string | null;
-  country_code: string | null;
+  id: string; type: string; label: string | null; expiry_date: string | null;
+  country_code: string | null; notes: string | null;
   expiry: { level: string; message: string; days_left: number | null };
+  /** how many renewal reminders the server scheduled for this document */
+  reminders?: number;
 };
 export const listDocuments = (): Promise<Doc[]> => req('/v1/documents');
 export const createDocument = (b: object): Promise<Doc> =>
   req('/v1/documents', { method: 'POST', body: JSON.stringify(b) });
+export const patchDocument = (id: string, b: object): Promise<Doc> =>
+  req(`/v1/documents/${id}`, { method: 'PATCH', body: JSON.stringify(b) });
 export const deleteDocument = (id: string) =>
   req(`/v1/documents/${id}`, { method: 'DELETE' });
 

@@ -52,7 +52,7 @@ type Route =
   | { name: 'sos'; trip: Trip }
   | { name: 'debrief'; trip: Trip }
   | { name: 'kits' }
-  | { name: 'documents' }
+  | { name: 'documents'; from?: 'profile' }  // remembers where to go back to
   | { name: 'profile' }
   | { name: 'archive'; trips: Trip[] };
 
@@ -171,9 +171,14 @@ export default function App() {
         <Debrief tripId={route.trip.id} tripTitle={titleize(route.trip.title)} onDone={goHome} />
       )}
       {route.name === 'kits' && <Kits onBack={goHome} />}
-      {route.name === 'documents' && <Documents onBack={goHome} />}
+      {route.name === 'documents' && (
+        <Documents onBack={() => setRoute(route.from === 'profile' ? { name: 'profile' } : { name: 'home' })} />
+      )}
       {route.name === 'profile' && (
-        <Profile onSignedOut={() => { setAuthed(false); setRoute({ name: 'login' }); }} />
+        <Profile
+          onSignedOut={() => { setAuthed(false); setRoute({ name: 'login' }); }}
+          onDocuments={() => setRoute({ name: 'documents', from: 'profile' })}
+        />
       )}
       </View>
       {showBar && (

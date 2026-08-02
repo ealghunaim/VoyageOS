@@ -3,16 +3,19 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
-import { Companion, getProfile, HomeOrigin, PlaceHit, putProfile, searchPlaces } from '../api';
+import { Companion, Doc, getProfile, HomeOrigin, listDocuments, PlaceHit, putProfile, searchPlaces } from '../api';
 import { getEmail, signOut } from '../auth';
 import { Btn, Card, Chip, Field } from '../components/ui';
 import { COUNTRIES, countryName, flagOf } from '../countries';
-import { C, F, P } from '../theme';
+import { C, F, P, T } from '../theme';
 
 const RELATIONS: Companion['relation'][] = ['partner', 'child', 'parent', 'friend'];
 
-export default function Profile({ onSignedOut }: { onSignedOut: () => void }) {
+export default function Profile({ onSignedOut, onDocuments }: {
+  onSignedOut: () => void; onDocuments: () => void;
+}) {
   const [loaded, setLoaded] = useState(false);
+  const [docs, setDocs] = useState<Doc[]>([]);
   const [dob, setDob] = useState<string | null>(null);
   const [gender, setGender] = useState<string | null>(null);
   const [nat, setNat] = useState<string | null>(null);
@@ -29,6 +32,9 @@ export default function Profile({ onSignedOut }: { onSignedOut: () => void }) {
   const [homeChosen, setHomeChosen] = useState(false);
   const [picking, setPicking] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Read-only here: the summary earns the tap, the Documents screen owns editing.
+  useEffect(() => { listDocuments().then(setDocs).catch(() => {}); }, []);
 
   useEffect(() => {
     getProfile().then(p => {
@@ -85,6 +91,18 @@ export default function Profile({ onSignedOut }: { onSignedOut: () => void }) {
   if (!loaded) {
     return <View style={s.center}><ActivityIndicator size="large" color={C.blue} /></View>;
   }
+
+  // Worst status wins the callout: an expired document outranks an expiring one.
+  const docSummary = (() => {
+    if (!docs.length) return { text: 'Nothing tracked yet', warn: '', warnColor: P.textSec };
+    const n = docs.length;
+    const text = `${n} document${n > 1 ? 's' : ''}`;
+    const expired = docs.filter(d => d.expiry.level === 'expired').length;
+    const critical = docs.filter(d => d.expiry.level === 'critical').length;
+    if (expired) return { text, warn: `${expired} expired`, warnColor: P.danger };
+    if (critical) return { text, warn: `${critical} expiring soon`, warnColor: P.warningInk };
+    return { text, warn: '', warnColor: P.textSec };
+  })();
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20, paddingTop: 24 }}>
@@ -183,6 +201,20 @@ export default function Profile({ onSignedOut }: { onSignedOut: () => void }) {
         <Text style={s.hint}>Companions become shared travelers with their own packing lists in a coming release.</Text>
       </Card>
 
+      <Pressable onPress={onDocuments}>
+        <Card>
+          <Text style={s.section}>DOCUMENTS</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={s.docSummary}>{docSummary.text}</Text>
+            <Text style={s.docChevron}>›</Text>
+          </View>
+          {!!docSummary.warn && (
+            <Text style={[s.docWarn, { color: docSummary.warnColor }]}>{docSummary.warn}</Text>
+          )}
+          <Text style={s.hint}>Passports, visas and insurance — reminded before they expire.</Text>
+        </Card>
+      </Pressable>
+
       <Card>
         <Text style={s.section}>EMERGENCY CONTACT</Text>
         <Field label="NAME" value={ecName} onChange={setEcName} placeholder="Who to call" />
@@ -212,6 +244,9 @@ const s = StyleSheet.create({
   center: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
   h1: { fontSize: 30, fontFamily: F.bold, color: C.text, letterSpacing: -0.6 },
   email: { color: C.sub, marginTop: 2, marginBottom: 16 },
+  docSummary: { ...T.title, color: P.textPri },
+  docChevron: { ...T.h2, color: P.textMuted },
+  docWarn: { ...T.caption, fontFamily: F.med, marginTop: 2 },
   section: { color: C.sub, fontSize: 12, fontFamily: F.bold, letterSpacing: 0.6, marginBottom: 8, marginTop: 4 },
   input: { backgroundColor: '#F1F4F9', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 13, fontSize: 16, color: C.text },
   hit: { paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.border },
