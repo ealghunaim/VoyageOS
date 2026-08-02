@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { getPackingList, PackItem, searchItems, submitDebrief } from '../api';
 import { Btn, Card, Chip } from '../components/ui';
-import { C, F } from '../theme';
+import { P, S, RA, T } from '../theme';
 
 export default function Debrief({ tripId, tripTitle, onDone }: {
   tripId: string; tripTitle: string; onDone: () => void;
@@ -57,7 +57,7 @@ export default function Debrief({ tripId, tripTitle, onDone }: {
 
   if (state === 'done') {
     return (
-      <View style={{ flex: 1, backgroundColor: C.bg, padding: 16, paddingTop: 40 }}>
+      <View style={{ flex: 1, backgroundColor: P.pageBg, padding: S[4], paddingTop: S[10] }}>
         <Card>
           <Text style={s.h1}>Noted. ✓</Text>
           <Text style={s.sub}>{summary}</Text>
@@ -70,10 +70,10 @@ export default function Debrief({ tripId, tripTitle, onDone }: {
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 16, paddingTop: 24 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={{ padding: S[4], paddingTop: S[6] }}>
       <View style={s.header}>
         <Pressable onPress={onDone} hitSlop={10}>
-          <Text style={{ color: C.blue, fontSize: 16, fontFamily: F.med }}>Skip</Text>
+          <Text style={[T.title, { color: P.brand }]}>Skip</Text>
         </Pressable>
         <Text style={s.h2} numberOfLines={1}>{tripTitle}</Text>
         <View style={{ width: 34 }} />
@@ -88,16 +88,16 @@ export default function Debrief({ tripId, tripTitle, onDone }: {
           value={q}
           onChangeText={setQ}
           placeholder="Search or type an item…"
-          placeholderTextColor="#9aa7b8"
+          placeholderTextColor={P.textMuted}
         />
         {results.map(r => (
           <Pressable key={r.id} onPress={() => addForgot(r.name)} style={s.result}>
-            <Text style={{ color: C.text }}>{r.name}</Text>
+            <Text style={[T.body, { color: P.textPri }]}>{r.name}</Text>
           </Pressable>
         ))}
         {q.trim().length >= 2 && (
           <Pressable onPress={() => addForgot(q)} style={s.result}>
-            <Text style={{ color: C.blue, fontFamily: F.med }}>Add "{q.trim()}"</Text>
+            <Text style={[T.title, { color: P.brand }]}>Add "{q.trim()}"</Text>
           </Pressable>
         )}
         <View style={s.chipWrap}>
@@ -134,16 +134,18 @@ export default function Debrief({ tripId, tripTitle, onDone }: {
 }
 
 const s = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  h1: { fontSize: 24, fontFamily: F.bold, color: C.text, marginBottom: 4 },
-  h2: { fontSize: 15, fontFamily: F.med, color: C.sub, flex: 1, textAlign: 'center' },
-  sub: { color: C.sub, marginBottom: 12, lineHeight: 20 },
-  q: { fontSize: 16, fontFamily: F.bold, color: C.text, marginBottom: 10 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+            marginBottom: S[2] },
+  h1: { ...T.h1, color: P.textPri, marginBottom: S[1] },
+  h2: { ...T.body, color: P.textSec, flex: 1, textAlign: 'center' },
+  sub: { ...T.body, color: P.textSec, marginBottom: S[3] },
+  q: { ...T.h2, color: P.textPri, marginBottom: S[3] },
   input: {
-    borderWidth: 1, borderColor: C.border, borderRadius: 12, backgroundColor: '#fff',
-    paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: C.text, marginBottom: 6,
+    ...T.body, borderWidth: 1, borderColor: P.hairline, borderRadius: RA.md,
+    backgroundColor: P.card, paddingHorizontal: S[4], paddingVertical: S[3],
+    color: P.textPri, marginBottom: S[2],
   },
-  result: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.border },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 },
-  footnote: { color: '#9aa7b8', textAlign: 'center', marginVertical: 16, fontSize: 12, lineHeight: 17 },
+  result: { paddingVertical: S[2] + 2, borderBottomWidth: 1, borderBottomColor: P.hairline },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', marginTop: S[2] },
+  footnote: { ...T.caption, color: P.textMuted, textAlign: 'center', marginVertical: S[4] },
 });
