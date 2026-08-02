@@ -113,6 +113,16 @@ export const P = {
   success: '#0E9F6E',
   danger:  '#E02D3C',
   warning: '#E8A63A',
+  /**
+   * Amber for warning TEXT. P.warning is tuned for fills and indicators and
+   * only reaches 2.1:1 on white — unreadable as type. This darker amber is
+   * 5.0:1 and passes AA, so warning states that are written rather than
+   * filled use this one.
+   *
+   * The condition-colour rule: danger = error, warning = caution, and both
+   * report a state rather than marking an action. Actions stay neutral.
+   */
+  warningInk: '#B45309',
 };
 
 /** 4pt grid. Replaces the scattered 10/14/18/22 literals. */

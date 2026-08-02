@@ -7,12 +7,12 @@ import { addKitItem, applyKit, createKit, quickAddItems, generateList, getPackin
 import { deviceTz, permissionStatus, requestPermission, syncReminders, testPing } from '../notifications';
 import { Btn, Card, Progress } from '../components/ui';
 import JourneyLoader from '../components/JourneyLoader';
-import { C, F } from '../theme';
+import { F, P, RA, S, T, tint } from '../theme';
 
 export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }: {
   tripId: string; tripTitle: string; accent?: string; onBack: () => void; onDebrief: () => void;
 }) {
-  const ac = accent ?? C.blue;
+  const ac = accent ?? P.brand;
   const [items, setItems] = useState<PackItem[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -98,12 +98,12 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
 
   if (items.length === 0) {
     return (
-      <View style={{ flex: 1, backgroundColor: C.bg, padding: 16, paddingTop: 24 }}>
-        <Header title={tripTitle} onBack={onBack} onRegen={null} />
+      <View style={{ flex: 1, backgroundColor: P.pageBg, padding: S[4], paddingTop: S[6] }}>
+        <Header title={tripTitle} accent={ac} onBack={onBack} onRegen={null} />
         <Card>
           <Text style={s.h2}>No packing list yet</Text>
           <Text style={s.reason}>Generate one — every item will come with its reason.</Text>
-          <View style={{ height: 12 }} />
+          <View style={{ height: S[3] }} />
           <Btn label="Build my list" onPress={() => generate(false)} />
         </Card>
       </View>
@@ -134,10 +134,11 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
   });
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <View style={{ padding: 16, paddingTop: 24, paddingBottom: 8 }}>
+    <View style={{ flex: 1, backgroundColor: P.pageBg }}>
+      <View style={{ padding: S[4], paddingTop: S[6], paddingBottom: S[2] }}>
         <Header
           title={tripTitle}
+          accent={ac}
           onBack={onBack}
           onRegen={() =>
             Alert.alert('Regenerate list?', 'This calls the model again (a few cents).', [
@@ -151,7 +152,7 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
       </View>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 16, paddingTop: 4 }}
+        contentContainerStyle={{ padding: S[4], paddingTop: S[1] }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={async () => {
             setRefreshing(true); await load(); setRefreshing(false);
@@ -159,13 +160,13 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
         }
       >
         {perm === 'undetermined' && tasks.length > 0 && (
-          <View style={s.primer}>
+          <View style={[s.primer, { backgroundColor: tint(ac, 0.06), borderColor: tint(ac, 0.18) }]}>
             <Text style={s.primerTitle}>Want reminders at the right moments?</Text>
             <Text style={s.reason}>
               First up: {tasks[0].title} · {new Date(tasks[0].due_at).toLocaleString()}.{'\n'}
               Never more than 3 a day. Quiet 22:00–08:00.
             </Text>
-            <View style={{ height: 10 }} />
+            <View style={{ height: S[3] }} />
             <Btn label="Allow reminders" onPress={async () => {
               const ok = await requestPermission();
               setPerm(ok ? 'granted' : 'denied');
@@ -174,11 +175,11 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
           </View>
         )}
         {tasks.length > 0 && (
-          <View style={{ marginBottom: 14 }}>
+          <View style={{ marginBottom: S[4] }}>
             <Text style={s.cat}>UP NEXT</Text>
             {tasks.slice(0, 3).map(t => (
               <View key={t.id} style={s.row}>
-                <Text style={{ fontSize: 16, marginRight: 10 }}>⏰</Text>
+                <Text style={{ fontSize: 16, marginRight: S[3] }}>⏰</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={s.name}>{t.title}</Text>
                   <Text style={s.reason}>{new Date(t.due_at).toLocaleString()}</Text>
@@ -187,7 +188,7 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
             ))}
             {perm === 'granted' && (
               <Pressable onPress={async () => { await testPing(); }}>
-                <Text style={s.testLink}>
+                <Text style={[s.testLink, { color: ac }]}>
                   {armed !== null ? `Reminders armed on this phone ✓ (${armed})` : 'Reminders on ✓'} · Test ping (5s)
                 </Text>
               </Pressable>
@@ -195,7 +196,7 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
           </View>
         )}
         {wx.length > 0 && (
-          <View style={{ marginBottom: 14 }}>
+          <View style={{ marginBottom: S[4] }}>
             <Text style={s.cat}>{(wxPlace ?? 'FORECAST').toUpperCase()} FORECAST</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <Text style={s.wxStrip}>
@@ -212,7 +213,7 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
           <TextInput
             style={sq.quickInput} value={quick} onChangeText={setQuick}
             placeholder="Add items - try: 2 polos, power bank, sunscreen"
-            placeholderTextColor="#9AA9BB"
+            placeholderTextColor={P.textMuted}
           />
           <Pressable disabled={quickBusy || quick.trim().length < 2} onPress={async () => {
             setQuickBusy(true);
@@ -228,7 +229,7 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
           </Pressable>
         </View>
         {groups.map(g => (
-          <View key={g.cat} style={{ marginBottom: 14 }}>
+          <View key={g.cat} style={{ marginBottom: S[4] }}>
             <Text style={s.cat}>{g.cat.replace('_', ' ').toUpperCase()}</Text>
             {g.rows.map(it => (
               <Pressable key={it.id} onPress={() => togglePacked(it)} style={s.row}>
@@ -243,11 +244,11 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
                     <Text style={s.histBadge}>⚑ forgot last time</Text>
                   )}
                   {it.source === 'weather' && (
-                    <Text style={s.wxBadge}>☔ forecast</Text>
+                    <Text style={[s.wxBadge, { color: ac }]}>☔ forecast</Text>
                   )}
-                  {!!it.reason && <Text style={s.reason}>{it.reason}{it.weight_g ? `  \u00b7  ${it.weight_g}g` : ''}</Text>}
+                  {!!it.reason && <Text style={s.reason}>{it.reason}{it.weight_g ? `  ·  ${it.weight_g}g` : ''}</Text>}
                 </View>
-                <Pressable hitSlop={10} style={{ marginRight: 12 }} onPress={() => {
+                <Pressable hitSlop={10} style={{ marginRight: S[3] }} onPress={() => {
                   const opts = [['underwear','Underwear'],['casual','Casual'],['smart_casual','Smart casual'],['formal','Formal'],['traditional','Traditional'],['outerwear','Outerwear'],['athleisure','Active'],['footwear','Shoes']] as const;
                   Alert.alert('Move to', it.name, [
                     { text: 'Set weight (g)', onPress: () => {
@@ -266,16 +267,16 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
                     { text: 'Cancel', style: 'cancel' as const },
                   ]);
                 }}>
-                  <Text style={{ color: '#9AA9BB', fontSize: 15, fontFamily: F.bold }}>...</Text>
+                  <Text style={s.more}>...</Text>
                 </Pressable>
                 <Pressable onPress={() => dismiss(it)} hitSlop={10} style={s.x}>
-                  <Text style={{ color: C.sub, fontSize: 16 }}>✕</Text>
+                  <Text style={s.xMark}>✕</Text>
                 </Pressable>
               </Pressable>
             ))}
           </View>
         ))}
-        <View style={{ marginTop: 4 }}>
+        <View style={{ marginTop: S[1] }}>
           <Pressable onPress={async () => {
             if (kits === null) { try { setKits(await listKits()); } catch {} }
             else setKits(null);
@@ -325,7 +326,7 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
                     setKits(null); await load(); loadWeight();
                   } catch (e: any) { Alert.alert('Error', e.message); }
                 }}>
-                  <Text style={{ color: C.blue, fontFamily: F.med }}>{k.name}</Text>
+                  <Text style={[s.kitChipText, { color: ac }]}>{k.name}</Text>
                 </Pressable>
               ))}
             </View>
@@ -338,28 +339,28 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
       </ScrollView>
       {weight && (
         <Pressable style={s.weightBar} onPress={() => setShowLimits(v => !v)}>
-          <Text style={{
-            fontFamily: F.bold,
-            color: weight.limit_g && weight.total_g > weight.limit_g ? C.red
-              : weight.limit_g && weight.total_g > weight.limit_g * 0.85 ? '#b45309' : C.text,
-          }}>
+          <Text style={[s.weightValue, {
+            // over the target is an error, within 15% of it is a caution.
+            color: weight.limit_g && weight.total_g > weight.limit_g ? P.danger
+              : weight.limit_g && weight.total_g > weight.limit_g * 0.85 ? P.warningInk : P.textPri,
+          }]}>
             {(weight as any).approx ? '~' : ''}{(weight.total_g / 1000).toFixed(1)} kg
             {weight.limit_g ? ` / ${(weight.limit_g / 1000).toFixed(0)} kg` : ' · set a target ›'}
             {weight.unweighed ? `  · ${weight.unweighed} estimated` : ''}
           </Text>
           {showLimits && (
-            <View style={{ flexDirection: 'row', marginTop: 8 }}>
+            <View style={{ flexDirection: 'row', marginTop: S[2] }}>
               {[7, 10, 23, 32].map(kg => (
                 <Pressable key={kg} style={s.kitChip} onPress={async () => {
                   await setBagLimit(tripId, kg * 1000); setShowLimits(false); loadWeight();
                 }}>
-                  <Text style={{ color: C.blue, fontFamily: F.med }}>{kg} kg</Text>
+                  <Text style={[s.kitChipText, { color: ac }]}>{kg} kg</Text>
                 </Pressable>
               ))}
               <Pressable style={s.kitChip} onPress={async () => {
                 await setBagLimit(tripId, null); setShowLimits(false); loadWeight();
               }}>
-                <Text style={{ color: C.sub, fontFamily: F.med }}>none</Text>
+                <Text style={[s.kitChipText, { color: P.textSec }]}>none</Text>
               </Pressable>
             </View>
           )}
@@ -370,63 +371,79 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
   );
 }
 
-function Header({ title, onBack, onRegen }: {
-  title: string; onBack: () => void; onRegen: (() => void) | null;
+/**
+ * Back and regenerate take the destination accent, not brand blue — inside a
+ * trip the accent owns every control, navigation included. See the colour
+ * ownership rule in theme.ts.
+ */
+function Header({ title, accent, onBack, onRegen }: {
+  title: string; accent: string; onBack: () => void; onRegen: (() => void) | null;
 }) {
   return (
     <View style={s.header}>
       <Pressable onPress={onBack} hitSlop={10}>
-        <Text style={{ color: C.blue, fontSize: 16, fontFamily: F.med }}>‹ Back</Text>
+        <Text style={[s.back, { color: accent }]}>‹ Back</Text>
       </Pressable>
       <Text style={s.h2} numberOfLines={1}>{title}</Text>
       {onRegen ? (
         <Pressable onPress={onRegen} hitSlop={10}>
-          <Text style={{ color: C.blue, fontSize: 18 }}>↻</Text>
+          <Text style={[s.regen, { color: accent }]}>↻</Text>
         </Pressable>
-      ) : <View style={{ width: 20 }} />}
+      ) : <View style={{ width: S[5] }} />}
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  center: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
-  loading: { color: C.sub, marginTop: 12 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  h2: { fontSize: 17, fontFamily: F.bold, color: C.text, flex: 1, textAlign: 'center', marginHorizontal: 8 },
-  progressText: { color: C.sub, marginBottom: 6, fontWeight: '600' },
-  cat: { color: C.sub, fontFamily: F.bold, fontSize: 12, letterSpacing: 0.6, marginBottom: 6 },
+  center: { flex: 1, backgroundColor: P.pageBg, alignItems: 'center', justifyContent: 'center' },
+  loading: { ...T.body, color: P.textSec, marginTop: S[3] },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: S[3] },
+  back: { ...T.title },
+  regen: { ...T.h2 },
+  h2: { ...T.h2, color: P.textPri, flex: 1, textAlign: 'center', marginHorizontal: S[2] },
+  progressText: { ...T.caption, fontFamily: F.med, color: P.textSec, marginBottom: S[2] },
+  cat: { ...T.label, color: P.textSec, marginBottom: S[2] },
   row: {
-    flexDirection: 'row', alignItems: 'flex-start', backgroundColor: C.card,
-    borderWidth: 1, borderColor: C.border, borderRadius: 12, padding: 12, marginBottom: 8,
+    flexDirection: 'row', alignItems: 'flex-start', backgroundColor: P.card,
+    borderWidth: 1, borderColor: P.hairline, borderRadius: RA.md, padding: S[3], marginBottom: S[2],
   },
   box: {
-    width: 24, height: 24, borderRadius: 7, borderWidth: 2, borderColor: C.border,
-    marginRight: 12, alignItems: 'center', justifyContent: 'center', marginTop: 1,
+    width: 24, height: 24, borderRadius: RA.sm, borderWidth: 2, borderColor: P.hairlineStrong,
+    marginRight: S[3], alignItems: 'center', justifyContent: 'center', marginTop: 1,
   },
-  boxOn: { backgroundColor: C.green, borderColor: C.green },
-  check: { color: '#fff', fontFamily: F.bold, fontSize: 14 },
-  name: { color: C.text, fontSize: 16, fontWeight: '600' },
-  nameDone: { color: C.sub, textDecorationLine: 'line-through' },
-  reason: { color: C.sub, fontSize: 13, marginTop: 2, lineHeight: 18 },
-  x: { paddingLeft: 10, paddingTop: 2 },
-  footer: { color: '#9aa7b8', textAlign: 'center', marginVertical: 16, fontSize: 12 },
+  boxOn: { backgroundColor: P.success, borderColor: P.success },
+  check: { fontFamily: F.bold, fontSize: 14, color: P.textOnDark },
+  name: { ...T.title, color: P.textPri },
+  nameDone: { color: P.textMuted, textDecorationLine: 'line-through' },
+  reason: { ...T.caption, color: P.textSec, marginTop: 2 },
+  more: { ...T.body, fontFamily: F.bold, color: P.textMuted },
+  x: { paddingLeft: S[3], paddingTop: 2 },
+  xMark: { ...T.title, fontFamily: F.reg, color: P.textSec },
+  footer: { ...T.caption, color: P.textMuted, textAlign: 'center', marginVertical: S[4] },
   primer: {
-    backgroundColor: C.blueSoft, borderRadius: 12, padding: 14, marginBottom: 14,
-    borderWidth: 1, borderColor: '#c7d9fb',
+    borderRadius: RA.md, padding: S[4], marginBottom: S[4], borderWidth: 1,
   },
-  primerTitle: { color: C.text, fontFamily: F.bold, fontSize: 15, marginBottom: 4 },
-  testLink: { color: C.blue, fontFamily: F.med, fontSize: 13, marginTop: 4, marginLeft: 2 },
-  histBadge: { color: '#b45309', fontFamily: F.bold, fontSize: 12, marginTop: 2 },
-  wxBadge: { color: C.blue, fontFamily: F.bold, fontSize: 12, marginTop: 2 },
-  wxStrip: { color: C.text, fontSize: 14, fontWeight: '600', lineHeight: 22 },
-  closeout: { color: C.blue, fontFamily: F.med, textAlign: 'center', marginTop: 10 },
-  kitChip: { borderWidth: 1, borderColor: C.border, backgroundColor: '#fff', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, margin: 4 },
-  weightBar: { backgroundColor: C.card, borderTopWidth: 1, borderTopColor: C.border, padding: 12, alignItems: 'center' },
-  weightNote: { color: '#9aa7b8', fontSize: 11, marginTop: 3 },
+  primerTitle: { ...T.title, fontFamily: F.bold, color: P.textPri, marginBottom: S[1] },
+  testLink: { ...T.caption, fontFamily: F.med, marginTop: S[1], marginLeft: 2 },
+  histBadge: { ...T.caption, fontFamily: F.bold, color: P.warningInk, marginTop: 2 },
+  wxBadge: { ...T.caption, fontFamily: F.bold, marginTop: 2 },
+  wxStrip: { ...T.body, fontFamily: F.med, color: P.textPri, lineHeight: 22 },
+  closeout: { ...T.title, textAlign: 'center', marginTop: S[3] },
+  kitChip: {
+    borderWidth: 1, borderColor: P.hairline, backgroundColor: P.card,
+    paddingHorizontal: S[4], paddingVertical: S[2], borderRadius: RA.pill, margin: S[1],
+  },
+  kitChipText: { ...T.body, fontFamily: F.med },
+  weightBar: { backgroundColor: P.card, borderTopWidth: 1, borderTopColor: P.hairline, padding: S[3], alignItems: 'center' },
+  weightValue: { ...T.title, fontFamily: F.bold },
+  weightNote: { ...T.caption, fontSize: 11, color: P.textMuted, marginTop: 3 },
 });
 
 const sq = StyleSheet.create({
-  quickRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
-  quickInput: { flex: 1, backgroundColor: '#fff', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: C.text, borderWidth: 1, borderColor: C.border },
-  quickBtn: { color: C.blue, fontFamily: F.bold, fontSize: 16, marginLeft: 12 },
+  quickRow: { flexDirection: 'row', alignItems: 'center', marginBottom: S[4] },
+  quickInput: {
+    flex: 1, backgroundColor: P.card, borderRadius: RA.md, paddingHorizontal: S[4],
+    paddingVertical: S[3], ...T.body, color: P.textPri, borderWidth: 1, borderColor: P.hairline,
+  },
+  quickBtn: { ...T.title, fontFamily: F.bold, marginLeft: S[3] },
 });
