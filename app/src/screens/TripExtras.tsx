@@ -36,17 +36,17 @@ export default function TripExtras({ trip, accent }: { trip: Trip; accent: strin
       <View style={{ flexDirection: 'row' }}>
         <Pressable onPress={() => setOpen(open === 'phrases' ? null : 'phrases')}
           style={[s.sq, { marginRight: S[3] }, open === 'phrases' && { borderColor: accent, backgroundColor: tint(accent, 0.06) }]}>
-          <View style={[s.plate, { backgroundColor: tint(accent, 0.10) }]}>
-            <TileIcon kind="phrases" accent={accent} size={20} />
+          <View style={s.row}>
+            <TileIcon kind="phrases" accent={accent} size={28} />
+            <Text style={[s.sqLabel, { marginLeft: S[2] + 2 }]}>Phrases</Text>
           </View>
-          <Text style={s.sqLabel}>Phrases</Text>
         </Pressable>
         <Pressable onPress={() => setOpen(open === 'money' ? null : 'money')}
           style={[s.sq, open === 'money' && { borderColor: accent, backgroundColor: tint(accent, 0.06) }]}>
-          <View style={[s.plate, { backgroundColor: tint(accent, 0.10) }]}>
-            <TileIcon kind="currency" accent={accent} size={20} />
+          <View style={s.row}>
+            <TileIcon kind="currency" accent={accent} size={28} />
+            <Text style={[s.sqLabel, { marginLeft: S[2] + 2 }]}>Currency</Text>
           </View>
-          <Text style={s.sqLabel}>Currency</Text>
         </Pressable>
       </View>
 
@@ -111,8 +111,7 @@ export default function TripExtras({ trip, accent }: { trip: Trip; accent: strin
 const s = StyleSheet.create({
   sq: { flex: 1, backgroundColor: P.card, borderRadius: RA.lg, borderWidth: 1,
         borderColor: P.hairline, paddingHorizontal: S[4], paddingVertical: S[3], ...E.low },
-  plate: { width: 36, height: 36, borderRadius: RA.sm,
-           alignItems: 'center', justifyContent: 'center', marginBottom: S[2] },
+  row: { flexDirection: 'row', alignItems: 'center' },
   sqLabel: { ...T.title, color: P.textPri },
   panel: { backgroundColor: P.card, borderRadius: RA.lg, borderWidth: 1,
            borderColor: P.hairline, padding: S[4], marginTop: S[3], ...E.low },

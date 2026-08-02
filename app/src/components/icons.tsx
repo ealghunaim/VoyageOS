@@ -1,92 +1,129 @@
 import React from 'react';
-import Svg, { Circle, Path, Rect } from 'react-native-svg';
-import { tint } from '../theme';
+import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
+import { lift, tint } from '../theme';
 
-/** Tile icon set — same minimal clip-art language as the landmarks. */
-export default function TileIcon({ kind, accent, size = 30 }: {
-  kind: string; accent: string; size?: number;
+/**
+ * Tile icons — a stacked card carrying a symbol, in flat fills with an ink
+ * contour.
+ *
+ * Construction follows the reference: two slivers peeking out behind a larger
+ * front card, all sharing one dark outline. The front card is the surface the
+ * symbol lives on, so every icon in the set has the same silhouette and reads
+ * as one family; only the symbol changes.
+ *
+ * `palette` decides where colour comes from:
+ *   'accent' — the destination's colour, lifted so dark flags (UK navy) don't
+ *              merge with the contour. Ties the icons to the trip, but a dark
+ *              flag ends up muted.
+ *   'brand'  — a fixed indigo/cyan pair. Always vivid, never muted, and the
+ *              flag hero already carries the destination.
+ */
+export type IconPalette = 'accent' | 'brand';
+
+export default function TileIcon({ kind, accent, size = 30, palette = 'accent' }: {
+  kind: string; accent: string; size?: number; palette?: IconPalette;
 }) {
-  const A = (t = 0.85) => tint(accent, t);
-  const icons: Record<string, React.ReactNode> = {
+  const INK = '#0D182A';
+  const top  = palette === 'brand' ? '#1B2CFB' : lift(accent);
+  const mid  = palette === 'brand' ? '#6EE7FF' : tint(lift(accent, 0.52), 0.55);
+  const face = palette === 'brand' ? '#FFFFFF' : '#FFFFFF';
+
+  const o = {
+    stroke: INK,
+    strokeWidth: 1.4,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+  };
+  const line = { ...o, fill: 'none' };
+
+  // symbols fill the frame; the stack now lives on the tile itself
+  const symbols: Record<string, React.ReactNode> = {
     pack: (
       <>
-        <Path d="M30 42 q0 -20 20 -20 q20 0 20 20 v40 q0 8 -8 8 H38 q-8 0 -8 -8 Z" fill={A()} />
-        <Rect x="38" y="58" width="24" height="18" rx="5" fill={A(0.4)} />
-        <Path d="M42 24 v-6 h6 v6 Z M52 24 v-6 h6 v6 Z" fill={A(0.6)} />
-      </>
-    ),
-    know: (
-      <>
-        <Path d="M50 12 a38 38 0 1 0 0.01 0 Z M50 22 a28 28 0 1 1 -0.01 0 Z" fill={A()} fillRule="evenodd" />
-        <Path d="M50 30 L60 56 L50 50 L40 56 Z" fill={A()} />
-        <Path d="M50 70 L44 58 L50 61 L56 58 Z" fill={A(0.5)} />
-      </>
-    ),
-    eat: (
-      <>
-        <Path d="M18 52 h64 a32 32 0 0 1 -64 0 Z" fill={A()} />
-        <Rect x="26" y="46" width="48" height="6" rx="3" fill={A(0.4)} />
-        <Path d="M34 40 L62 14 l4 4 L40 44 Z M48 42 L74 20 l4 4 L54 46 Z" fill={A(0.6)} />
-      </>
-    ),
-    play: (
-      <>
-        <Path d="M18 34 h64 v14 a8 8 0 0 0 0 16 v14 H18 V64 a8 8 0 0 0 0 -16 Z" fill={A()} fillRule="evenodd" />
-        <Path d="M50 44 l4 8 9 1 -6.5 6 1.5 9 -8 -4.5 -8 4.5 1.5 -9 -6.5 -6 9 -1 Z" fill={A(0.4)} />
-      </>
-    ),
-    visit: (
-      <>
-        <Path d="M50 10 a26 26 0 0 1 26 26 c0 18 -26 52 -26 52 s-26 -34 -26 -52 a26 26 0 0 1 26 -26 Z" fill={A()} />
-        <Circle cx="50" cy="36" r="10" fill={A(0.35)} />
-      </>
-    ),
-    go: (
-      <>
-        <Path d="M20 58 l6 -18 q2 -6 9 -6 h30 q7 0 9 6 l6 18 v16 h-8 v-6 H28 v6 h-8 Z" fill={A()} />
-        <Rect x="32" y="40" width="36" height="10" rx="3" fill={A(0.35)} />
-        <Circle cx="33" cy="62" r="5" fill={A(0.5)} />
-        <Circle cx="67" cy="62" r="5" fill={A(0.5)} />
-      </>
-    ),
-    journal: (
-      <>
-        <Path d="M26 18 h40 q6 0 6 6 v52 q0 6 -6 6 H26 Z" fill={A()} />
-        <Rect x="26" y="18" width="8" height="64" fill={A(0.6)} />
-        <Path d="M44 34 h20 v4 H44 Z M44 46 h20 v4 H44 Z M44 58 h14 v4 H44 Z" fill={A(0.35)} />
+        <Path d="M9 6.5V5.2A1.6 1.6 0 0 1 10.6 3.6h2.8A1.6 1.6 0 0 1 15 5.2v1.3" {...line} />
+        <Rect x="2.8" y="6.5" width="18.4" height="14" rx="2.8" fill={mid} {...o} />
+        <Rect x="2.8" y="6.5" width="18.4" height="4.6" rx="2.4" fill={top} {...o} />
+        <Line x1="12" y1="11.1" x2="12" y2="20.5" {...line} />
       </>
     ),
     plan: (
       <>
-        <Rect x="20" y="26" width="60" height="56" rx="8" fill={A()} />
-        <Rect x="20" y="26" width="60" height="15" rx="8" fill={A(0.6)} />
-        <Rect x="34" y="18" width="6" height="14" rx="3" fill={A(0.6)} />
-        <Rect x="60" y="18" width="6" height="14" rx="3" fill={A(0.6)} />
-        <Path d="M34 55 l7 7 15 -17" stroke="#fff" strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <Rect x="2.8" y="4.6" width="18.4" height="16.4" rx="2.8" fill={face} {...o} />
+        <Path d="M2.8 7.4a2.8 2.8 0 0 1 2.8-2.8h12.8a2.8 2.8 0 0 1 2.8 2.8v2.8H2.8z" fill={top} {...o} />
+        <Line x1="7.4" y1="2.6" x2="7.4" y2="6" {...line} />
+        <Line x1="16.6" y1="2.6" x2="16.6" y2="6" {...line} />
+        <Path d="M8.6 15.4l2.2 2.2 4.6-4.6" {...line} />
       </>
     ),
-    phrases: (
+    know: (
       <>
-        <Path d="M18 20 h48 a8 8 0 0 1 8 8 v24 a8 8 0 0 1 -8 8 H40 L26 72 V60 h-8 a8 8 0 0 1 -8 -8 V28 a8 8 0 0 1 8 -8 Z" fill={A()} />
-        <Path d="M52 44 h34 a6 6 0 0 1 6 6 v18 a6 6 0 0 1 -6 6 h-4 v10 L70 74 H52 Z" fill={A(0.32)} />
+        <Rect x="5" y="2.8" width="14" height="18.4" rx="2.4" fill={top} {...o} />
+        <Path d="M17.4 2.8h1.6v18.4h-1.6z" fill={mid} {...o} />
+        <Circle cx="11.4" cy="10" r="3" fill={face} {...o} />
+        <Line x1="8.6" y1="16.8" x2="14.2" y2="16.8" {...line} />
       </>
     ),
-    currency: (
+    eat: (
       <>
-        <Path d="M50 10 a40 40 0 1 1 -0.1 0 Z M50 22 a28 28 0 1 0 0.1 0 Z" fill={A(0.28)} />
-        <Path d="M46 28 h8 v6 h10 v9 H46 a4 4 0 0 0 0 8 h8 a13 13 0 0 1 0 26 v6 h-8 v-6 H36 v-9 h18 a4 4 0 0 0 0 -8 h-8 a13 13 0 0 1 0 -26 Z" fill={A()} />
+        <Path d="M7.2 2.8v5.6a1.9 1.9 0 0 1-3.8 0V2.8" {...line} />
+        <Line x1="5.3" y1="8.4" x2="5.3" y2="21.2" {...line} />
+        <Path d="M17.6 2.8c1.8 0 3 1.9 3 4.4s-1.2 4.2-3 4.2z" fill={top} {...o} />
+        <Line x1="17.6" y1="11.4" x2="17.6" y2="21.2" {...line} />
+      </>
+    ),
+    play: (
+      <>
+        <Path d="M2.8 9.4V7.6a1.6 1.6 0 0 1 1.6-1.6h15.2a1.6 1.6 0 0 1 1.6 1.6v1.8a2.6 2.6 0 0 0 0 5.2v1.8a1.6 1.6 0 0 1-1.6 1.6H4.4a1.6 1.6 0 0 1-1.6-1.6v-1.8a2.6 2.6 0 0 0 0-5.2z" fill={top} {...o} />
+        <Path d="M15 6h4.6a1.6 1.6 0 0 1 1.6 1.6v1.8a2.6 2.6 0 0 0 0 5.2v1.8a1.6 1.6 0 0 1-1.6 1.6H15z" fill={mid} {...o} />
+        <Line x1="15" y1="6" x2="15" y2="18" strokeDasharray="1.5 2" {...line} />
+      </>
+    ),
+    visit: (
+      <>
+        <Path d="M12 21.4s7.4-6 7.4-11.4a7.4 7.4 0 1 0-14.8 0c0 5.4 7.4 11.4 7.4 11.4z" fill={top} {...o} />
+        <Circle cx="12" cy="9.8" r="2.9" fill={face} {...o} />
+      </>
+    ),
+    go: (
+      <>
+        <Path d="M20.8 3.2L3.2 10.4l6.3 2.7 8.9-7.2-7.2 8.9 2.7 6.3z" fill={top} {...o} />
+        <Line x1="9.5" y1="13.1" x2="12.4" y2="20.6" {...line} />
+      </>
+    ),
+    journal: (
+      <>
+        <Path d="M5.4 3.2h11.4A2.6 2.6 0 0 1 19.4 5.8v15H8a2.6 2.6 0 0 1-2.6-2.6z" fill={face} {...o} />
+        <Path d="M5.4 3.2h3.4v17.6H8a2.6 2.6 0 0 1-2.6-2.6z" fill={top} {...o} />
+        <Line x1="11.4" y1="8" x2="16.4" y2="8" {...line} />
+        <Line x1="11.4" y1="11.4" x2="16.4" y2="11.4" {...line} />
+        <Path d="M14.6 3.2h2.4v5l-1.2-1.2-1.2 1.2z" fill={mid} {...o} />
       </>
     ),
     sos: (
       <>
-        <Path d="M50 12 l30 10 v22 c0 22 -14 34 -30 42 C34 78 20 66 20 44 V22 Z" fill={A()} />
-        <Path d="M45 30 h10 v12 h12 v10 H55 v12 H45 V52 H33 V42 h12 Z" fill={A(0.3)} />
+        <Path d="M12 2.8l7.4 2.9v5.6c0 4.6-3.1 7.9-7.4 10-4.3-2.1-7.4-5.4-7.4-10V5.7z" fill={top} {...o} />
+        <Path d="M10.7 8.4h2.6v2.6h2.6v2.6h-2.6v2.6h-2.6v-2.6H8.1v-2.6h2.6z" fill={face} {...o} />
+      </>
+    ),
+    phrases: (
+      <>
+        <Path d="M3 7A2.4 2.4 0 0 1 5.4 4.6h8.8A2.4 2.4 0 0 1 16.6 7v3.8a2.4 2.4 0 0 1-2.4 2.4H8l-3.6 2.7v-2.7A1.4 1.4 0 0 1 3 11.8z" fill={top} {...o} />
+        <Path d="M12.2 12.4h6.4A2.4 2.4 0 0 1 21 14.8v2.8a2.4 2.4 0 0 1-2.4 2.4v2.2l-3-2.2h-3.4a2.4 2.4 0 0 1-2.4-2.4v-2.8a2.4 2.4 0 0 1 2.4-2.4z" fill={mid} {...o} />
+      </>
+    ),
+    currency: (
+      <>
+        <Circle cx="12" cy="12" r="8.8" fill={top} {...o} />
+        <Circle cx="12" cy="12" r="6" fill={mid} {...o} />
+        <Line x1="12" y1="7.6" x2="12" y2="16.4" {...line} />
+        <Path d="M14.2 9.6h-3a1.8 1.8 0 0 0 0 3.6h1.4a1.8 1.8 0 0 1 0 3.6H9.6" {...line} />
       </>
     ),
   };
+
   return (
-    <Svg width={size} height={size} viewBox="0 0 100 100">
-      {icons[kind] ?? icons.visit}
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      {symbols[kind] ?? symbols.visit}
     </Svg>
   );
 }

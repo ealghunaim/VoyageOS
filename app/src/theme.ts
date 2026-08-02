@@ -160,3 +160,31 @@ export function onColor(hex: string): string {
   const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
   return L > 0.45 ? RAMP.ink : '#FFFFFF';
 }
+
+/**
+ * Raise a colour until it reads as a *fill* against the ink contour.
+ * The filled icon style needs bright areas inside a dark outline; a navy or
+ * near-black accent (UK #012169, Saudi green) otherwise merges with the
+ * contour and the glyph collapses into a solid blob. Light accents pass
+ * through untouched.
+ */
+export function lift(hex: string, target = 0.34): string {
+  const n = parseInt(hex.slice(1), 16);
+  let [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  const lum = (rr: number, gg: number, bb: number) => {
+    const f = (v: number) => {
+      const c = v / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * f(rr) + 0.7152 * f(gg) + 0.0722 * f(bb);
+  };
+  let mix = 0;
+  while (lum(r, g, b) < target && mix < 0.8) {
+    mix += 0.05;
+    const o = parseInt(hex.slice(1), 16);
+    r = Math.round(((o >> 16) & 255) + (255 - ((o >> 16) & 255)) * mix);
+    g = Math.round(((o >> 8) & 255) + (255 - ((o >> 8) & 255)) * mix);
+    b = Math.round((o & 255) + (255 - (o & 255)) * mix);
+  }
+  return `#${[r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')}`;
+}

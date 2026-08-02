@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, LayoutAnimation, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, UIManager, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { askTrip, deleteTrip, getTrip, getTripWeather, patchTrip, Trip, TripDetail, WxDay } from '../api';
@@ -11,14 +11,14 @@ import FlagField from '../components/FlagField';
 import { accentForTrip, onColor, tint, titleize, P, S, RA, E, T, FOLD } from '../theme';
 
 const TILES: { key: string; label: string; sub: string }[] = [
-  { key: 'pack', label: 'Pack', sub: 'Your list, with reasons' },
-  { key: 'plan', label: 'Plan', sub: 'Day-by-day itinerary' },
-  { key: 'know', label: 'Know', sub: 'Entry, plugs, customs' },
-  { key: 'eat', label: 'Eat', sub: 'Dishes worth the trip' },
+  { key: 'pack', label: 'Pack', sub: 'With reasons' },
+  { key: 'plan', label: 'Plan', sub: 'Day by day' },
+  { key: 'know', label: 'Know', sub: 'Entry & plugs' },
+  { key: 'eat', label: 'Eat', sub: 'Dishes worth it' },
   { key: 'play', label: 'Play', sub: 'Experiences' },
   { key: 'visit', label: 'Visit', sub: 'Sights & districts' },
   { key: 'go', label: 'Go', sub: 'Airport & around' },
-  { key: 'journal', label: 'Journal', sub: 'Your travel log' },
+  { key: 'journal', label: 'Journal', sub: 'Travel log' },
   { key: 'sos', label: 'SOS', sub: 'Emergency & care' },
 ];
 
@@ -41,6 +41,10 @@ function FoldEdge({ width, color }: { width: number; color: string }) {
 function Panel({ children, style }: { children: React.ReactNode; style?: object }) {
   return <View style={[s.panel, E.low, style]}>{children}</View>;
 }
+
+const anim = () =>
+  LayoutAnimation.configureNext(LayoutAnimation.create(
+    220, LayoutAnimation.Types.easeInEaseOut, LayoutAnimation.Properties.opacity));
 
 type TripStop = { id: string; place_name: string; country_code: string | null; seq: number };
 
@@ -98,6 +102,9 @@ export default function TripHub({ trip, onBack, onPack, onPlan, onGuide, onJourn
 
   // The list endpoint only carries the first destination, so fetch the real
   // stop list — the hero ground is built from it.
+  // which folder is expanded; only one at a time
+  const [openKey, setOpenKey] = useState<string | null>(null);
+
   const [stops, setStops] = useState<TripStop[]>([]);
   useEffect(() => {
     getTrip(trip.id)
@@ -113,6 +120,7 @@ export default function TripHub({ trip, onBack, onPack, onPlan, onGuide, onJourn
   return (
     <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }}
       contentContainerStyle={{ padding: S[5], paddingTop: S[4], paddingBottom: S[10] }}>
+
 
 
 
@@ -186,25 +194,56 @@ export default function TripHub({ trip, onBack, onPack, onPlan, onGuide, onJourn
         return <DepartureCard trip={trip} accent={chrome} onOpenPacking={onPack} onTripChanged={onTripChanged} />;
       })()}
 
-      <View style={s.grid}>
-        {TILES.map(t => (
-          <Pressable
-            key={t.key}
-            style={({ pressed }) => [s.tile, E.low, pressed && { opacity: 0.75 }]}
-            onPress={() =>
-              t.key === 'pack' ? onPack()
-              : t.key === 'plan' ? onPlan()
-              : t.key === 'journal' ? onJournal()
-              : t.key === 'sos' ? onSOS()
-              : onGuide(t.key)}
-          >
-            <View style={[s.plate, { backgroundColor: plateBg }]}>
-              <TileIcon kind={t.key} accent={chrome} size={20} />
-            </View>
-            <Text style={[T.title, { color: P.textPri }]}>{t.label}</Text>
-            <Text numberOfLines={1} style={[T.caption, { color: P.textMuted }]}>{t.sub}</Text>
-          </Pressable>
-        ))}
+      <View style={{ marginBottom: S[4] }}>
+        {TILES.map((t, i) => {
+          const open = openKey === t.key;
+          // folders sit tight against each other; an open one gets breathing room
+          const gap = open || openKey === TILES[i - 1]?.key ? S[2] : 2;
+          const go = () =>
+            t.key === 'pack' ? onPack()
+            : t.key === 'plan' ? onPlan()
+            : t.key === 'journal' ? onJournal()
+            : t.key === 'sos' ? onSOS()
+            : onGuide(t.key);
+
+          return (
+            <Pressable
+              key={t.key}
+              onPress={() => {
+                anim();
+                setOpenKey(open ? null : t.key);
+              }}
+              style={({ pressed }) => [
+                s.folder, E.low,
+                { marginTop: i === 0 ? 0 : gap, zIndex: i },
+                pressed && { opacity: 0.85 },
+              ]}>
+              <View style={[s.folderTab, { backgroundColor: tint(chrome, 0.34) }]} />
+              <View style={s.folderBody}>
+                <View style={s.tileHead}>
+                  <TileIcon kind={t.key} accent={chrome} size={28} />
+                  <Text style={[T.title, { color: P.textPri, marginLeft: S[2] + 2, flex: 1 }]}>
+                    {t.label}
+                  </Text>
+                  <Text style={[T.caption, { color: P.textMuted }]}>{t.sub}</Text>
+                </View>
+
+                {open && (
+                  <View style={s.inlinePanel}>
+                    <Text style={[T.body, { color: P.textSec }]}>
+                      {t.label} would open here, inside the hub.
+                    </Text>
+                    <Pressable onPress={go}>
+                      <Text style={[T.title, { color: chrome, marginTop: S[2] }]}>
+                        Open {t.label}  ›
+                      </Text>
+                    </Pressable>
+                  </View>
+                )}
+              </View>
+            </Pressable>
+          );
+        })}
       </View>
 
       {editing && (
@@ -292,15 +331,32 @@ const s = StyleSheet.create({
     paddingHorizontal: S[4], paddingVertical: S[3], color: P.textPri,
   },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  tile: {
-    width: '48.5%', backgroundColor: P.card, borderRadius: RA.lg,
-    paddingHorizontal: S[4], paddingVertical: S[3], marginBottom: S[2],
+  folder: {
+    backgroundColor: P.card, borderRadius: RA.lg, overflow: 'hidden',
     borderWidth: 1, borderColor: P.hairline,
   },
-  plate: {
-    width: 36, height: 36, borderRadius: RA.sm,
-    alignItems: 'center', justifyContent: 'center', marginBottom: S[2],
+  folderTab:  { height: 8, width: '100%' },
+  folderBody: { paddingHorizontal: S[4], paddingVertical: S[3] },
+  inlinePanel: {
+    marginTop: S[3], paddingTop: S[3],
+    borderTopWidth: 1, borderTopColor: P.hairline,
   },
+
+  tileStack: { width: '48.5%', marginBottom: S[3], paddingTop: 7 },
+  sliver: {
+    position: 'absolute', height: 14, borderTopLeftRadius: RA.lg,
+    borderTopRightRadius: RA.lg, borderWidth: 1, borderColor: P.hairline,
+  },
+  sliverBack:  { top: 0, left: 14, right: 14 },
+  sliverFront: { top: 3.5, left: 7,  right: 7  },
+  tile: {
+    width: '100%', backgroundColor: P.card, borderRadius: RA.lg,
+    paddingHorizontal: S[4], paddingVertical: S[3],
+    borderWidth: 1, borderColor: P.hairline,
+  },
+  // icon and label share a baseline row — no tinted plate behind the glyph,
+  // which is what kept the grid reading as an app rather than a menu
+  tileHead: { flexDirection: 'row', alignItems: 'center' },
   dateCell: { flex: 1, backgroundColor: P.sunken, borderRadius: RA.md, padding: S[3] },
   footLink: { alignItems: 'center', marginTop: S[4] },
   footRow: { flexDirection: 'row', justifyContent: 'center', marginTop: S[4] },
