@@ -99,14 +99,31 @@ def generate(db, trip: dict, user_id: str, *, regenerate: bool = False) -> dict:
     import json as _json
     user_msg = _json.dumps(ctx, indent=1)
 
+    # Ceiling comes from gateway.TASK_MAX_TOKENS, read here only so the retry
+    # can say what it hit.
+    MAX_TOKENS = gateway.TASK_MAX_TOKENS["packing_generate"]
+
     result, output, attempts = None, None, 0
-    last_error = ""
+    last_error, truncated = "", False
     for attempt in (1, 2):  # one retry, then fallback — never a third call (Part 1 §8)
         attempts = attempt
-        suffix = "" if attempt == 1 else (
-            f"\n\nYour previous output failed validation: {last_error}. "
-            "Output ONLY the corrected JSON object."
-        )
+        if attempt == 1:
+            suffix = ""
+        elif truncated:
+            # Length, not formatting. Asking for "the corrected JSON" here
+            # would produce the same over-long answer and truncate again, so
+            # ask for less content instead.
+            suffix = (
+                "\n\nYour previous output was cut off before it finished, so it "
+                "was too long. Produce the same JSON structure but more "
+                "briefly: keep every essential item, cap the list at 18 items, "
+                "and hold each reason to one short sentence."
+            )
+        else:
+            suffix = (
+                f"\n\nYour previous output failed validation: {last_error}. "
+                "Output ONLY the corrected JSON object."
+            )
         result = gateway.complete("packing_generate", PACKING_SYSTEM_PROMPT,
                                   user_msg + suffix, db=db, user_id=user_id)
         try:
@@ -114,6 +131,10 @@ def generate(db, trip: dict, user_id: str, *, regenerate: bool = False) -> dict:
             break
         except Exception as e:  # noqa: BLE001 — any parse/validation failure retries once
             last_error = str(e)[:200]
+            truncated = result.truncated
+            if truncated:
+                last_error = (f"output truncated at max_tokens={MAX_TOKENS} "
+                              f"({result.tokens_out} tokens)")
             output = None
 
     if output is not None:
