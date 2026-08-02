@@ -46,6 +46,15 @@ class AiResult:
     tokens_out: int
     cost_usd: float
     latency_ms: int
+    #: Why the model stopped. "end_turn" is a complete answer; "max_tokens"
+    #: means the text is cut off mid-sentence and any JSON in it is invalid.
+    #: Callers must branch on this — a truncated response is a length problem,
+    #: not a formatting one, and retrying it unchanged fails the same way.
+    stop_reason: str = ""
+
+    @property
+    def truncated(self) -> bool:
+        return self.stop_reason == "max_tokens"
 
 
 def _tier(task: str) -> str:
@@ -117,7 +126,15 @@ def complete(task: str, system: str, user_content: str, *,
     latency_ms = int((time.monotonic() - t0) * 1000)
 
     text = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
+    stop = getattr(resp, "stop_reason", "") or ""
     tin, tout = resp.usage.input_tokens, resp.usage.output_tokens
+    if stop == "max_tokens":
+        # Loud on purpose. This failure previously surfaced as a JSON parse
+        # error at the call site, which reads as the model's mistake rather
+        # than our ceiling being too low, and it hid a 50% failure rate in
+        # packing_generate for weeks.
+        print(f"[ai] {task} TRUNCATED at max_tokens={max_tokens} "
+              f"({tout} out) — raise the ceiling for this task")
     cread = getattr(resp.usage, "cache_read_input_tokens", 0) or 0
     cwrite = getattr(resp.usage, "cache_creation_input_tokens", 0) or 0
     if cread or cwrite:
@@ -125,10 +142,19 @@ def complete(task: str, system: str, user_content: str, *,
     cost = round(tin * in_price / 1e6 + tout * out_price / 1e6, 5)
 
     if db is not None:
-        db.table("ai_runs").insert({
-            "user_id": user_id, "task": task, "provider": "anthropic", "model": model,
-            "tokens_in": tin, "tokens_out": tout, "cost_usd": cost, "latency_ms": latency_ms,
-        }).execute()
+        # Observability must never take the feature down with it. The model
+        # call already succeeded and the user is owed its result; if this
+        # insert fails — a column not yet migrated, a transient network blip —
+        # log loudly and carry on rather than turning a good answer into a 500.
+        try:
+            db.table("ai_runs").insert({
+                "user_id": user_id, "task": task, "provider": "anthropic", "model": model,
+                "tokens_in": tin, "tokens_out": tout, "cost_usd": cost,
+                "latency_ms": latency_ms, "stop_reason": stop,
+            }).execute()
+        except Exception as e:  # noqa: BLE001 — logging must not break the request
+            print(f"[ai] ai_runs log failed ({type(e).__name__}: {str(e)[:160]}) — "
+                  f"{task} cost ${cost} went unrecorded")
 
     return AiResult(text=text, model=model, tokens_in=tin, tokens_out=tout,
-                    cost_usd=cost, latency_ms=latency_ms)
+                    cost_usd=cost, latency_ms=latency_ms, stop_reason=stop)
