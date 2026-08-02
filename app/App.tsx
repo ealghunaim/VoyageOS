@@ -1,6 +1,6 @@
 import { useFonts } from 'expo-font';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, StatusBar, Text, View } from 'react-native';
+import { ActivityIndicator, SafeAreaView, StatusBar, Text, TextInput, View } from 'react-native';
 import { setAuthFailHandler, Trip } from './src/api';
 import { hasAuthKeys, loadSession, signOut } from './src/auth';
 import { registerForPush } from './src/push';
@@ -20,7 +20,25 @@ import SOS from './src/screens/SOS';
 import TripHub from './src/screens/TripHub';
 import Wizard from './src/screens/Wizard';
 import Archive from './src/screens/Archive';
-import { accentForTrip, C, titleize } from './src/theme';
+import { accentForTrip, C, F, titleize } from './src/theme';
+
+/**
+ * Satoshi as the app-wide default.
+ *
+ * A React Native <Text> with no fontFamily silently falls back to the system
+ * face, and an audit found 71 of them plus 14 TextInputs — styles that set
+ * colour and size but omitted the font. Rather than rely on every style
+ * remembering, the base components default to Satoshi and any explicit style
+ * still overrides. Screens migrated onto the T scale get it either way; this
+ * is the guarantee for the ones that have not moved yet.
+ */
+function defaultToSatoshi() {
+  for (const Comp of [Text, TextInput] as any[]) {
+    Comp.defaultProps = Comp.defaultProps || {};
+    Comp.defaultProps.style = [{ fontFamily: F.reg }, Comp.defaultProps.style];
+  }
+}
+defaultToSatoshi();
 
 type Route =
   | { name: 'home' }
