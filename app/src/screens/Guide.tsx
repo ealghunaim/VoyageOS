@@ -350,6 +350,46 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                 <Text style={[s.link, { color: accent }]}>Search official sources ›</Text>
               </Pressable>
             </Card>
+            {/*
+              Driving. Every word here is written by us, not the model, and the
+              card takes nothing from the guide payload on purpose.
+
+              Whether a given licence is accepted somewhere is a regulatory
+              fact set by bilateral agreement and the two IDP conventions. A
+              model asked for it will answer fluently and sometimes wrongly,
+              and someone acting on "your licence is fine here" can end up
+              driving uninsured or illegally. So the guidance stays generic —
+              true everywhere, specific nowhere — and the only destination
+              input is the country name in a search query.
+            */}
+            <Card>
+              <Text style={s.h}>Driving</Text>
+              <Text style={s.sub}>
+                Most countries expect an International Driving Permit alongside your
+                home licence. Whether yours is accepted on its own depends on which
+                country issued it and the agreements between the two — so this is one
+                to confirm at the source, before you book a car.
+              </Text>
+              {(() => {
+                // `country` is a two-letter code, so it must be expanded before it
+                // reaches either the label or the query — "rules for JP" reads like
+                // a bug, and a bare code is a poor search term.
+                const dest = country ? countryName(country) : place;
+                return (
+                  <>
+                    <Pressable onPress={() => open(`https://www.google.com/search?q=${encodeURIComponent(`${dest} official driving licence requirements for foreign visitors international driving permit`)}`)}>
+                      <Text style={[s.link, { color: accent }]}>Official driving rules for {dest} ›</Text>
+                    </Pressable>
+                    <Pressable onPress={() => open(`https://www.google.com/search?q=${encodeURIComponent(`${dest} embassy ${nat ? countryName(nat) : ''} driving licence`.trim())}`)}>
+                      <Text style={[s.link, { color: accent }]}>Embassy guidance ›</Text>
+                    </Pressable>
+                  </>
+                );
+              })()}
+              <Text style={s.disclaimer}>
+                Generic guidance — VoyageOS does not decide whether your licence is valid abroad.
+              </Text>
+            </Card>
             <Card>
               <Text style={s.h}>Power & plugs</Text>
               <Text style={s.rowName}>{g2.power.plugs || '—'}</Text>
