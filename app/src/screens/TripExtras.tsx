@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { getPhrases, Phrase, Trip } from '../api';
 import { CURRENCIES, currencyForCountry, getRate } from '../fx';
-import { C, F, tint } from '../theme';
+import { C, F, tint, P, S, RA, E, T } from '../theme';
+import TileIcon from '../components/icons';
 
 export default function TripExtras({ trip, accent }: { trip: Trip; accent: string }) {
   const [open, setOpen] = useState<null | 'phrases' | 'money'>(null);
@@ -31,16 +32,20 @@ export default function TripExtras({ trip, accent }: { trip: Trip; accent: strin
   const converted = rate != null ? amt * rate : null;
 
   return (
-    <View style={{ marginBottom: 12 }}>
+    <View style={{ marginBottom: S[3] }}>
       <View style={{ flexDirection: 'row' }}>
         <Pressable onPress={() => setOpen(open === 'phrases' ? null : 'phrases')}
-          style={[s.sq, { marginRight: 10 }, open === 'phrases' && { borderColor: accent, backgroundColor: tint(accent, 0.06) }]}>
-          <Text style={s.emoji}>🗣️</Text>
+          style={[s.sq, { marginRight: S[3] }, open === 'phrases' && { borderColor: accent, backgroundColor: tint(accent, 0.06) }]}>
+          <View style={[s.plate, { backgroundColor: tint(accent, 0.10) }]}>
+            <TileIcon kind="phrases" accent={accent} size={20} />
+          </View>
           <Text style={s.sqLabel}>Phrases</Text>
         </Pressable>
         <Pressable onPress={() => setOpen(open === 'money' ? null : 'money')}
           style={[s.sq, open === 'money' && { borderColor: accent, backgroundColor: tint(accent, 0.06) }]}>
-          <Text style={s.emoji}>💱</Text>
+          <View style={[s.plate, { backgroundColor: tint(accent, 0.10) }]}>
+            <TileIcon kind="currency" accent={accent} size={20} />
+          </View>
           <Text style={s.sqLabel}>Currency</Text>
         </Pressable>
       </View>
@@ -104,10 +109,13 @@ export default function TripExtras({ trip, accent }: { trip: Trip; accent: strin
 }
 
 const s = StyleSheet.create({
-  sq: { flex: 1, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1.5, borderColor: C.border, paddingVertical: 12, alignItems: 'center' },
-  emoji: { fontSize: 22 },
-  sqLabel: { marginTop: 4, color: C.text, fontFamily: F.bold, fontSize: 13 },
-  panel: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 14, marginTop: 10 },
+  sq: { flex: 1, backgroundColor: P.card, borderRadius: RA.lg, borderWidth: 1,
+        borderColor: P.hairline, paddingHorizontal: S[4], paddingVertical: S[3], ...E.low },
+  plate: { width: 36, height: 36, borderRadius: RA.sm,
+           alignItems: 'center', justifyContent: 'center', marginBottom: S[2] },
+  sqLabel: { ...T.title, color: P.textPri },
+  panel: { backgroundColor: P.card, borderRadius: RA.lg, borderWidth: 1,
+           borderColor: P.hairline, padding: S[4], marginTop: S[3], ...E.low },
   lang: { fontFamily: F.bold, fontSize: 13, marginBottom: 4 },
   local: { color: C.text, fontSize: 17, fontFamily: F.bold },
   en: { color: C.sub, fontSize: 13, marginTop: 1 },

@@ -65,6 +65,18 @@ export default function TileIcon({ kind, accent, size = 30 }: {
         <Path d="M34 55 l7 7 15 -17" stroke="#fff" strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </>
     ),
+    phrases: (
+      <>
+        <Path d="M18 20 h48 a8 8 0 0 1 8 8 v24 a8 8 0 0 1 -8 8 H40 L26 72 V60 h-8 a8 8 0 0 1 -8 -8 V28 a8 8 0 0 1 8 -8 Z" fill={A()} />
+        <Path d="M52 44 h34 a6 6 0 0 1 6 6 v18 a6 6 0 0 1 -6 6 h-4 v10 L70 74 H52 Z" fill={A(0.32)} />
+      </>
+    ),
+    currency: (
+      <>
+        <Path d="M50 10 a40 40 0 1 1 -0.1 0 Z M50 22 a28 28 0 1 0 0.1 0 Z" fill={A(0.28)} />
+        <Path d="M46 28 h8 v6 h10 v9 H46 a4 4 0 0 0 0 8 h8 a13 13 0 0 1 0 26 v6 h-8 v-6 H36 v-9 h18 a4 4 0 0 0 0 -8 h-8 a13 13 0 0 1 0 -26 Z" fill={A()} />
+      </>
+    ),
     sos: (
       <>
         <Path d="M50 12 l30 10 v22 c0 22 -14 34 -30 42 C34 78 20 66 20 44 V22 Z" fill={A()} />

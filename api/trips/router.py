@@ -47,17 +47,23 @@ def list_trips(user_id: str = Depends(current_user_id)):
     # app's accent, currency, and landmark resolve correctly (they read trip.country_code)
     ids = [t["id"] for t in trips]
     dests = (
-        db.table("destinations").select("trip_id,place_name,country_code,seq")
+        db.table("destinations").select("id,trip_id,place_name,country_code,seq")
         .in_("trip_id", ids).order("seq").execute()
     ).data
     first: dict = {}
+    by_trip: dict = {}
     for d in dests:
         first.setdefault(d["trip_id"], d)
+        by_trip.setdefault(d["trip_id"], []).append(d)
     for t in trips:
         d = first.get(t["id"])
         if d:
             t["place"] = d.get("place_name")
             t["country_code"] = t.get("country_code") or d.get("country_code")
+        # the full stop list costs nothing here — the query above already read
+        # every destination — and lets the trip list render the same
+        # multi-country hero as the trip screen instead of only the first flag
+        t["destinations"] = by_trip.get(t["id"], [])
     return trips
 
 

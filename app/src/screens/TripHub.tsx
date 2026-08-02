@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { askTrip, deleteTrip, getTripWeather, patchTrip, Trip, WxDay } from '../api';
+import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
+import { askTrip, deleteTrip, getTrip, getTripWeather, patchTrip, Trip, TripDetail, WxDay } from '../api';
 import TileIcon from '../components/icons';
 import DepartureCard from './DepartureCard';
 import JourneyEditor from './JourneyEditor';
 import TripExtras from './TripExtras';
-import TripArt from '../components/TripArt';
-import { Card } from '../components/ui';
-import { accentForTrip, C, tint, F, titleize } from '../theme';
+import FlagField from '../components/FlagField';
+import { accentForTrip, onColor, tint, titleize, P, S, RA, E, T, FOLD } from '../theme';
 
 const TILES: { key: string; label: string; sub: string }[] = [
   { key: 'pack', label: 'Pack', sub: 'Your list, with reasons' },
@@ -22,12 +22,63 @@ const TILES: { key: string; label: string; sub: string }[] = [
   { key: 'sos', label: 'SOS', sub: 'Emergency & care' },
 ];
 
+/**
+ * The fold. A trip goes out and comes back — the V is that shape, and here it
+ * does real work: it cuts the destination ground away from the tools below.
+ * Drawn once per screen; the whole motif's weight rests on this one edge.
+ */
+function FoldEdge({ width, color }: { width: number; color: string }) {
+  const d = FOLD.depth;
+  if (!width) return null;
+  return (
+    <Svg width={width} height={d} style={{ position: 'absolute', bottom: 0, left: 0 }}>
+      <Path d={`M0,0 L${width / 2},${d} L${width},0 L${width},${d} L0,${d} Z`} fill={P.card} />
+      <Path d={`M0,0 L${width / 2},${d} L${width},0`} stroke={color} strokeWidth={3} fill="none" />
+    </Svg>
+  );
+}
+
+function Panel({ children, style }: { children: React.ReactNode; style?: object }) {
+  return <View style={[s.panel, E.low, style]}>{children}</View>;
+}
+
+type TripStop = { id: string; place_name: string; country_code: string | null; seq: number };
+
+/**
+ * A scrim that sinks the artwork into the solid ground beneath the title.
+ * Without it the landscape stops at a hard line; with it the card reads as one
+ * deepening field of colour, which is most of what makes it feel considered.
+ */
+function Scrim({ width, height, color }: { width: number; height: number; color: string }) {
+  if (!width) return null;
+  return (
+    <Svg width={width} height={height} style={{ position: 'absolute', bottom: 0, left: 0 }}
+      pointerEvents="none">
+      <Defs>
+        <LinearGradient id="scrim" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor={color} stopOpacity="0" />
+          <Stop offset="1" stopColor={color} stopOpacity="1" />
+        </LinearGradient>
+      </Defs>
+      <Rect x="0" y="0" width={width} height={height} fill="url(#scrim)" />
+    </Svg>
+  );
+}
+
 export default function TripHub({ trip, onBack, onPack, onPlan, onGuide, onJournal, onSOS, onDebrief, onTripChanged }: {
   trip: Trip; onBack: () => void; onPack: () => void; onPlan: () => void;
   onGuide: (section: string) => void; onJournal: () => void; onSOS: () => void; onDebrief: () => void;
   onTripChanged: (t: Trip | null) => void;
 }) {
-  const accent = accentForTrip(trip.country_code, trip.title);
+  // Colour doctrine: the destination fills the hero ground and carries the
+  // controls beneath it, so a trip reads as one field of colour from the card
+  // to the tab bar. Type on the ground is white or ink by luminance, never
+  // brand blue — blue on crimson or green vibrates.
+  const dest = accentForTrip(trip.country_code, trip.title);
+  const heroInk = onColor(dest);
+  const chrome = dest;
+  const plateBg = tint(dest, 0.10);
+
   const [editing, setEditing] = useState(false);
   const [eStart, setEStart] = useState(trip.start_date);
   const [eEnd, setEEnd] = useState(trip.end_date);
@@ -37,6 +88,7 @@ export default function TripHub({ trip, onBack, onPack, onPlan, onGuide, onJourn
   const [answer, setAnswer] = useState<string | null>(null);
   const [journeyOpen, setJourneyOpen] = useState(false);
   const [wx, setWx] = useState<WxDay[]>([]);
+  const [heroW, setHeroW] = useState(0);
   const past = new Date(trip.start_date + 'T00:00:00').getTime() < Date.now();
 
   const loadWx = useCallback(async () => {
@@ -44,65 +96,101 @@ export default function TripHub({ trip, onBack, onPack, onPlan, onGuide, onJourn
   }, [trip.id]);
   useEffect(() => { loadWx(); }, [loadWx]);
 
+  // The list endpoint only carries the first destination, so fetch the real
+  // stop list — the hero ground is built from it.
+  const [stops, setStops] = useState<TripStop[]>([]);
+  useEffect(() => {
+    getTrip(trip.id)
+      .then((d: TripDetail) => setStops((d.destinations ?? []) as TripStop[]))
+      .catch(() => {});
+  }, [trip.id]);
+
+
+  const ground: TripStop[] = stops.length
+    ? stops
+    : [{ id: 'fallback', place_name: trip.place ?? trip.title, country_code: trip.country_code ?? null, seq: 1 }];
+
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20, paddingTop: 16 }}>
-      <Pressable onPress={onBack} hitSlop={10} style={{ marginBottom: 10 }}>
-        <Text style={{ color: C.blue, fontSize: 16, fontFamily: F.bold }}>‹ Trips</Text>
+    <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }}
+      contentContainerStyle={{ padding: S[5], paddingTop: S[4], paddingBottom: S[10] }}>
+
+
+
+      <Pressable onPress={onBack} hitSlop={10} style={{ marginBottom: S[3] }}>
+        <Text style={[T.title, { color: chrome }]}>‹  Trips</Text>
       </Pressable>
 
-      <Card style={{ padding: 0, overflow: 'hidden', marginBottom: 18 }}>
-        <TripArt seed={trip.place ?? trip.title} accent={accent} height={168} />
-        <View style={{ padding: 18, paddingTop: 12 }}>
-          <Text style={s.title}>{titleize(trip.title)}</Text>
-          <Text style={s.dates}>{trip.start_date} → {trip.end_date}</Text>
+      <Panel style={{ padding: 0, overflow: 'hidden', marginBottom: S[5], ...E.mid,
+        backgroundColor: dest }}>
+        <View onLayout={e => setHeroW(e.nativeEvent.layout.width)}>
+          <FlagField stops={ground} style="wash" height={124} />
+          <Scrim width={heroW} height={64} color={dest} />
+        </View>
+        <View style={{ paddingHorizontal: S[5], paddingTop: S[2], paddingBottom: S[6] }}>
+          <Text style={[T.display, { color: heroInk }]}>{titleize(trip.title)}</Text>
+          <Text style={[T.body, { color: heroInk, opacity: 0.75, marginTop: S[1] }]}>
+            {trip.start_date}  →  {trip.end_date}
+          </Text>
+          {ground.length > 1 && (
+            <Text style={[T.caption, { color: heroInk, opacity: 0.7, marginTop: S[2] }]}>
+              {ground.map(d => d.place_name).join('  →  ')}
+            </Text>
+          )}
           {wx.length > 0 && wx.every(d => d.provider === 'climatology') && (
-            <Text style={{ color: C.sub, fontSize: 11, fontFamily: F.bold, letterSpacing: 0.6, marginTop: 8 }}>
+            <Text style={[T.label, { color: heroInk, opacity: 0.7, marginTop: S[3] }]}>
               TYPICAL {new Date(trip.start_date).toLocaleString('en', { month: 'long' }).toUpperCase()} · LAST YEAR
             </Text>
           )}
           {wx.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-              <Text style={s.wx}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: S[2] }}>
+              <Text style={[T.caption, { color: heroInk }]}>
                 {wx.map(d =>
                   `${d.date.slice(5)} ${d.temp_max != null ? Math.round(d.temp_max) : '–'}°` +
                   `${(d.precip_prob ?? 0) >= 60 ? '☔' : (d.uv ?? 0) >= 8 ? '☀' : ''}`
-                ).join('  ·  ')}
+                ).join('   ·   ')}
               </Text>
             </ScrollView>
           )}
         </View>
-      </Card>
+        <FoldEdge width={heroW} color={heroInk} />
+      </Panel>
 
-      <View style={{ backgroundColor: '#fff', borderRadius: 22, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: C.border }}>
+      <Panel style={{ marginBottom: S[3] }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <TextInput
-            style={{ flex: 1, backgroundColor: '#F1F4F9', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, color: C.text }}
+            style={[T.body, s.input]}
             value={aq} onChangeText={setAq}
-            placeholder="Ask about this trip - weather, what to wear, anything"
-            placeholderTextColor="#9AA9BB" />
+            placeholder="Ask about this trip"
+            placeholderTextColor={P.textMuted} />
           <Pressable disabled={aBusy || aq.trim().length < 3} onPress={async () => {
             setABusy(true); setAnswer(null);
             try { const r = await askTrip(trip.id, aq.trim()); setAnswer(r.answer); }
             catch (e: any) { setAnswer(e.message); }
             finally { setABusy(false); }
           }}>
-            <Text style={{ color: accent, fontFamily: F.bold, fontSize: 15, marginLeft: 12, opacity: aBusy || aq.trim().length < 3 ? 0.4 : 1 }}>{aBusy ? '...' : 'Ask'}</Text>
+            <Text style={[T.title, { marginLeft: S[3],
+              color: (aBusy || aq.trim().length < 3) ? P.textMuted : chrome }]}>
+              {aBusy ? '…' : 'Ask'}
+            </Text>
           </Pressable>
         </View>
-        {!!answer && <Text style={{ color: C.text, lineHeight: 21, marginTop: 10 }}>{answer}</Text>}
-      </View>
-      <TripExtras trip={trip} accent={accent} />
+        {!!answer && <Text style={[T.body, { color: P.textPri, marginTop: S[3] }]}>{answer}</Text>}
+      </Panel>
+
+      <TripExtras trip={trip} accent={chrome} />
+
       {(() => {
         const endMs = new Date(trip.end_date + 'T23:59:00').getTime();
         const hrsToEnd = (endMs - Date.now()) / 3600000;
         if (hrsToEnd > 24 || hrsToEnd < -24) return null;
-        return <DepartureCard trip={trip} accent={accent} onOpenPacking={onPack} onTripChanged={onTripChanged} />;
+        return <DepartureCard trip={trip} accent={chrome} onOpenPacking={onPack} onTripChanged={onTripChanged} />;
       })()}
+
       <View style={s.grid}>
         {TILES.map(t => (
           <Pressable
             key={t.key}
-            style={[s.tile, { backgroundColor: '#fff' }]}
+            style={({ pressed }) => [s.tile, E.low, pressed && { opacity: 0.75 }]}
             onPress={() =>
               t.key === 'pack' ? onPack()
               : t.key === 'plan' ? onPlan()
@@ -110,23 +198,24 @@ export default function TripHub({ trip, onBack, onPack, onPlan, onGuide, onJourn
               : t.key === 'sos' ? onSOS()
               : onGuide(t.key)}
           >
-            <View style={[s.iconWrap, { backgroundColor: tint(accent, 0.14) }]}>
-              <TileIcon kind={t.key} accent={accent} size={30} />
+            <View style={[s.plate, { backgroundColor: plateBg }]}>
+              <TileIcon kind={t.key} accent={chrome} size={20} />
             </View>
-            <Text style={s.tileLabel}>{t.label}</Text>
-            <Text style={s.tileSub}>{t.sub}</Text>
+            <Text style={[T.title, { color: P.textPri }]}>{t.label}</Text>
+            <Text numberOfLines={1} style={[T.caption, { color: P.textMuted }]}>{t.sub}</Text>
           </Pressable>
         ))}
       </View>
 
       {editing && (
-        <View style={{ backgroundColor: '#fff', borderRadius: 22, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: C.border }}>
-          <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+        <Panel style={{ marginTop: S[3] }}>
+          <View style={{ flexDirection: 'row', marginBottom: S[2] }}>
             {(['start', 'end'] as const).map(k => (
               <Pressable key={k} onPress={() => setPicking(k)}
-                style={{ flex: 1, backgroundColor: picking === k ? tint(accent, 0.14) : '#F1F4F9', borderRadius: 12, padding: 10, marginRight: k === 'start' ? 8 : 0 }}>
-                <Text style={{ color: C.sub, fontSize: 11, fontFamily: F.bold }}>{k.toUpperCase()}</Text>
-                <Text style={{ color: C.text, fontFamily: F.bold }}>{k === 'start' ? eStart : eEnd}</Text>
+                style={[s.dateCell, { marginRight: k === 'start' ? S[2] : 0 },
+                  picking === k && { backgroundColor: plateBg }]}>
+                <Text style={[T.label, { color: P.textMuted }]}>{k.toUpperCase()}</Text>
+                <Text style={[T.title, { color: P.textPri }]}>{k === 'start' ? eStart : eEnd}</Text>
               </Pressable>
             ))}
           </View>
@@ -146,15 +235,22 @@ export default function TripHub({ trip, onBack, onPack, onPlan, onGuide, onJourn
               onTripChanged({ ...trip, ...t });
             } catch (e: any) { Alert.alert('Dates', e.message); }
           }}>
-            <Text style={{ color: accent, fontFamily: F.bold, textAlign: 'center', marginTop: 8 }}>Save dates</Text>
+            <Text style={[T.title, { color: chrome, textAlign: 'center', marginTop: S[2] }]}>Save dates</Text>
           </Pressable>
-        </View>
+        </Panel>
       )}
-      <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 4 }}>
+
+      <Pressable onPress={() => setJourneyOpen(true)} style={s.footLink}>
+        <Text style={[T.title, { color: chrome }]}>
+          Your journey{trip.segments && trip.segments.length ? `  ·  ${trip.segments.length} legs` : ''}  ›
+        </Text>
+      </Pressable>
+
+      <View style={s.footRow}>
         <Pressable onPress={() => setEditing(v => !v)}>
-          <Text style={{ color: C.sub, fontFamily: F.bold }}>{editing ? 'Cancel' : 'Edit dates'}</Text>
+          <Text style={[T.caption, { color: P.textSec }]}>{editing ? 'Cancel' : 'Edit dates'}</Text>
         </Pressable>
-        <Text style={{ color: C.sub }}>{'    ·    '}</Text>
+        <Text style={[T.caption, { color: P.hairlineStrong }]}>    ·    </Text>
         <Pressable onPress={() =>
           Alert.alert('Delete this trip?', 'The list, guide, journal, and reminders go with it.', [
             { text: 'Keep it', style: 'cancel' },
@@ -163,24 +259,23 @@ export default function TripHub({ trip, onBack, onPack, onPlan, onGuide, onJourn
               catch (e: any) { Alert.alert('Delete', e.message); }
             } },
           ])}>
-          <Text style={{ color: C.red, fontFamily: F.bold }}>Delete trip</Text>
+          {/* Deliberately not red. On a red-flag destination P.danger (#E02D3C)
+              is indistinguishable from the accent (Japan is #BC002D), so colour
+              stops signalling danger. The confirm dialog carries that weight
+              instead, which leaves one accent per screen. */}
+          <Text style={[T.caption, { color: P.textSec }]}>Delete trip</Text>
         </Pressable>
       </View>
-      {(trip as any).destinations?.length > 1 && (
-        <Text style={{ color: C.sub, textAlign: 'center', marginTop: 12, fontSize: 13 }}>
-          {(trip as any).destinations.map((d: any) => d.place_name).join('  →  ')}
-        </Text>
-      )}
-      <Pressable onPress={() => setJourneyOpen(true)} style={{ alignItems: 'center', marginTop: 12 }}>
-        <Text style={{ color: accent, fontFamily: F.bold }}>✈ Your journey{trip.segments && trip.segments.length ? ` · ${trip.segments.length} legs` : ''} ›</Text>
-      </Pressable>
+
       {journeyOpen && (
-        <JourneyEditor trip={trip} accent={accent}
+        <JourneyEditor trip={trip} accent={chrome}
           onClose={() => setJourneyOpen(false)} onSaved={onTripChanged} />
       )}
       {past && trip.status !== 'completed' && (
         <Pressable onPress={onDebrief}>
-          <Text style={[s.debrief, { color: accent }]}>Close out this trip — 60-second debrief ›</Text>
+          <Text style={[T.title, { color: chrome, textAlign: 'center', marginTop: S[3] }]}>
+            Close out this trip — 60-second debrief  ›
+          </Text>
         </Pressable>
       )}
     </ScrollView>
@@ -188,21 +283,25 @@ export default function TripHub({ trip, onBack, onPack, onPlan, onGuide, onJourn
 }
 
 const s = StyleSheet.create({
-  title: { fontSize: 31, fontFamily: F.bold, color: C.text, letterSpacing: -0.8 },
-  dates: { color: C.sub, marginTop: 4, fontSize: 15 },
-  wx: { color: C.text, fontFamily: F.med, fontSize: 13 },
+  panel: {
+    backgroundColor: P.card, borderRadius: RA.xl, padding: S[5],
+    borderWidth: 1, borderColor: P.hairline,
+  },
+  input: {
+    flex: 1, backgroundColor: P.sunken, borderRadius: RA.md,
+    paddingHorizontal: S[4], paddingVertical: S[3], color: P.textPri,
+  },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   tile: {
-    width: '48.5%', borderRadius: 22, padding: 16, marginBottom: 12, alignItems: 'center',
-    borderWidth: 1, borderColor: C.border,
-    shadowColor: '#0B1526', shadowOpacity: 0.05, shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 }, elevation: 2,
+    width: '48.5%', backgroundColor: P.card, borderRadius: RA.lg,
+    paddingHorizontal: S[4], paddingVertical: S[3], marginBottom: S[2],
+    borderWidth: 1, borderColor: P.hairline,
   },
-  iconWrap: {
-    width: 52, height: 52, borderRadius: 16, alignItems: 'center',
-    justifyContent: 'center', marginBottom: 10,
+  plate: {
+    width: 36, height: 36, borderRadius: RA.sm,
+    alignItems: 'center', justifyContent: 'center', marginBottom: S[2],
   },
-  tileLabel: { fontSize: 17, fontFamily: F.bold, color: C.text, textAlign: 'center' },
-  tileSub: { color: C.sub, fontSize: 12, marginTop: 2, textAlign: 'center' },
-  debrief: { fontFamily: F.bold, textAlign: 'center', marginTop: 8 },
+  dateCell: { flex: 1, backgroundColor: P.sunken, borderRadius: RA.md, padding: S[3] },
+  footLink: { alignItems: 'center', marginTop: S[4] },
+  footRow: { flexDirection: 'row', justifyContent: 'center', marginTop: S[4] },
 });

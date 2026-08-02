@@ -158,6 +158,9 @@ export default function App() {
       {showBar && (
         <BottomBar
           active={route.name === 'home' ? 'home' : route.name === 'profile' ? 'profile' : null}
+          accent={'trip' in route && route.trip
+            ? accentForTrip((route.trip as any).country_code, route.trip.title)
+            : undefined}
           onHome={goHome}
           onNew={() => setRoute({ name: 'wizard' })}
           onProfile={() => setRoute({ name: 'profile' })}

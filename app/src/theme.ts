@@ -74,3 +74,89 @@ export function tint(hex: string, alpha = 0.14): string {
   const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
   return `rgba(${r},${g},${b},${alpha})`;
 }
+
+// ─────────────────────────────────────────────────────────────
+// Brand system v3 — "Journey. Optimized."
+// Additive on purpose: C / R / SHADOW above are untouched, so screens
+// that haven't migrated yet render exactly as before. Screens move onto
+// P / S / RA / E / T one at a time; the old exports go once the last does.
+// ─────────────────────────────────────────────────────────────
+
+const RAMP = {
+  ink:    '#0D182A',
+  indigo: '#1B2CFB',
+  blue:   '#3465FF',
+  cyan:   '#00C2FF',
+  sky:    '#6EE7FF',
+};
+
+export const P = {
+  brand:      RAMP.indigo,
+  brandHover: RAMP.blue,
+  brandWash:  'rgba(27,44,251,0.06)',
+  gradient:     [RAMP.indigo, RAMP.cyan] as [string, string],
+  gradientSoft: [RAMP.cyan,   RAMP.sky ] as [string, string],
+
+  pageBg:  '#F4F7FB',
+  card:    '#FFFFFF',
+  sunken:  '#EDF2F8',
+  inverse: RAMP.ink,
+
+  textPri:    RAMP.ink,
+  textSec:    '#5B6B82',
+  textMuted:  '#8B9AB0',
+  textOnDark: '#FFFFFF',
+
+  hairline:       '#E4EBF4',
+  hairlineStrong: '#CFDAE8',
+
+  success: '#0E9F6E',
+  danger:  '#E02D3C',
+  warning: '#E8A63A',
+};
+
+/** 4pt grid. Replaces the scattered 10/14/18/22 literals. */
+export const S = { 1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 8: 32, 10: 40, 12: 48 } as const;
+
+export const RA = { sm: 10, md: 14, lg: 18, xl: 24, pill: 999 } as const;
+
+/** Three deliberate steps rather than one blanket shadow. */
+export const E = {
+  low:  { shadowColor: RAMP.ink, shadowOpacity: 0.04, shadowRadius: 8,
+          shadowOffset: { width: 0, height: 2 },  elevation: 1 },
+  mid:  { shadowColor: RAMP.ink, shadowOpacity: 0.07, shadowRadius: 18,
+          shadowOffset: { width: 0, height: 8 },  elevation: 3 },
+  high: { shadowColor: RAMP.ink, shadowOpacity: 0.12, shadowRadius: 30,
+          shadowOffset: { width: 0, height: 16 }, elevation: 8 },
+};
+
+/** Satoshi only — weight and tracking carry the hierarchy.
+ *  headings -> F.bold · subheads -> F.med · body -> F.reg */
+export const T = {
+  display: { fontFamily: F.bold, fontSize: 32, lineHeight: 36, letterSpacing: -0.8 },
+  h1:      { fontFamily: F.bold, fontSize: 24, lineHeight: 29, letterSpacing: -0.5 },
+  h2:      { fontFamily: F.bold, fontSize: 19, lineHeight: 24, letterSpacing: -0.3 },
+  title:   { fontFamily: F.med,  fontSize: 16, lineHeight: 21, letterSpacing: -0.1 },
+  body:    { fontFamily: F.reg,  fontSize: 15, lineHeight: 21 },
+  caption: { fontFamily: F.reg,  fontSize: 13, lineHeight: 18 },
+  label:   { fontFamily: F.bold, fontSize: 11, lineHeight: 14, letterSpacing: 0.8 },
+} as const;
+
+/** A trip goes out and comes back — the V is that shape. It appears once
+ *  per screen as real structure (the hero's folded lower edge), not ornament. */
+export const FOLD = { depth: 18 } as const;
+
+/**
+ * Readable ink for text sitting on a filled colour. Flag accents run from
+ * Japan crimson to Colombia yellow, so white is not always safe — this picks
+ * white or deep ink by relative luminance rather than assuming.
+ */
+export function onColor(hex: string): string {
+  const n = parseInt(hex.slice(1), 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return L > 0.45 ? RAMP.ink : '#FFFFFF';
+}

@@ -3,7 +3,7 @@ import {
   ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { getTripWeather, listTrips, Trip, WxDay } from '../api';
-import TripArt from '../components/TripArt';
+import FlagField from '../components/FlagField';
 import Wordmark from '../components/Wordmark';
 import { Btn, Card } from '../components/ui';
 import { accentForTrip, C, F, titleize } from '../theme';
@@ -90,7 +90,11 @@ export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, onArc
           <Pressable key={t.id} onPress={() => onOpenTrip(t)}>
             <Card style={[{ padding: 0, overflow: 'hidden' }, imminent && { borderWidth: 2, borderColor: accent }] as any}>
               <View>
-                <TripArt seed={t.place ?? t.title} accent={accent} height={imminent ? 156 : 104} />
+                <FlagField
+                  stops={(t.destinations?.length
+                    ? t.destinations
+                    : [{ place_name: t.place ?? t.title, country_code: t.country_code ?? null }])}
+                  style="wash" height={imminent ? 156 : 104} />
                 <View style={s.pillFloat}>
                   <Text style={[s.pillText, { color: accent }]}>{done ? 'debriefed ✓' : when}</Text>
                 </View>

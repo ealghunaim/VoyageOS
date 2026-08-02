@@ -6,6 +6,7 @@ const APP_KEY: string = (CFG as any).APP_KEY ?? '';
 let onAuthFail: (() => void) | null = null;
 export function setAuthFailHandler(fn: () => void) { onAuthFail = fn; }
 
+export type TripStop = { id: string; place_name: string; country_code: string | null; seq?: number };
 export type Segment = { mode: string; ref?: string | null; origin?: string | null; dest?: string | null; depart?: string | null; arrive?: string | null };
 export type Trip = {
   place?: string | null; country_code?: string | null; travel_mode?: string | null;
@@ -16,6 +17,9 @@ export type Trip = {
   origin?: string | null; origin_country?: string | null; origin_lat?: number | null; origin_lng?: number | null;
   id: string; title: string; start_date: string; end_date: string;
   trip_type?: string | null; status: string;
+  /** every stop, in seq order — list_trips attaches this so the trip list can
+   *  render the same multi-country hero as the trip screen */
+  destinations?: TripStop[] | null;
 };
 export type PackItem = {
   style_tag?: string | null; weight_g?: number | null;
@@ -173,9 +177,7 @@ export const getProfile = (): Promise<Profile> => req('/v1/me/profile');
 export const putProfile = (b: Partial<Profile>): Promise<Profile> =>
   req('/v1/me/profile', { method: 'PUT', body: JSON.stringify(b) });
 
-export type TripDetail = Trip & {
-  destinations: { id: string; place_name: string; country_code: string | null; seq: number }[];
-};
+export type TripDetail = Trip & { destinations: TripStop[] };
 export const getTrip = (id: string): Promise<TripDetail> => req(`/v1/trips/${id}`);
 export type Note = { id: string; body: string; created_at: string; photos?: string[] };
 export const listNotes = (tripId: string): Promise<Note[]> => req(`/v1/trips/${tripId}/notes`);
