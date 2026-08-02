@@ -12,8 +12,8 @@ import { accentForTrip, onColor, tint, titleize, P, S, RA, E, T, FOLD } from '..
 
 const TILES: { key: string; label: string; sub: string }[] = [
   { key: 'pack', label: 'Pack', sub: 'With reasons' },
-  { key: 'plan', label: 'Plan', sub: 'Day by day' },
   { key: 'know', label: 'Know', sub: 'Entry & plugs' },
+  { key: 'plan', label: 'Plan', sub: 'Day by day' },
   { key: 'eat', label: 'Eat', sub: 'Dishes worth it' },
   { key: 'play', label: 'Play', sub: 'Experiences' },
   { key: 'visit', label: 'Visit', sub: 'Sights & districts' },
@@ -233,13 +233,8 @@ export default function TripHub({ trip, accent, onBack, onPack, onPlan, onGuide,
 
                 {open && (
                   <View style={s.inlinePanel}>
-                    <Text style={[T.body, { color: P.textSec }]}>
-                      {t.label} would open here, inside the hub.
-                    </Text>
                     <Pressable onPress={go}>
-                      <Text style={[T.title, { color: chrome, marginTop: S[2] }]}>
-                        Open {t.label}  ›
-                      </Text>
+                      <Text style={[T.title, { color: chrome }]}>Open {t.label}  ›</Text>
                     </Pressable>
                   </View>
                 )}

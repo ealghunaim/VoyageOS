@@ -63,12 +63,17 @@ export default function TileIcon({ kind, accent, size = 30, palette = 'accent' }
         <Line x1="8.6" y1="16.8" x2="14.2" y2="16.8" {...line} />
       </>
     ),
+    // Both the fork head and the knife blade are filled: every other icon in
+    // the set leads with a solid shape inside the contour, and unfilled
+    // cutlery read as thin line-art next to them.
     eat: (
       <>
-        <Path d="M7.2 2.8v5.6a1.9 1.9 0 0 1-3.8 0V2.8" {...line} />
-        <Line x1="5.3" y1="8.4" x2="5.3" y2="21.2" {...line} />
-        <Path d="M17.6 2.8c1.8 0 3 1.9 3 4.4s-1.2 4.2-3 4.2z" fill={top} {...o} />
-        <Line x1="17.6" y1="11.4" x2="17.6" y2="21.2" {...line} />
+        <Path d="M3.8 2.6h5.2v5.4a2.6 2.6 0 0 1-5.2 0z" fill={mid} {...o} />
+        <Line x1="5.2" y1="3.6" x2="5.2" y2="6.2" {...line} />
+        <Line x1="7.6" y1="3.6" x2="7.6" y2="6.2" {...line} />
+        <Line x1="6.4" y1="8" x2="6.4" y2="21.4" {...line} />
+        <Path d="M17.2 2.6c2.4 0 3.8 2.4 3.8 5.2s-1.4 4.8-3.8 4.8z" fill={top} {...o} />
+        <Line x1="17.2" y1="12.6" x2="17.2" y2="21.4" {...line} />
       </>
     ),
     play: (
