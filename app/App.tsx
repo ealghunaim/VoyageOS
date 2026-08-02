@@ -41,6 +41,9 @@ type Route =
 export default function App() {
   const [route, setRoute] = useState<Route>({ name: 'home' });
   const [homeKey, setHomeKey] = useState(0);
+  // In-trip screens wear the destination's colour. The FAB and bottom bar stay
+  // brand blue in every trip — they are global chrome, not trip surface.
+  const screenAccent = (t: Trip) => accentForTrip(t.country_code, t.title);
   const [booting, setBooting] = useState(true);
   const [fontsLoaded] = useFonts({
     Satoshi: require('./assets/fonts/Satoshi-Regular.otf'),
@@ -102,7 +105,7 @@ export default function App() {
         />
       )}
       {route.name === 'hub' && (
-        <TripHub trip={route.trip} onBack={goHome}
+        <TripHub trip={route.trip} accent={screenAccent(route.trip)} onBack={goHome}
           onPack={() => setRoute({ name: 'packing', trip: route.trip })}
           onPlan={() => setRoute({ name: 'plan', trip: route.trip })}
           onGuide={(section) => setRoute({ name: 'guide', trip: route.trip, section })}
@@ -117,33 +120,33 @@ export default function App() {
       )}
       {route.name === 'packing' && (
         <Packing tripId={route.trip.id} tripTitle={titleize(route.trip.title)}
-          accent={accentForTrip(route.trip.country_code, route.trip.title)}
+          accent={screenAccent(route.trip)}
           onBack={() => setRoute({ name: 'hub', trip: route.trip })}
           onDebrief={() => setRoute({ name: 'debrief', trip: route.trip })} />
       )}
       {route.name === 'guide' && (
         <Guide trip={route.trip} tripId={route.trip.id} tripTitle={titleize(route.trip.title)} section={route.section}
           onTripChanged={(t) => setRoute({ name: 'guide', trip: t, section: route.section })}
-          accent={accentForTrip(route.trip.country_code, route.trip.title)}
+          accent={screenAccent(route.trip)}
           place={route.trip.place ?? route.trip.title.replace(/ trip$/i, '')}
           country={route.trip.country_code ?? null}
           onBack={() => setRoute({ name: 'hub', trip: route.trip })} />
       )}
       {route.name === 'journal' && (
         <Journal tripId={route.trip.id} tripTitle={titleize(route.trip.title)}
-          accent={accentForTrip(route.trip.country_code, route.trip.title)}
+          accent={screenAccent(route.trip)}
           onBack={() => setRoute({ name: 'hub', trip: route.trip })} />
       )}
       {route.name === 'plan' && (
         <Planner tripId={route.trip.id} tripTitle={titleize(route.trip.title)}
-          accent={accentForTrip(route.trip.country_code, route.trip.title)}
+          accent={screenAccent(route.trip)}
           startDate={route.trip.start_date} endDate={route.trip.end_date}
           onBack={() => setRoute({ name: 'hub', trip: route.trip })} />
       )}
       {route.name === 'sos' && (
         <SOS tripId={route.trip.id} tripTitle={titleize(route.trip.title)}
           place={route.trip.place ?? route.trip.title.replace(/ trip$/i, '')}
-          accent={accentForTrip(route.trip.country_code, route.trip.title)}
+          accent={screenAccent(route.trip)}
           onBack={() => setRoute({ name: 'hub', trip: route.trip })} />
       )}
       {route.name === 'debrief' && (
@@ -158,9 +161,6 @@ export default function App() {
       {showBar && (
         <BottomBar
           active={route.name === 'home' ? 'home' : route.name === 'profile' ? 'profile' : null}
-          accent={'trip' in route && route.trip
-            ? accentForTrip((route.trip as any).country_code, route.trip.title)
-            : undefined}
           onHome={goHome}
           onNew={() => setRoute({ name: 'wizard' })}
           onProfile={() => setRoute({ name: 'profile' })}
@@ -169,3 +169,4 @@ export default function App() {
     </SafeAreaView>
   );
 }
+

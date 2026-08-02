@@ -388,8 +388,6 @@ const s = StyleSheet.create({
   hitText: { color: C.text, fontSize: 16, fontWeight: '600' },
   hitSub: { color: C.sub, fontSize: 12, marginTop: 1 },
   picked: { color: C.green, fontFamily: F.bold, marginVertical: 8 },
-  kidsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1.5, borderColor: C.border, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, marginTop: 16, marginBottom: 8 },
-  kidsDot: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
   journeyRow: { paddingVertical: 10, marginBottom: 6 },
   datePill: { flex: 1, backgroundColor: '#F1F4F9', borderRadius: 14, padding: 12 },
   datePillOn: { backgroundColor: C.blueSoft },

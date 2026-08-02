@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { addPlanItem, deletePlanItem, listPlan, patchPlanItem, PlanItem } from '../api';
 import { Card } from '../components/ui';
-import { C, F } from '../theme';
+import { C, F, P } from '../theme';
 
 export default function Planner({ tripId, tripTitle, accent, startDate, endDate, onBack }: {
   tripId: string; tripTitle: string; accent: string; startDate: string; endDate: string; onBack: () => void;
@@ -114,6 +114,16 @@ export default function Planner({ tripId, tripTitle, accent, startDate, endDate,
   );
 }
 
+/**
+ * Destructive actions use neutral grey, not red. A destination accent can
+ * itself be red (Japan, Singapore, Bahrain), so colour-coding danger would
+ * collide with it and stop meaning anything — the weight is carried by the
+ * confirm dialog instead, where the decision actually happens.
+ *
+ * SOS emergency affordances are the deliberate exception: they stay red under
+ * a separate "urgent" rule, because there the colour signals speed, not
+ * consequence.
+ */
 const s = StyleSheet.create({
   h1: { color: C.text, fontSize: 30, fontFamily: F.bold, marginBottom: 4 },
   sub: { color: C.sub, fontSize: 14, marginBottom: 12 },
@@ -125,7 +135,7 @@ const s = StyleSheet.create({
   title: { color: C.text, fontSize: 15, fontFamily: F.med },
   doneText: { textDecorationLine: 'line-through', color: C.sub },
   note: { color: C.sub, fontSize: 13, marginTop: 2 },
-  x: { color: '#B4BDC8', fontSize: 15, paddingLeft: 8, paddingTop: 2 },
+  x: { color: P.textMuted, fontSize: 15, paddingLeft: 8, paddingTop: 2 },
   addRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
   timeInput: { width: 54, backgroundColor: '#F3F5F8', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 8, marginRight: 6, color: C.text, fontSize: 14 },
   titleInput: { flex: 1, backgroundColor: '#F3F5F8', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, color: C.text, fontSize: 14 },

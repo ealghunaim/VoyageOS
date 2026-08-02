@@ -5,7 +5,7 @@ import { CURRENCIES, currencyForCountry, getRate } from '../fx';
 import { C, F, tint, P, S, RA, E, T } from '../theme';
 import TileIcon from '../components/icons';
 
-export default function TripExtras({ trip, accent }: { trip: Trip; accent: string }) {
+export default function TripExtras({ trip, accent, onSOS }: { trip: Trip; accent: string; onSOS?: () => void }) {
   const [open, setOpen] = useState<null | 'phrases' | 'money'>(null);
   const [fromCcy, setFromCcy] = useState(currencyForCountry(trip.country_code) ?? 'USD'); // where you are
 
@@ -37,15 +37,25 @@ export default function TripExtras({ trip, accent }: { trip: Trip; accent: strin
         <Pressable onPress={() => setOpen(open === 'phrases' ? null : 'phrases')}
           style={[s.sq, { marginRight: S[3] }, open === 'phrases' && { borderColor: accent, backgroundColor: tint(accent, 0.06) }]}>
           <View style={s.row}>
-            <TileIcon kind="phrases" accent={accent} size={28} />
-            <Text style={[s.sqLabel, { marginLeft: S[2] + 2 }]}>Phrases</Text>
+            <TileIcon kind="phrases" accent={accent} size={24} />
+            <Text numberOfLines={1} style={[s.sqLabel, { marginLeft: S[2] }]}>Phrases</Text>
           </View>
         </Pressable>
         <Pressable onPress={() => setOpen(open === 'money' ? null : 'money')}
-          style={[s.sq, open === 'money' && { borderColor: accent, backgroundColor: tint(accent, 0.06) }]}>
+          style={[s.sq, { marginRight: S[3] }, open === 'money' && { borderColor: accent, backgroundColor: tint(accent, 0.06) }]}>
           <View style={s.row}>
-            <TileIcon kind="currency" accent={accent} size={28} />
-            <Text style={[s.sqLabel, { marginLeft: S[2] + 2 }]}>Currency</Text>
+            <TileIcon kind="currency" accent={accent} size={24} />
+            <Text numberOfLines={1} style={[s.sqLabel, { marginLeft: S[2] }]}>Currency</Text>
+          </View>
+        </Pressable>
+        {/* SOS sits here rather than at the bottom of the folder stack: in an
+            emergency it must be reachable without scrolling. Its icon takes
+            P.danger, not the destination accent, for the same reason the call
+            buttons inside SOS do. */}
+        <Pressable onPress={onSOS} style={s.sq}>
+          <View style={s.row}>
+            <TileIcon kind="sos" accent={P.danger} size={24} />
+            <Text numberOfLines={1} style={[s.sqLabel, { marginLeft: S[2] }]}>SOS</Text>
           </View>
         </Pressable>
       </View>
@@ -112,7 +122,7 @@ const s = StyleSheet.create({
   sq: { flex: 1, backgroundColor: P.card, borderRadius: RA.lg, borderWidth: 1,
         borderColor: P.hairline, paddingHorizontal: S[4], paddingVertical: S[3], ...E.low },
   row: { flexDirection: 'row', alignItems: 'center' },
-  sqLabel: { ...T.title, color: P.textPri },
+  sqLabel: { ...T.caption, fontFamily: F.med, color: P.textPri },
   panel: { backgroundColor: P.card, borderRadius: RA.lg, borderWidth: 1,
            borderColor: P.hairline, padding: S[4], marginTop: S[3], ...E.low },
   lang: { fontFamily: F.bold, fontSize: 13, marginBottom: 4 },

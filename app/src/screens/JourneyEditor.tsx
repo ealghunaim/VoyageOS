@@ -6,7 +6,7 @@ import {
 import { lookupFlight, patchTrip, Segment, Trip } from '../api';
 import { airlineFromRef } from '../airlines';
 import { Btn } from '../components/ui';
-import { C, F, tint } from '../theme';
+import { C, F, tint, P } from '../theme';
 
 const MODES: [string, string][] = [['flight', '✈ Flight'], ['train', '🚆 Train'], ['ship', '🚢 Ship'], ['drive', '🚗 Drive']];
 const MODE_ICON: Record<string, string> = { flight: '✈', train: '🚆', ship: '🚢', drive: '🚗' };
@@ -171,7 +171,7 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved, onSaveLo
                         <Pressable onPress={() => move(i, -1)} disabled={i === 0}><Text style={[s.small, { opacity: i === 0 ? 0.3 : 1 }]}>↑ Up</Text></Pressable>
                         <Pressable onPress={() => move(i, 1)} disabled={i === segs.length - 1}><Text style={[s.small, { opacity: i === segs.length - 1 ? 0.3 : 1 }]}>↓ Down</Text></Pressable>
                         <Pressable onPress={() => { setSegs(segs.filter((_, j) => j !== i)); setEditing(null); }}>
-                          <Text style={[s.small, { color: C.red }]}>Delete</Text>
+                          <Text style={[s.small, { color: P.textSec }]}>Delete</Text>
                         </Pressable>
                       </View>
                     </View>
@@ -214,6 +214,16 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved, onSaveLo
   );
 }
 
+/**
+ * Destructive actions use neutral grey, not red. A destination accent can
+ * itself be red (Japan, Singapore, Bahrain), so colour-coding danger would
+ * collide with it and stop meaning anything — the weight is carried by the
+ * confirm dialog instead, where the decision actually happens.
+ *
+ * SOS emergency affordances are the deliberate exception: they stay red under
+ * a separate "urgent" rule, because there the colour signals speed, not
+ * consequence.
+ */
 const s = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 },
   close: { fontSize: 16, fontFamily: F.bold },

@@ -4,7 +4,7 @@ import { getGuide, getProfile, getTrip } from '../api';
 import { Card } from '../components/ui';
 import { countryName, flagOf } from '../countries';
 import { EMERGENCY } from '../emergency';
-import { C, tint, F } from '../theme';
+import { tint, P, S, RA, T } from '../theme';
 
 export default function SOS({ tripId, tripTitle, place, accent, onBack }: {
   tripId: string; tripTitle: string; place: string; accent: string; onBack: () => void;
@@ -25,13 +25,13 @@ export default function SOS({ tripId, tripTitle, place, accent, onBack }: {
     Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q + ' near ' + place)}`).catch(() => {});
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={{ padding: S[5] }}>
       <Pressable onPress={onBack} hitSlop={10} style={{ marginBottom: 10 }}>
-        <Text style={{ color: accent, fontSize: 16, fontFamily: F.bold }}>‹ {tripTitle}</Text>
+        <Text style={[T.title, { color: accent }]}>‹ {tripTitle}</Text>
       </Pressable>
       <Text style={s.h1}>SOS</Text>
 
-      <Card style={{ backgroundColor: tint(C.red, 0.07), borderColor: tint(C.red, 0.2) }}>
+      <Card style={{ backgroundColor: tint(P.danger, 0.07), borderColor: tint(P.danger, 0.2) }}>
         <Text style={s.section}>EMERGENCY NUMBERS {cc ? `· ${flagOf(cc)} ${countryName(cc)}` : ''}</Text>
         {nums ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
@@ -60,8 +60,8 @@ export default function SOS({ tripId, tripTitle, place, accent, onBack }: {
       <Card>
         <Text style={s.section}>YOUR PERSON</Text>
         {contact ? (
-          <Pressable style={[s.callBtn, { backgroundColor: tint(accent, 0.12) }]} onPress={() => call(contact.phone)}>
-            <Text style={[s.callText, { color: accent }]}>Call {contact.name}</Text>
+          <Pressable style={s.callBtn} onPress={() => call(contact.phone)}>
+            <Text style={s.callText}>Call {contact.name}</Text>
           </Pressable>
         ) : (
           <Text style={s.sub}>Add an emergency contact in Profile and they'll be one tap away here.</Text>
@@ -70,9 +70,9 @@ export default function SOS({ tripId, tripTitle, place, accent, onBack }: {
 
       <Card>
         <Text style={s.section}>NEARBY CARE</Text>
-        <Pressable onPress={() => map('hospital')}><Text style={[s.link, { color: accent }]}>Hospitals near {place} ›</Text></Pressable>
-        <Pressable onPress={() => map('clinic')}><Text style={[s.link, { color: accent }]}>Clinics ›</Text></Pressable>
-        <Pressable onPress={() => map('pharmacy')}><Text style={[s.link, { color: accent }]}>Pharmacies ›</Text></Pressable>
+        <Pressable onPress={() => map('hospital')}><Text style={s.link}>Hospitals near {place} ›</Text></Pressable>
+        <Pressable onPress={() => map('clinic')}><Text style={s.link}>Clinics ›</Text></Pressable>
+        <Pressable onPress={() => map('pharmacy')}><Text style={s.link}>Pharmacies ›</Text></Pressable>
       </Card>
 
       {health.length > 0 && (
@@ -87,12 +87,16 @@ export default function SOS({ tripId, tripTitle, place, accent, onBack }: {
 }
 
 const s = StyleSheet.create({
-  h1: { fontSize: 30, fontFamily: F.bold, color: C.text, letterSpacing: -0.6, marginBottom: 14 },
-  section: { color: C.sub, fontSize: 12, fontFamily: F.bold, letterSpacing: 0.6, marginBottom: 10 },
-  sub: { color: C.sub, lineHeight: 20 },
-  hint: { color: '#9AA9BB', fontSize: 11, marginTop: 10 },
-  callBtn: { backgroundColor: tint('#DC2626', 0.12), borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, marginRight: 8, marginBottom: 8 },
-  callText: { color: C.red, fontFamily: F.bold },
-  link: { fontFamily: F.bold, marginBottom: 12 },
-  bullet: { color: C.text, marginBottom: 7, lineHeight: 20 },
+  h1: { ...T.display, color: P.textPri, marginBottom: S[3] },
+  section: { ...T.label, color: P.textMuted, marginBottom: S[3] },
+  sub: { ...T.body, color: P.textSec },
+  hint: { ...T.caption, fontSize: 11, color: P.textMuted, marginTop: S[3] },
+  // Emergency actions are red on every trip. They deliberately ignore the
+  // destination accent: a green "Call" under a red one implies a difference in
+  // urgency that does not exist.
+  callBtn: { backgroundColor: tint(P.danger, 0.12), borderRadius: RA.md,
+             paddingHorizontal: S[4], paddingVertical: S[3], marginRight: S[2], marginBottom: S[2] },
+  callText: { ...T.title, color: P.danger },
+  link: { ...T.title, color: P.danger, marginBottom: S[3] },
+  bullet: { ...T.body, color: P.textPri, marginBottom: S[2] },
 });

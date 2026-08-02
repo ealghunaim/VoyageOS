@@ -19,7 +19,6 @@ const TILES: { key: string; label: string; sub: string }[] = [
   { key: 'visit', label: 'Visit', sub: 'Sights & districts' },
   { key: 'go', label: 'Go', sub: 'Airport & around' },
   { key: 'journal', label: 'Journal', sub: 'Travel log' },
-  { key: 'sos', label: 'SOS', sub: 'Emergency & care' },
 ];
 
 /**
@@ -69,8 +68,8 @@ function Scrim({ width, height, color }: { width: number; height: number; color:
   );
 }
 
-export default function TripHub({ trip, onBack, onPack, onPlan, onGuide, onJournal, onSOS, onDebrief, onTripChanged }: {
-  trip: Trip; onBack: () => void; onPack: () => void; onPlan: () => void;
+export default function TripHub({ trip, accent, onBack, onPack, onPlan, onGuide, onJournal, onSOS, onDebrief, onTripChanged }: {
+  trip: Trip; accent?: string; onBack: () => void; onPack: () => void; onPlan: () => void;
   onGuide: (section: string) => void; onJournal: () => void; onSOS: () => void; onDebrief: () => void;
   onTripChanged: (t: Trip | null) => void;
 }) {
@@ -78,10 +77,14 @@ export default function TripHub({ trip, onBack, onPack, onPlan, onGuide, onJourn
   // controls beneath it, so a trip reads as one field of colour from the card
   // to the tab bar. Type on the ground is white or ink by luminance, never
   // brand blue — blue on crimson or green vibrates.
+  // `dest` always drives the hero ground and the flag art — that is the
+  // destination's one guaranteed place. `chrome` is what the surrounding
+  // controls use, and the caller decides whether that is the destination or
+  // the brand.
   const dest = accentForTrip(trip.country_code, trip.title);
   const heroInk = onColor(dest);
-  const chrome = dest;
-  const plateBg = tint(dest, 0.10);
+  const chrome = accent ?? dest;
+  const plateBg = tint(chrome, 0.10);
 
   const [editing, setEditing] = useState(false);
   const [eStart, setEStart] = useState(trip.start_date);
@@ -185,7 +188,7 @@ export default function TripHub({ trip, onBack, onPack, onPlan, onGuide, onJourn
         {!!answer && <Text style={[T.body, { color: P.textPri, marginTop: S[3] }]}>{answer}</Text>}
       </Panel>
 
-      <TripExtras trip={trip} accent={chrome} />
+      <TripExtras trip={trip} accent={chrome} onSOS={onSOS} />
 
       {(() => {
         const endMs = new Date(trip.end_date + 'T23:59:00').getTime();

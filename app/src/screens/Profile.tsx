@@ -7,7 +7,7 @@ import { Companion, getProfile, HomeOrigin, PlaceHit, putProfile, searchPlaces }
 import { getEmail, signOut } from '../auth';
 import { Btn, Card, Chip, Field } from '../components/ui';
 import { COUNTRIES, countryName, flagOf } from '../countries';
-import { C, F } from '../theme';
+import { C, F, P } from '../theme';
 
 const RELATIONS: Companion['relation'][] = ['partner', 'child', 'parent', 'friend'];
 
@@ -198,6 +198,16 @@ export default function Profile({ onSignedOut }: { onSignedOut: () => void }) {
   );
 }
 
+/**
+ * Destructive actions use neutral grey, not red. A destination accent can
+ * itself be red (Japan, Singapore, Bahrain), so colour-coding danger would
+ * collide with it and stop meaning anything — the weight is carried by the
+ * confirm dialog instead, where the decision actually happens.
+ *
+ * SOS emergency affordances are the deliberate exception: they stay red under
+ * a separate "urgent" rule, because there the colour signals speed, not
+ * consequence.
+ */
 const s = StyleSheet.create({
   center: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
   h1: { fontSize: 30, fontFamily: F.bold, color: C.text, letterSpacing: -0.6 },
@@ -210,5 +220,5 @@ const s = StyleSheet.create({
   dateRow: { backgroundColor: '#F1F4F9', borderRadius: 14, padding: 13, marginBottom: 12 },
   dateValue: { color: C.text, fontSize: 16, fontFamily: F.bold },
   member: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: C.border, marginBottom: 4 },
-  signout: { color: C.red, fontFamily: F.bold, textAlign: 'center', marginVertical: 18 },
+  signout: { color: P.textSec, fontFamily: F.bold, textAlign: 'center', marginVertical: 18 },
 });
