@@ -57,5 +57,5 @@ def ask(trip_id: str, body: Ask, user_id: str = Depends(current_user_id)):
     gateway.check_budget(db, user_id)
     result = gateway.complete("trip_qa", ASK_PROMPT,
                               json.dumps({"context": ctx, "question": body.question}),
-                              db=db, user_id=user_id, max_tokens=400)
+                              db=db, user_id=user_id)
     return {"answer": result.text.strip()[:1200]}

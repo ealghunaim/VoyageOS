@@ -50,7 +50,7 @@ def quick_add(trip_id: str, body: QuickAdd, user_id: str = Depends(current_user_
         raise HTTPException(409, "Generate the list first, then add to it.")
     gateway.check_budget(db, user_id)
     result = gateway.complete("items_parse", PARSE_PROMPT, body.text,
-                              db=db, user_id=user_id, max_tokens=600)
+                              db=db, user_id=user_id)
     cleaned = result.text.strip()
     if cleaned.startswith("```"):
         cleaned = cleaned.split("```")[1].lstrip("json")

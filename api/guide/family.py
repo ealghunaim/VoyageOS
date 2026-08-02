@@ -113,7 +113,7 @@ def generate_family_play(db, trip: dict, user_id: str, *, regenerate: bool = Fal
     ctx = {"place": place, "country": country, "month": str(trip.get("start_date", ""))[:7],
            "party": cohorts}
     result = gateway.complete("family_play", _build_prompt(cohorts), json.dumps(ctx),
-                              db=db, user_id=user_id, max_tokens=4000)
+                              db=db, user_id=user_id)
     data = sanitize_family_play(_parse(result.text), cohorts)
     db.table("trip_family_play").upsert({
         "trip_id": tid, "payload": data, "model": result.model,

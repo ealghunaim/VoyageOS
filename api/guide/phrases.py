@@ -43,7 +43,7 @@ def generate_phrases(db, trip: dict, user_id: str, *, regenerate: bool = False) 
     gateway.check_budget(db, user_id)
     ctx = {"place": place, "country": country}
     result = gateway.complete("phrases", PHRASES_PROMPT, json.dumps(ctx),
-                              db=db, user_id=user_id, max_tokens=1500)
+                              db=db, user_id=user_id)
     data = sanitize_phrases(_parse(result.text))
     db.table("trip_phrases").upsert({"trip_id": tid, "payload": data, "model": result.model}).execute()
     return data

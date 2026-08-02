@@ -28,6 +28,40 @@ TASK_ROUTE = {  # Part 1 §6 routing table
     "packing_generate_complex": "frontier",
 }
 
+# Output ceilings per task. These live here, beside routing and prices, for
+# the reason stated at the top of this file: config, never call sites.
+#
+# They exist because a blanket default is the wrong shape for this problem.
+# Tasks whose output scales with the trip — a packing list grows with duration
+# and activities, a guide phase grows with the number of places — will
+# eventually outgrow any single number, and when they do the model is cut off
+# mid-JSON and the caller sees a parse error that looks like the model's
+# fault. That hid a 50% failure rate in packing_generate and an intermittent
+# one in guide_b.
+#
+# Sized at roughly 2x observed peak output. Unused ceiling is free: billing is
+# on tokens generated, not on the cap. A caller may still pass max_tokens
+# explicitly to override.
+TASK_MAX_TOKENS = {
+    # unbounded payloads — grow with trip length, activities or destinations
+    "packing_generate": 8000,   # 13-36 items x 8 fields (peak seen 3904)
+    "packing_generate_complex": 8000,
+    "guide_generate": 8000,     # whole guide in one call (peak seen 4308)
+    "guide_b": 8000,            # Play + Visit + Go, each with fee/access/transit
+    "family_play": 6000,        # scales with cohort count x activities
+    # semi-bounded
+    "guide_a": 3000,            # Know + Eat (peak seen 1570)
+    "phrases": 1500,            # fixed phrase count (peak seen 594)
+    # bounded — a single short answer or a parse of one typed line
+    "items_parse": 600,
+    "trip_qa": 400,
+    "extract_items": 600,
+    "notification_copy": 400,
+}
+
+#: Used only when a task is absent from TASK_MAX_TOKENS above.
+DEFAULT_MAX_TOKENS = 3000
+
 # USD per million tokens (input, output). Verified against
 # https://platform.claude.com/docs/en/about-claude/pricing on 2026-07-27.
 # NOTE: Sonnet 5 is at introductory pricing through Aug 31, 2026; it becomes 3.0/15.0 after.
@@ -91,10 +125,15 @@ def check_budget(db, user_id: str) -> None:
 
 
 def complete(task: str, system: str, user_content: str, *,
-             db=None, user_id: str | None = None, max_tokens: int = 3000) -> AiResult:
+             db=None, user_id: str | None = None,
+             max_tokens: int | None = None) -> AiResult:
     tier = _tier(task)
     model = _model_for(tier)
     in_price, out_price = TIER_PRICES[tier]
+    # None means "use the task's configured ceiling". A caller passing a number
+    # still wins, so existing explicit values are unaffected.
+    if max_tokens is None:
+        max_tokens = TASK_MAX_TOKENS.get(task, DEFAULT_MAX_TOKENS)
 
     t0 = time.monotonic()
     # Prompt caching: long, static system prompts (guide/packing) are marked

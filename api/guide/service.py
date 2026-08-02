@@ -239,6 +239,15 @@ def _guide_ctx(db, trip: dict, user_id: str, dest: dict | None) -> dict:
 
 _PART_TASK = {"a": "guide_a", "b": "guide_b"}
 
+# Per-phase output ceilings. These were a single shared 3000 for both phases,
+# which suited phase A and starved phase B: A writes Know + Eat and peaks
+# around 1600 tokens, while B writes Play + Visit + Go, each entry carrying a
+# rating, fee, access note and transit detail. B was hitting the ceiling and
+# being cut off mid-JSON, which surfaces to the traveller as "the guide didn't
+# generate cleanly" after they have already been billed for the call.
+# Sized to observed peak plus roughly 2x headroom; unused ceiling is free.
+_PART_MAX_TOKENS = {"a": 3000, "b": 8000}
+
 
 def get_guide_part(db, trip: dict, user_id: str, phase: str, *,
                     destination_id: str | None = None, regenerate: bool = False) -> dict:
@@ -260,12 +269,16 @@ def get_guide_part(db, trip: dict, user_id: str, phase: str, *,
     gateway.check_budget(db, user_id)
     prompt = GUIDE_PROMPT_A if phase == "a" else GUIDE_PROMPT_B
     result = gateway.complete(_PART_TASK[phase], prompt, json.dumps(ctx),
-                              db=db, user_id=user_id, max_tokens=3000)
+                              db=db, user_id=user_id)
     try:
         part = (sanitize_a(_parse(result.text)) if phase == "a"
                 else sanitize_b(_parse(result.text), travel_mode=trip.get("travel_mode")))
     except Exception as e:
-        print(f"[guide/{phase}] parse failed: {type(e).__name__}: {e} · tail {result.text[-120:]!r}")
+        why = (f"TRUNCATED at max_tokens="
+               f"{gateway.TASK_MAX_TOKENS[_PART_TASK[phase]]} "
+               f"({result.tokens_out} out)" if result.truncated
+               else f"{type(e).__name__}: {e}")
+        print(f"[guide/{phase}] parse failed: {why} · tail {result.text[-120:]!r}")
         raise HTTPException(502, "The guide didn't generate cleanly — tap ↻ to retry.")
     db.table("trip_guide_parts").upsert(
         {"trip_id": tid, "destination_id": did, "phase": phase, "payload": part,
@@ -312,7 +325,7 @@ def get_guide(db, trip: dict, user_id: str, *, regenerate: bool = False) -> dict
            "origin": trip.get("origin"),
            "nationality": nationality}
     result = gateway.complete("guide_generate", GUIDE_SYSTEM_PROMPT,
-                              json.dumps(ctx), db=db, user_id=user_id, max_tokens=6000)
+                              json.dumps(ctx), db=db, user_id=user_id)
     try:
         guide = sanitize(_parse(result.text), travel_mode=trip.get("travel_mode"))
     except Exception as e:
