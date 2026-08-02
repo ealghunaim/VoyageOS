@@ -11,7 +11,7 @@ import { Btn, Card, Chip, Field } from '../components/ui';
 import JourneyEditor from './JourneyEditor';
 import JourneyLoader from '../components/JourneyLoader';
 import TripArt from '../components/TripArt';
-import { accentForTrip, C, F, titleize } from '../theme';
+import { accentForTrip, P, S, RA, E, T, titleize } from '../theme';
 
 const ACTIVITIES = [
   'hiking', 'trail_running', 'business', 'beach', 'ski',
@@ -71,7 +71,7 @@ export default function Wizard({ onDone, onCancel }: {
   const [originTouched, setOriginTouched] = useState(false);
 
   const hasDest = chosen || place.trim().length >= 2;
-  const accent = hasDest ? accentForTrip(country, place) : C.blue;
+  const accent = hasDest ? accentForTrip(country, place) : P.brand;
   const heroOp = useRef(new Animated.Value(0.5)).current;
   useEffect(() => {
     Animated.timing(heroOp, { toValue: hasDest ? 1 : 0.5, duration: 500, useNativeDriver: true }).start();
@@ -215,14 +215,14 @@ export default function Wizard({ onDone, onCancel }: {
 
   if (busy) {
     return (
-      <View style={{ flex: 1, backgroundColor: C.bg, justifyContent: 'center', padding: 24 }}>
+      <View style={{ flex: 1, backgroundColor: P.pageBg, justifyContent: 'center', padding: S[6] }}>
         <Card><JourneyLoader accent={accent} label={busy} /></Card>
       </View>
     );
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={s.wrap}
+    <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={s.wrap}
       keyboardShouldPersistTaps="handled">
       {/* The living card — paints itself as you type */}
       <Animated.View style={[s.hero, { opacity: heroOp }]}>
@@ -250,7 +250,7 @@ export default function Wizard({ onDone, onCancel }: {
         {chosen && <Text style={s.picked}>{flag(country)}  {place} · pinned ✓</Text>}
         {!chosen && place.trim().length >= 2 && (
           <Pressable onPress={() => { setChosen(true); setHits([]); }} style={s.hit}>
-            <Text style={{ color: accent, fontFamily: F.bold }}>Use “{place.trim()}” as a region ›</Text>
+            <Text style={[T.title, { color: accent }]}>Use “{place.trim()}” as a region ›</Text>
             <Text style={s.hitSub}>e.g. the Dolomites, the French Riviera</Text>
           </Pressable>
         )}
@@ -347,7 +347,7 @@ export default function Wizard({ onDone, onCancel }: {
 
         <Text style={[s.label, { marginTop: 16 }]}>YOUR JOURNEY (OPTIONAL)</Text>
         <Pressable onPress={() => setJourneyOpen(true)} style={s.journeyRow}>
-          <Text style={{ color: accent, fontFamily: F.bold }}>
+          <Text style={[T.title, { color: accent }]}>
             {segments.length ? `✈ ${segments.length} leg${segments.length > 1 ? 's' : ''} — edit ›` : '✈ Add flights, trains, ferries ›'}
           </Text>
           <Text style={s.hitSub}>Enter a flight number to auto-fill times.</Text>
@@ -374,23 +374,24 @@ export default function Wizard({ onDone, onCancel }: {
 }
 
 const s = StyleSheet.create({
-  wrap: { padding: 16, paddingTop: 20 },
-  hero: { borderRadius: 22, overflow: 'hidden', backgroundColor: '#fff', marginBottom: 14,
-    shadowColor: '#0A0E17', shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
-  heroBody: { padding: 16 },
-  heroTitle: { fontSize: 24, fontFamily: F.bold, color: C.text },
-  heroMeta: { color: C.sub, marginTop: 3, fontSize: 14 },
-  label: { color: C.sub, fontSize: 12, marginBottom: 7, fontFamily: F.bold, letterSpacing: 0.6 },
-  sub: { color: C.sub, marginBottom: 10, lineHeight: 20 },
-  warn: { color: C.red, marginTop: 6 },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 6 },
-  hit: { paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.border },
-  hitText: { color: C.text, fontSize: 16, fontWeight: '600' },
-  hitSub: { color: C.sub, fontSize: 12, marginTop: 1 },
-  picked: { color: C.green, fontFamily: F.bold, marginVertical: 8 },
-  journeyRow: { paddingVertical: 10, marginBottom: 6 },
-  datePill: { flex: 1, backgroundColor: '#F1F4F9', borderRadius: 14, padding: 12 },
-  datePillOn: { backgroundColor: C.blueSoft },
-  datePillLabel: { color: C.sub, fontSize: 11, fontFamily: F.bold, letterSpacing: 0.6 },
-  datePillValue: { color: C.text, fontSize: 16, fontFamily: F.bold, marginTop: 2 },
+  wrap: { padding: S[4], paddingTop: S[5] },
+  // the living preview card — E.mid to match Card, since it reads as one
+  hero: { borderRadius: RA.xl, overflow: 'hidden', backgroundColor: P.card,
+          marginBottom: S[3], ...E.mid },
+  heroBody: { padding: S[4] },
+  heroTitle: { ...T.h1, color: P.textPri },
+  heroMeta: { ...T.caption, color: P.textSec, marginTop: S[1] },
+  label: { ...T.label, color: P.textMuted, marginBottom: S[2] },
+  sub: { ...T.body, color: P.textSec, marginBottom: S[3] },
+  warn: { ...T.caption, color: P.danger, marginTop: S[2] },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: S[2] },
+  hit: { paddingVertical: S[3], borderBottomWidth: 1, borderBottomColor: P.hairline },
+  hitText: { ...T.title, color: P.textPri },
+  hitSub: { ...T.caption, color: P.textMuted, marginTop: S[1] },
+  picked: { ...T.title, color: P.success, marginVertical: S[2] },
+  journeyRow: { paddingVertical: S[2], marginBottom: S[2] },
+  datePill: { flex: 1, backgroundColor: P.sunken, borderRadius: RA.md, padding: S[3] },
+  datePillOn: { backgroundColor: P.brandWash },
+  datePillLabel: { ...T.label, color: P.textMuted },
+  datePillValue: { ...T.title, color: P.textPri, marginTop: S[1] },
 });
