@@ -7,7 +7,7 @@ import { Companion, Doc, getProfile, HomeOrigin, listDocuments, PlaceHit, putPro
 import { getEmail, signOut } from '../auth';
 import { Btn, Card, Chip, Field } from '../components/ui';
 import { COUNTRIES, countryName, flagOf } from '../countries';
-import { C, F, P, T } from '../theme';
+import { F, P, RA, S, T } from '../theme';
 
 const RELATIONS: Companion['relation'][] = ['partner', 'child', 'parent', 'friend'];
 
@@ -89,7 +89,7 @@ export default function Profile({ onSignedOut, onDocuments }: {
   }
 
   if (!loaded) {
-    return <View style={s.center}><ActivityIndicator size="large" color={C.blue} /></View>;
+    return <View style={s.center}><ActivityIndicator size="large" color={P.brand} /></View>;
   }
 
   // Worst status wins the callout: an expired document outranks an expiring one.
@@ -105,7 +105,7 @@ export default function Profile({ onSignedOut, onDocuments }: {
   })();
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20, paddingTop: 24 }}>
+    <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={{ padding: S[5], paddingTop: S[6] }}>
       <Text style={s.h1}>Profile</Text>
       <Text style={s.email}>{getEmail() || 'Signed in'}</Text>
 
@@ -118,10 +118,10 @@ export default function Profile({ onSignedOut, onDocuments }: {
         ) : (
           <>
             <TextInput style={s.input} value={natQ} onChangeText={setNatQ}
-              placeholder="Search country…" placeholderTextColor="#9AA9BB" />
+              placeholder="Search country…" placeholderTextColor={P.textMuted} />
             {natHits.map(([c, n]) => (
               <Pressable key={c} style={s.hit} onPress={() => setNat(c)}>
-                <Text style={{ color: C.text, fontWeight: '600' }}>{flagOf(c)}  {n}</Text>
+                <Text style={s.hitName}>{flagOf(c)}  {n}</Text>
               </Pressable>
             ))}
           </>
@@ -139,12 +139,12 @@ export default function Profile({ onSignedOut, onDocuments }: {
           <>
             <TextInput style={s.input} value={home}
               onChangeText={(t) => { setHome(t); setHomeChosen(false); setHomeCoords(null); }}
-              placeholder="Your departure city — e.g. Kuwait City" placeholderTextColor="#9AA9BB" />
+              placeholder="Your departure city — e.g. Kuwait City" placeholderTextColor={P.textMuted} />
             {homeHits.map((h, i) => (
               <Pressable key={`${h.name}-${h.lat}-${h.lng}-${i}`} style={s.hit}
                 onPress={() => { setHome(h.name); setHomeCountry(h.country_code); setHomeCoords({ lat: h.lat, lng: h.lng }); setHomeChosen(true); setHomeHits([]); }}>
-                <Text style={{ color: C.text, fontWeight: '600' }}>{flagOf(h.country_code)}  {h.name}</Text>
-                <Text style={{ color: C.sub, fontSize: 13 }}>{[h.admin, h.country_code].filter(Boolean).join(' · ')}</Text>
+                <Text style={s.hitName}>{flagOf(h.country_code)}  {h.name}</Text>
+                <Text style={s.hitSub}>{[h.admin, h.country_code].filter(Boolean).join(' · ')}</Text>
               </Pressable>
             ))}
           </>
@@ -180,16 +180,16 @@ export default function Profile({ onSignedOut, onDocuments }: {
         <Text style={s.section}>TRAVEL COMPANIONS</Text>
         {members.map((m, i) => (
           <View key={i} style={s.member}>
-            <Text style={{ color: C.text, fontFamily: F.med, flex: 1 }}>
-              {m.name} <Text style={{ color: C.sub, fontWeight: '400' }}>· {m.relation}</Text>
+            <Text style={s.memberName}>
+              {m.name} <Text style={s.memberRel}>· {m.relation}</Text>
             </Text>
             <Pressable hitSlop={10} onPress={() => setMembers(members.filter((_, j) => j !== i))}>
-              <Text style={{ color: C.sub }}>✕</Text>
+              <Text style={s.memberX}>✕</Text>
             </Pressable>
           </View>
         ))}
         <Field label="ADD SOMEONE" value={mName} onChange={setMName} placeholder="Name" />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: S[2] }}>
           {RELATIONS.map(r => (
             <Chip key={r} label={r} selected={mRel === r} onPress={() => setMRel(r)} />
           ))}
@@ -241,19 +241,33 @@ export default function Profile({ onSignedOut, onDocuments }: {
  * consequence.
  */
 const s = StyleSheet.create({
-  center: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
-  h1: { fontSize: 30, fontFamily: F.bold, color: C.text, letterSpacing: -0.6 },
-  email: { color: C.sub, marginTop: 2, marginBottom: 16 },
+  center: { flex: 1, backgroundColor: P.pageBg, alignItems: 'center', justifyContent: 'center' },
+  h1: { ...T.display, color: P.textPri },
+  email: { ...T.body, color: P.textSec, marginTop: 2, marginBottom: S[4] },
   docSummary: { ...T.title, color: P.textPri },
   docChevron: { ...T.h2, color: P.textMuted },
   docWarn: { ...T.caption, fontFamily: F.med, marginTop: 2 },
-  section: { color: C.sub, fontSize: 12, fontFamily: F.bold, letterSpacing: 0.6, marginBottom: 8, marginTop: 4 },
-  input: { backgroundColor: '#F1F4F9', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 13, fontSize: 16, color: C.text },
-  hit: { paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.border },
-  natPicked: { color: C.text, fontSize: 17, fontFamily: F.bold },
-  hint: { color: '#9AA9BB', fontSize: 12, marginTop: 10, lineHeight: 17 },
-  dateRow: { backgroundColor: '#F1F4F9', borderRadius: 14, padding: 13, marginBottom: 12 },
-  dateValue: { color: C.text, fontSize: 16, fontFamily: F.bold },
-  member: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: C.border, marginBottom: 4 },
-  signout: { color: P.textSec, fontFamily: F.bold, textAlign: 'center', marginVertical: 18 },
+  section: { ...T.label, color: P.textSec, marginBottom: S[2], marginTop: S[1] },
+  input: {
+    ...T.body, backgroundColor: P.sunken, borderRadius: RA.md,
+    paddingHorizontal: S[4], paddingVertical: S[3] + 1, color: P.textPri,
+  },
+  hit: { paddingVertical: S[3], borderBottomWidth: 1, borderBottomColor: P.hairline },
+  // search results: the place is the answer, the region only disambiguates it
+  hitName: { ...T.title, color: P.textPri },
+  hitSub: { ...T.caption, color: P.textSec },
+  natPicked: { ...T.title, fontFamily: F.bold, color: P.textPri },
+  hint: { ...T.caption, color: P.textMuted, marginTop: S[3], lineHeight: 17 },
+  dateRow: { backgroundColor: P.sunken, borderRadius: RA.md, padding: S[3] + 1, marginBottom: S[3] },
+  dateValue: { ...T.body, fontFamily: F.bold, color: P.textPri },
+  member: {
+    flexDirection: 'row', alignItems: 'center', paddingVertical: S[2] + 1,
+    borderBottomWidth: 1, borderBottomColor: P.hairline, marginBottom: S[1],
+  },
+  memberName: { ...T.body, fontFamily: F.med, color: P.textPri, flex: 1 },
+  memberRel: { ...T.body, color: P.textSec },
+  memberX: { ...T.body, color: P.textSec },
+  // Sign out is destructive, so it stays neutral grey — colour is reserved for
+  // state (danger/warning), not for marking an action as consequential.
+  signout: { ...T.title, fontFamily: F.bold, color: P.textSec, textAlign: 'center', marginVertical: S[5] },
 });
