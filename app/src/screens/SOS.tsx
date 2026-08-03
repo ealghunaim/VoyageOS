@@ -90,7 +90,7 @@ const s = StyleSheet.create({
   h1: { ...T.display, color: P.textPri, marginBottom: S[3] },
   section: { ...T.label, color: P.textMuted, marginBottom: S[3] },
   sub: { ...T.body, color: P.textSec },
-  hint: { ...T.caption, fontSize: 11, color: P.textMuted, marginTop: S[3] },
+  hint: { ...T.caption, color: P.textMuted, marginTop: S[3] },
   // Emergency actions are red on every trip. They deliberately ignore the
   // destination accent: a green "Call" under a red one implies a difference in
   // urgency that does not exist.

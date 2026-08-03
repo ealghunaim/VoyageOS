@@ -179,7 +179,7 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
             <Text style={s.cat}>UP NEXT</Text>
             {tasks.slice(0, 3).map(t => (
               <View key={t.id} style={s.row}>
-                <Text style={{ fontSize: 16, marginRight: S[3] }}>⏰</Text>
+                <Text style={s.taskGlyph}>⏰</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={s.name}>{t.title}</Text>
                   <Text style={s.reason}>{new Date(t.due_at).toLocaleString()}</Text>
@@ -412,7 +412,8 @@ const s = StyleSheet.create({
     marginRight: S[3], alignItems: 'center', justifyContent: 'center', marginTop: 1,
   },
   boxOn: { backgroundColor: P.success, borderColor: P.success },
-  check: { fontFamily: F.bold, fontSize: 14, color: P.textOnDark },
+  check: { ...T.caption, fontFamily: F.bold, color: P.textOnDark },
+  taskGlyph: { ...T.title, marginRight: S[3] },
   name: { ...T.title, color: P.textPri },
   nameDone: { color: P.textMuted, textDecorationLine: 'line-through' },
   reason: { ...T.caption, color: P.textSec, marginTop: 2 },
@@ -436,7 +437,7 @@ const s = StyleSheet.create({
   kitChipText: { ...T.body, fontFamily: F.med },
   weightBar: { backgroundColor: P.card, borderTopWidth: 1, borderTopColor: P.hairline, padding: S[3], alignItems: 'center' },
   weightValue: { ...T.title, fontFamily: F.bold },
-  weightNote: { ...T.caption, fontSize: 11, color: P.textMuted, marginTop: 3 },
+  weightNote: { ...T.caption, color: P.textMuted, marginTop: 3 },
 });
 
 const sq = StyleSheet.create({

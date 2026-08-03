@@ -20,7 +20,7 @@ import SOS from './src/screens/SOS';
 import TripHub from './src/screens/TripHub';
 import Wizard from './src/screens/Wizard';
 import Archive from './src/screens/Archive';
-import { accentForTrip, C, F, titleize } from './src/theme';
+import { accentForTrip, F, P, S, titleize } from './src/theme';
 
 /**
  * Satoshi as the app-wide default.
@@ -85,10 +85,10 @@ export default function App() {
 
   if (booting || !fontsLoaded) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: P.pageBg }}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <Wordmark size={28} />
-          <ActivityIndicator style={{ marginTop: 16 }} color={C.blue} />
+          <ActivityIndicator style={{ marginTop: S[4] }} color={P.brand} />
         </View>
       </SafeAreaView>
     );
@@ -97,7 +97,7 @@ export default function App() {
   const showBar = route.name !== 'login';
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: P.pageBg }}>
       <StatusBar barStyle="dark-content" />
       <View style={{ flex: 1 }}>
       {route.name === 'login' && (

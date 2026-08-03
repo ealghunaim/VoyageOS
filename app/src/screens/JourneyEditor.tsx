@@ -204,7 +204,7 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved, onSaveLo
                       {sg.mode !== 'drive' && (
                         <TextInput style={s.input} value={sg.ref ?? ''} onChangeText={t => update(i, { ref: t })}
                           placeholder={sg.mode === 'flight' ? 'Flight no. (e.g. QR128)' : sg.mode === 'train' ? 'Train service / number' : 'Ferry name / service'}
-                          placeholderTextColor="#9AA9BB" />
+                          placeholderTextColor={P.textMuted} />
                       )}
                       {sg.mode === 'flight' && (() => {
                         const al = airlineFromRef(sg.ref);
@@ -435,9 +435,9 @@ const s = StyleSheet.create({
     backgroundColor: P.sunken, borderRadius: RA.md, paddingVertical: S[2] + 1,
     alignItems: 'center', marginBottom: S[2],
   },
-  lookupText: { ...T.caption, fontFamily: F.bold, fontSize: 14 },
+  lookupText: { ...T.caption, fontFamily: F.bold },
   addBtn: { paddingVertical: S[3] + 2, alignItems: 'center' },
   addText: { ...T.body, fontFamily: F.bold },
   total: { ...T.body, fontFamily: F.bold, color: P.textPri, textAlign: 'center', marginTop: S[1] },
-  note: { ...T.caption, fontSize: 12, color: P.textMuted, textAlign: 'center', marginTop: S[3], lineHeight: 17 },
+  note: { ...T.caption, color: P.textMuted, textAlign: 'center', marginTop: S[3], lineHeight: 17 },
 });

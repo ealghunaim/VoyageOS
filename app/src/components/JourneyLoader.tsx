@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
-import { F, tint } from '../theme';
+import { F, S, T, tint } from '../theme';
 
 /** The journey as the wait — your exact icons, tinted to the trip's accent. */
 /* eslint-disable @typescript-eslint/no-var-requires */
@@ -62,5 +62,5 @@ const s = StyleSheet.create({
   track: { width: W, flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
   dot: { width: 5, height: 5, borderRadius: 3 },
   runner: { position: 'absolute', left: 0, top: -1.5, width: 9, height: 9, borderRadius: 5 },
-  label: { fontFamily: F.bold, fontSize: 14, marginTop: 14, letterSpacing: 0.3 },
+  label: { ...T.body, fontFamily: F.bold, marginTop: S[3] + 2, letterSpacing: 0.3 },
 });
