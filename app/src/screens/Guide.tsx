@@ -218,7 +218,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                 const a2 = r.assets?.[0];
                 if (!r.canceled && a2?.base64) setTPhotos([...tPhotos, { b64: a2.base64, mime: a2.mimeType ?? 'image/jpeg', uri: a2.uri }]);
               }}>
-                <Text style={{ color: accent, fontSize: 20, fontFamily: F.bold }}>+</Text>
+                <Text style={[s.addPlus, { color: accent }]}>+</Text>
               </Pressable>
             )}
           </View>
@@ -261,18 +261,18 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text style={[s.rowName, { flex: 1 }]}>{it.name}</Text>
             {typeof it.rating === 'number' && (
-              <Text style={{ color: P.warning, fontSize: 13, fontFamily: F.bold }}>★ {it.rating.toFixed(1)}</Text>
+              <Text style={s.rating}>★ {it.rating.toFixed(1)}</Text>
             )}
           </View>
           {!!it.note && <Text style={s.sub}>{it.note}</Text>}
           {(!!it.fee || !!it.access) && (
-            <Text style={[s.sub, { marginTop: 4, fontSize: 13 }]}>
+            <Text style={[s.sub, { marginTop: S[1] }]}>
               {[it.fee ? (FEE_LABEL[it.fee] ?? it.fee) : '', it.access ? '♿ ' + it.access : ''].filter(Boolean).join('  ·  ')}
             </Text>
           )}
         </View>
       ))}
-      {items.length > 0 && <Text style={[s.sub, { fontSize: 12, color: P.textMuted, marginTop: 4 }]}>Ratings & fees are AI estimates — confirm before you go.</Text>}
+      {items.length > 0 && <Text style={[s.disclaimer, { marginTop: S[1] }]}>Ratings & fees are AI estimates — confirm before you go.</Text>}
     </>
   );
 
@@ -281,14 +281,14 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
       <View style={{ padding: 20, paddingBottom: 8 }}>
         <View style={s.header}>
           <Pressable onPress={onBack} hitSlop={10}>
-            <Text style={{ color: accent, fontSize: 16, fontFamily: F.bold }}>‹ {tripTitle}</Text>
+            <Text style={[s.back, { color: accent }]}>‹ {tripTitle}</Text>
           </Pressable>
           <Pressable hitSlop={10} onPress={() =>
             Alert.alert('Rewrite guide?', 'Calls the model again (a few cents).', [
               { text: 'Cancel', style: 'cancel' },
               { text: 'Rewrite', onPress: () => { setG(null); load(true); } },
             ])}>
-            <Text style={{ color: accent, fontSize: 18 }}>↻</Text>
+            <Text style={[s.regen, { color: accent }]}>↻</Text>
           </Pressable>
         </View>
         {destinations.length > 1 && (
@@ -497,7 +497,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                     <Card>
                       {dishes.map((d, i) => (
                         <View key={`d${i}`} style={[{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11 }, i > 0 && { borderTopWidth: 1, borderTopColor: P.hairline }]}>
-                          {!!dishPhotos[d.name] && <RNImage source={{ uri: dishPhotos[d.name] }} style={{ width: 58, height: 58, borderRadius: 10, marginRight: 12 }} />}
+                          {!!dishPhotos[d.name] && <RNImage source={{ uri: dishPhotos[d.name] }} style={s.dishThumb} />}
                           <View style={{ flex: 1 }}>
                             <Text style={s.h}>{d.name}</Text>
                             {!!d.note && <Text style={[s.sub, { marginTop: 2 }]}>{d.note}</Text>}
@@ -511,7 +511,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                     <Card key={`r${i}`}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Text style={[s.h, { flex: 1 }]}>{r.name}</Text>
-                        <Text style={{ fontSize: 14 }}>{'🪙'.repeat((r as any).price ?? 2)}</Text>
+                        <Text style={s.coins}>{'🪙'.repeat((r as any).price ?? 2)}</Text>
                       </View>
                       {!!r.area && <Text style={[s.sub, { fontFamily: F.med }]}>{r.area}</Text>}
                       {!!r.note && <Text style={s.sub}>{r.note}</Text>}
@@ -525,7 +525,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                       </View>
                     </Card>
                   ))}
-                  {restaurants.length > 0 && <Text style={[s.sub, { fontSize: 12, marginBottom: 4, color: P.textMuted }]}>Rankings & prices are impressions — confirm before you go.</Text>}
+                  {restaurants.length > 0 && <Text style={[s.disclaimer, { marginTop: 0, marginBottom: S[1] }]}>Rankings & prices are impressions — confirm before you go.</Text>}
                 </>
               );
             })()}
@@ -543,28 +543,28 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                 <Card key={i}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <Text style={[s.h, { flex: 1 }]}>{a.name}</Text>
-                    <Text style={{ fontSize: 13 }}>{'🪙'.repeat(a.price)}</Text>
+                    <Text style={s.coinsSm}>{'🪙'.repeat(a.price)}</Text>
                   </View>
                   {!!a.note && <Text style={s.sub}>{a.note}</Text>}
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: S[2] }}>
                     {COHORT_ORDER.filter(k => (a.bands as any)[k]).map(k => {
                       const fit = (a.bands as any)[k] as string;
-                      const col = fit === 'great' ? P.success : fit === 'okay' ? P.warning : '#AEB8C4';
+                      const col = fit === 'great' ? P.success : fit === 'okay' ? P.warningInk : P.textMuted;
                       return (
-                        <View key={k} style={{ backgroundColor: tint(col, 0.16), borderRadius: 8, paddingHorizontal: 9, paddingVertical: 5, marginRight: 6, marginBottom: 6 }}>
-                          <Text style={{ color: fit === 'skip' ? P.textMuted : col, fontSize: 12, fontFamily: F.bold }}>{COHORT_LABEL[k]} · {fit}</Text>
+                        <View key={k} style={[s.band, { backgroundColor: tint(col, 0.16) }]}>
+                          <Text style={[s.bandText, { color: fit === 'skip' ? P.textMuted : col }]}>{COHORT_LABEL[k]} · {fit}</Text>
                         </View>
                       );
                     })}
                   </View>
-                  <Text style={[s.sub, { marginTop: 4, fontSize: 13 }]}>
+                  <Text style={[s.sub, { marginTop: S[1] }]}>
                     {[a.duration, a.indoor, a.stroller ? '🚼 stroller-ok' : '', a.food_onsite ? '🍽 food on-site' : '', a.booking].filter(Boolean).join('  ·  ')}
                   </Text>
                   {!!a.verdict && <Text style={{ marginTop: 8, color: P.textPri, fontFamily: F.med, lineHeight: 20 }}>💬 {a.verdict}</Text>}
                 </Card>
               ))}
               <Pressable onPress={redoFamily}><Text style={[s.link, { color: accent, marginBottom: S[2] }]}>↻ Redo picks ›</Text></Pressable>
-              <Text style={[s.sub, { fontSize: 12, color: P.textMuted }]}>Fit & prices are impressions — confirm before you go.</Text>
+              <Text style={[s.disclaimer, { marginTop: 0 }]}>Fit & prices are impressions — confirm before you go.</Text>
               <Findings category="play" />
             </>
           ) : (
@@ -587,7 +587,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
               <Card>
                 <Text style={s.h}>{trip.origin ? `From ${trip.origin}` : 'Getting there'}</Text>
                 {g2.go.from_origin.map((e, i) => <Text key={i} style={s.bullet}>·  {e}</Text>)}
-                <Text style={[s.sub, { fontSize: 12, color: P.textMuted, marginTop: 6 }]}>Routes are impressions — check live schedules & fares.</Text>
+                <Text style={[s.disclaimer, { marginTop: S[1] + 2 }]}>Routes are impressions — check live schedules & fares.</Text>
               </Card>
             )}
             <Card>
@@ -618,12 +618,23 @@ const s = StyleSheet.create({
   loading: { ...T.body, color: P.textSec, marginTop: S[3] },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: S[3] },
   h: { ...T.h2, color: P.textPri, marginBottom: S[2] },
+  back: { ...T.title, fontFamily: F.bold },
+  regen: { ...T.h2 },
+  addPlus: { ...T.h2, fontFamily: F.bold },
+  // P.warningInk, not P.warning: a star rating is type, and P.warning reaches
+  // only 2.1:1 on white. The darker amber is the readable one.
+  rating: { ...T.caption, fontFamily: F.bold, color: P.warningInk },
+  dishThumb: { width: 58, height: 58, borderRadius: RA.sm, marginRight: S[3] },
+  coins: { ...T.body },
+  coinsSm: { ...T.caption },
+  band: { borderRadius: RA.sm, paddingHorizontal: 9, paddingVertical: 5, marginRight: S[1] + 2, marginBottom: S[1] + 2 },
+  bandText: { ...T.caption, fontFamily: F.bold },
   row: { marginBottom: S[3] },
   rowName: { ...T.title, color: P.textPri },
   sub: { ...T.caption, color: P.textSec, marginTop: S[1] },
   bullet: { ...T.body, color: P.textPri, marginBottom: S[2] },
   link: { ...T.title, marginTop: S[2] },
-  disclaimer: { ...T.caption, fontSize: 11, color: P.textMuted, marginTop: S[3],
+  disclaimer: { ...T.caption, color: P.textMuted, marginTop: S[3],
                 textAlign: 'center', lineHeight: 16 },
 });
 
