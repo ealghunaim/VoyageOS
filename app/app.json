@@ -23,7 +23,7 @@
       "package": "com.ealghunaim.voyageos",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0B1526"
+        "backgroundColor": "#0A0E17"
       }
     },
     "plugins": [

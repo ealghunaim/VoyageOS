@@ -11,12 +11,22 @@ export function Btn({ label, onPress, kind = 'primary', disabled = false, color 
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
-        s.btn, { backgroundColor: bg },
-        kind === 'primary' && E.mid,
-        (disabled || pressed) && { opacity: disabled ? 0.45 : 0.85 },
+        s.btn,
+        // Disabled goes neutral rather than translucent brand. Fading #1B2CFB
+        // to 45% over a white card composites to #98A0FD — a periwinkle that
+        // reads as a different brand colour rather than as an inactive
+        // control, and it is the first thing shown on Login because the form
+        // starts empty. Inert should look inert, not lavender.
+        { backgroundColor: disabled ? P.sunken : bg },
+        kind === 'primary' && !disabled && E.mid,
+        pressed && !disabled && { opacity: 0.85 },
       ]}
     >
-      <Text style={[s.btnText, kind === 'ghost' && { color: P.brand }]}>{label}</Text>
+      <Text style={[
+        s.btnText,
+        kind === 'ghost' && { color: P.brand },
+        disabled && { color: P.textMuted },
+      ]}>{label}</Text>
     </Pressable>
   );
 }

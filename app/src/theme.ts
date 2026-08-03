@@ -76,7 +76,7 @@ export function tint(hex: string, alpha = 0.14): string {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Brand system v3 — "Journey. Optimized."
+// Brand system v3 — "Voyage. Optimized."
 // Additive on purpose: C / R / SHADOW above are untouched, so screens
 // that haven't migrated yet render exactly as before. Screens move onto
 // P / S / RA / E / T one at a time; the old exports go once the last does.
