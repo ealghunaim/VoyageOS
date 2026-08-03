@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { addKitItem, createKit, getKit, Kit, listKits, removeKitItem } from '../api';
 import { Btn, Card } from '../components/ui';
-import { C, F } from '../theme';
+import { P, RA, S, T } from '../theme';
 
 export default function Kits({ onBack }: { onBack: () => void }) {
   const [kits, setKits] = useState<Kit[]>([]);
@@ -21,7 +21,7 @@ export default function Kits({ onBack }: { onBack: () => void }) {
 
   if (open) {
     return (
-      <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={s.wrap}>
+      <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={s.wrap}>
         <View style={s.header}>
           <Pressable onPress={() => { setOpen(null); load(); }} hitSlop={10}>
             <Text style={s.back}>‹ Kits</Text>
@@ -37,12 +37,12 @@ export default function Kits({ onBack }: { onBack: () => void }) {
               <Pressable hitSlop={10} onPress={async () => {
                 await removeKitItem(open.id, i.item_id); openKit(open.id);
               }}>
-                <Text style={{ color: C.sub }}>✕</Text>
+                <Text style={s.x}>✕</Text>
               </Pressable>
             </View>
           ))}
           <TextInput style={s.input} value={newItem} onChangeText={setNewItem}
-            placeholder="Add an item…" placeholderTextColor="#9aa7b8" />
+            placeholder="Add an item…" placeholderTextColor={P.textMuted} />
           <Btn label="Add" disabled={!newItem.trim()} onPress={async () => {
             try { await addKitItem(open.id, newItem); setNewItem(''); openKit(open.id); }
             catch (e: any) { Alert.alert('Error', e.message); }
@@ -54,7 +54,7 @@ export default function Kits({ onBack }: { onBack: () => void }) {
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={s.wrap}>
+    <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={s.wrap}>
       <View style={s.header}>
         <Pressable onPress={onBack} hitSlop={10}><Text style={s.back}>‹ Home</Text></Pressable>
         <Text style={s.h2}>My Kits</Text>
@@ -70,7 +70,7 @@ export default function Kits({ onBack }: { onBack: () => void }) {
       ))}
       <Card>
         <TextInput style={s.input} value={newName} onChangeText={setNewName}
-          placeholder="New kit name (e.g. Fly Fishing)…" placeholderTextColor="#9aa7b8" />
+          placeholder="New kit name (e.g. Fly Fishing)…" placeholderTextColor={P.textMuted} />
         <Btn label="Create kit" disabled={!newName.trim()} onPress={async () => {
           try { await createKit(newName.trim()); setNewName(''); load(); }
           catch (e: any) { Alert.alert('Error', e.message); }
@@ -81,13 +81,32 @@ export default function Kits({ onBack }: { onBack: () => void }) {
 }
 
 const s = StyleSheet.create({
-  wrap: { padding: 16, paddingTop: 24 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  back: { color: C.blue, fontSize: 16, fontFamily: F.med },
-  h2: { fontSize: 17, fontFamily: F.bold, color: C.text },
-  name: { color: C.text, fontSize: 16, fontWeight: '600' },
-  sub: { color: C.sub, marginTop: 2, marginBottom: 8 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: C.border },
-  input: { borderWidth: 1, borderColor: C.border, borderRadius: 12, backgroundColor: '#fff', paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: C.text, marginVertical: 10 },
-  foot: { color: '#9aa7b8', textAlign: 'center', marginTop: 12, fontSize: 12 },
+  wrap: { padding: S[4], paddingTop: S[6] },
+  header: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', marginBottom: S[3],
+  },
+  // Kits is reached from Home, not from inside a trip, so it wears brand blue
+  // rather than a destination accent — the same position Archive and Documents
+  // take. The accent belongs to a trip; this screen does not have one.
+  back: { ...T.title, color: P.brand },
+  h2: { ...T.h2, color: P.textPri },
+  // T.title carries F.med. The previous fontWeight: '600' against a
+  // single-weight Satoshi made the renderer smear the regular cut instead of
+  // reaching for the real medium one.
+  name: { ...T.title, color: P.textPri },
+  sub: { ...T.caption, color: P.textSec, marginTop: 2, marginBottom: S[2] },
+  x: { ...T.body, color: P.textSec },
+  row: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: S[2] + 1, borderBottomWidth: 1, borderBottomColor: P.hairline,
+  },
+  // Sunken and borderless, matching Field in ui.tsx and every migrated input.
+  // This one had kept a white fill inside a visible border, which read as a
+  // different kind of control on a screen full of the other kind.
+  input: {
+    backgroundColor: P.sunken, borderRadius: RA.md, paddingHorizontal: S[4],
+    paddingVertical: S[3], ...T.body, color: P.textPri, marginVertical: S[3],
+  },
+  foot: { ...T.caption, color: P.textMuted, textAlign: 'center', marginTop: S[3] },
 });
