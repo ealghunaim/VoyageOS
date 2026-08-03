@@ -221,6 +221,16 @@ export const quickAddItems = (tripId: string, text: string): Promise<PackItem[]>
 export const askTrip = (tripId: string, question: string): Promise<{ answer: string }> =>
   req(`/v1/trips/${tripId}/ask`, { method: 'POST', body: JSON.stringify({ question }) });
 
+export type RouteFlight = {
+  number: string; airline: string | null; dest: string | null;
+  depart: string | null; arrive: string | null; status: string | null;
+};
+/** Deliberate, explicit search — never called from a keystroke handler. */
+export const searchRoute = (origin: string, dest: string, date: string): Promise<{
+  origin: string; dest: string; date: string; flights: RouteFlight[];
+  cached: boolean; units_spent: number; units_remaining?: number;
+}> => req(`/v1/flights/route/${origin}/${dest}/${date}`);
+
 export const lookupFlight = (number: string, date: string): Promise<{ number: string; origin: string | null; dest: string | null; depart: string | null; arrive: string | null; status: string | null }> =>
   req(`/v1/flights/${encodeURIComponent(number)}/${date}`);
 

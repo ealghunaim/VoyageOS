@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Alert, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
-import { lookupFlight, patchTrip, PlaceHit, searchPlaces, Segment, Trip } from '../api';
+import { lookupFlight, patchTrip, PlaceHit, RouteFlight, searchPlaces, searchRoute, Segment, Trip } from '../api';
 import { airlineFromRef } from '../airlines';
 import { Airport, searchAirports } from '../airports';
 import { Btn } from '../components/ui';
@@ -43,6 +43,11 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved, onSaveLo
   const [acFor, setAcFor] = useState<{ i: number; field: 'origin' | 'dest' } | null>(null);
   const [acHits, setAcHits] = useState<PlaceHit[]>([]);
   const [airHits, setAirHits] = useState<Airport[]>([]);
+  // Route browsing is metered, so it is state a button sets — never an effect.
+  const [routeFor, setRouteFor] = useState<number | null>(null);
+  const [routeBusy, setRouteBusy] = useState(false);
+  const [routeHits, setRouteHits] = useState<RouteFlight[]>([]);
+  const [routeNote, setRouteNote] = useState('');
 
   const update = (i: number, patch: Partial<Segment>) =>
     setSegs(segs.map((s, j) => (j === i ? { ...s, ...patch } : s)));
@@ -109,6 +114,36 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved, onSaveLo
     }, 250);
     return () => clearTimeout(t);
   }, [acFor, segs]);
+
+  /**
+   * Deliberate, one tap, one search. AeroDataBox bills by API unit and a whole
+   * day of one airport's departures costs four of them, so this must never be
+   * driven by typing. The server caches by (route, date), so re-opening a leg
+   * you already searched spends nothing.
+   */
+  async function browseRoute(i: number) {
+    const sg = segs[i];
+    const o = (sg.origin ?? '').trim().toUpperCase();
+    const d = (sg.dest ?? '').trim().toUpperCase();
+    if (o.length !== 3 || d.length !== 3) {
+      Alert.alert('Search flights', 'Pick both airports first — the search needs codes like BKK and SIN.');
+      return;
+    }
+    const date = sg.depart ? sg.depart.slice(0, 10) : trip.start_date;
+    setRouteBusy(true); setRouteFor(i); setRouteHits([]); setRouteNote('');
+    try {
+      const r = await searchRoute(o, d, date);
+      setRouteHits(r.flights);
+      setRouteNote(
+        r.flights.length === 0
+          ? `No ${o} → ${d} flights listed for ${date}.`
+          : r.cached ? 'From cache — no quota used.' : `${r.flights.length} flights · ${r.units_spent} API units`,
+      );
+    } catch (e: any) {
+      setRouteNote('');
+      Alert.alert('Search flights', e.message || 'Could not search that route.');
+    } finally { setRouteBusy(false); }
+  }
 
   const totalMins = segs.length >= 1 ? gapMins(segs[0].depart, segs[segs.length - 1].arrive) : null;
 
@@ -242,8 +277,38 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved, onSaveLo
                           ))}
                         </View>
                       )}
-                      <View style={{ flexDirection: 'row', marginTop: 4 }}>
-                        <Pressable style={[s.timeBtn, { marginRight: 8 }]} onPress={() => setPicking({ i, field: 'depart' })}>
+                      {sg.mode === 'flight' && (
+                        <>
+                          <Pressable disabled={routeBusy} onPress={() => browseRoute(i)} style={s.lookup}>
+                            <Text style={[s.lookupText, { color: accent }]}>
+                              {routeBusy && routeFor === i ? 'Searching…' : 'Search flights on this route'}
+                            </Text>
+                          </Pressable>
+                          {routeFor === i && !!routeNote && <Text style={s.routeNote}>{routeNote}</Text>}
+                          {routeFor === i && routeHits.map((f, k) => (
+                            <Pressable
+                              key={`rf-${f.number}-${k}`}
+                              style={s.routeRow}
+                              onPress={() => {
+                                // Picking a flight fills the leg exactly as the
+                                // number lookup would, with no further spend.
+                                update(i, { ref: f.number, depart: f.depart ?? sg.depart,
+                                            arrive: f.arrive ?? sg.arrive });
+                                setRouteFor(null); setRouteHits([]); setRouteNote('');
+                              }}>
+                              <View style={{ flex: 1 }}>
+                                <Text style={s.routeNum}>{f.number}{f.airline ? ` · ${f.airline}` : ''}</Text>
+                                <Text style={s.routeTime}>
+                                  {(f.depart ?? '').slice(11)} → {(f.arrive ?? '').slice(11)}
+                                </Text>
+                              </View>
+                              <Text style={[s.routePick, { color: accent }]}>Use</Text>
+                            </Pressable>
+                          ))}
+                        </>
+                      )}
+                      <View style={{ flexDirection: 'row', marginTop: S[1] }}>
+                        <Pressable style={[s.timeBtn, { marginRight: S[2] }]} onPress={() => setPicking({ i, field: 'depart' })}>
                           <Text style={s.timeLabel}>DEPART</Text><Text style={s.timeVal}>{fmtDT(sg.depart)}</Text>
                         </Pressable>
                         <Pressable style={s.timeBtn} onPress={() => setPicking({ i, field: 'arrive' })}>
@@ -348,6 +413,14 @@ const s = StyleSheet.create({
     borderColor: P.hairline, marginBottom: S[2], overflow: 'hidden',
   },
   acHit: { paddingVertical: S[2] + 1, paddingHorizontal: S[3] },
+  routeNote: { ...T.caption, color: P.textMuted, marginBottom: S[2] },
+  routeRow: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: P.sunken,
+    borderRadius: RA.md, paddingVertical: S[2] + 1, paddingHorizontal: S[3], marginBottom: S[1] + 2,
+  },
+  routeNum: { ...T.body, fontFamily: F.bold, color: P.textPri },
+  routeTime: { ...T.caption, color: P.textSec },
+  routePick: { ...T.caption, fontFamily: F.bold },
   acCode: { ...T.body, fontFamily: F.bold, color: P.textPri, width: 42 },
   acName: { ...T.body, color: P.textPri },
   acSub: { ...T.caption, color: P.textSec },
