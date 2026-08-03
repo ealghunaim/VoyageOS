@@ -6,7 +6,7 @@ import {
 import { lookupFlight, patchTrip, Segment, Trip } from '../api';
 import { airlineFromRef } from '../airlines';
 import { Btn } from '../components/ui';
-import { C, F, tint, P } from '../theme';
+import { F, P, RA, S, T, tint } from '../theme';
 
 const MODES: [string, string][] = [['flight', '✈ Flight'], ['train', '🚆 Train'], ['ship', '🚢 Ship'], ['drive', '🚗 Drive']];
 const MODE_ICON: Record<string, string> = { flight: '✈', train: '🚆', ship: '🚢', drive: '🚗' };
@@ -85,7 +85,7 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved, onSaveLo
 
   return (
     <Modal visible animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: P.pageBg }}>
         <View style={s.top}>
           <Pressable onPress={onClose} hitSlop={10}><Text style={[s.close, { color: accent }]}>Close</Text></Pressable>
           <Text style={s.title}>Your journey</Text>
@@ -103,8 +103,19 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved, onSaveLo
             return (
               <View key={i}>
                 {i > 0 && layover != null && (
-                  <View style={[s.layover, tight && { backgroundColor: tint(C.red, 0.08) }]}>
-                    <Text style={[s.layoverText, tight && { color: C.red }]}>
+                  <View style={[
+                    s.layover,
+                    // A tight connection is a caution; an overlap is an error.
+                    // They shared one red, so "90 minutes, mind the gate" looked
+                    // identical to "these times cannot both be true".
+                    tight    && { backgroundColor: tint(P.warningInk, 0.10) },
+                    negative && { backgroundColor: tint(P.danger, 0.10) },
+                  ]}>
+                    <Text style={[
+                      s.layoverText,
+                      tight    && { color: P.warningInk },
+                      negative && { color: P.danger },
+                    ]}>
                       {negative ? '⚠ Overlap — check these times' : `${humanDur(layover)} in ${segs[i - 1].dest || 'transit'}${tight ? ' · tight connection' : ''}`}
                     </Text>
                   </View>
@@ -122,7 +133,7 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved, onSaveLo
                         {MODES.map(([v, l]) => (
                           <Pressable key={v} onPress={() => update(i, { mode: v })}
                             style={[s.chip, sg.mode === v && { backgroundColor: accent, borderColor: accent }]}>
-                            <Text style={[s.chipText, sg.mode === v && { color: '#fff' }]}>{l}</Text>
+                            <Text style={[s.chipText, sg.mode === v && { color: P.textOnDark }]}>{l}</Text>
                           </Pressable>
                         ))}
                       </View>
@@ -136,7 +147,7 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved, onSaveLo
                         if (!al) return null;
                         return (
                           <View style={{ marginBottom: 8 }}>
-                            <Text style={{ color: C.sub, marginBottom: 6 }}>✈ {al.name} · hub {al.iata} ({al.city})</Text>
+                            <Text style={s.airlineHint}>✈ {al.name} · hub {al.iata} ({al.city})</Text>
                             <View style={{ flexDirection: 'row' }}>
                               <Pressable onPress={() => update(i, { origin: al.iata })} style={[s.chip, { marginRight: 6 }]}>
                                 <Text style={s.chipText}>From {al.iata}</Text>
@@ -225,31 +236,55 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved, onSaveLo
  * consequence.
  */
 const s = StyleSheet.create({
-  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8 },
-  close: { fontSize: 16, fontFamily: F.bold },
-  title: { fontSize: 18, fontFamily: F.bold, color: C.text },
-  empty: { color: C.sub, lineHeight: 21, marginBottom: 16 },
-  seg: { backgroundColor: '#fff', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: C.border },
+  top: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: S[4], paddingTop: S[3] + 2, paddingBottom: S[2],
+  },
+  close: { ...T.title, fontFamily: F.bold },
+  title: { ...T.h2, color: P.textPri },
+  empty: { ...T.body, color: P.textSec, marginBottom: S[4] },
+  seg: {
+    backgroundColor: P.card, borderRadius: RA.lg, padding: S[3] + 2,
+    borderWidth: 1, borderColor: P.hairline,
+  },
   segHead: {},
-  segTitle: { fontSize: 16, fontFamily: F.bold, color: C.text },
-  segRoute: { color: C.text, marginTop: 2 },
-  segTimes: { color: C.sub, marginTop: 2, fontSize: 13 },
-  form: { marginTop: 12, borderTopWidth: 1, borderTopColor: C.border, paddingTop: 12 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 },
-  chip: { borderWidth: 1.5, borderColor: C.border, backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, marginRight: 6, marginBottom: 6 },
-  chipText: { color: C.text, fontFamily: F.bold, fontSize: 13 },
-  input: { backgroundColor: '#F1F4F9', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: C.text, marginBottom: 8 },
-  timeBtn: { flex: 1, backgroundColor: '#F1F4F9', borderRadius: 12, padding: 10, marginBottom: 8 },
-  timeLabel: { color: C.sub, fontSize: 11, fontFamily: F.bold },
-  timeVal: { color: C.text, fontFamily: F.bold, marginTop: 2 },
-  rowBtns: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
-  small: { fontFamily: F.bold, color: C.text },
-  layover: { backgroundColor: '#EEF2F7', borderRadius: 10, paddingVertical: 6, paddingHorizontal: 12, marginVertical: 8, alignSelf: 'center' },
-  layoverText: { color: C.sub, fontSize: 13, fontFamily: F.bold },
-  lookup: { backgroundColor: '#EEF2F7', borderRadius: 12, paddingVertical: 9, alignItems: 'center', marginBottom: 8 },
-  lookupText: { fontFamily: F.bold, fontSize: 14 },
-  addBtn: { paddingVertical: 14, alignItems: 'center' },
-  addText: { fontFamily: F.bold, fontSize: 15 },
-  total: { color: C.text, fontFamily: F.bold, textAlign: 'center', marginTop: 4 },
-  note: { color: '#9AA9BB', fontSize: 12, textAlign: 'center', marginTop: 12, lineHeight: 17 },
+  segTitle: { ...T.title, fontFamily: F.bold, color: P.textPri },
+  segRoute: { ...T.body, color: P.textPri, marginTop: 2 },
+  segTimes: { ...T.caption, color: P.textSec, marginTop: 2 },
+  form: { marginTop: S[3], borderTopWidth: 1, borderTopColor: P.hairline, paddingTop: S[3] },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: S[2] },
+  chip: {
+    borderWidth: 1.5, borderColor: P.hairline, backgroundColor: P.card,
+    paddingHorizontal: S[3], paddingVertical: 7, borderRadius: RA.pill,
+    marginRight: S[1] + 2, marginBottom: S[1] + 2,
+  },
+  chipText: { ...T.caption, fontFamily: F.bold, color: P.textPri },
+  input: {
+    ...T.body, backgroundColor: P.sunken, borderRadius: RA.md,
+    paddingHorizontal: S[3] + 2, paddingVertical: S[2] + 2, color: P.textPri, marginBottom: S[2],
+  },
+  timeBtn: {
+    flex: 1, backgroundColor: P.sunken, borderRadius: RA.md,
+    padding: S[2] + 2, marginBottom: S[2],
+  },
+  timeLabel: { ...T.label, color: P.textSec },
+  timeVal: { ...T.body, fontFamily: F.bold, color: P.textPri, marginTop: 2 },
+  rowBtns: { flexDirection: 'row', justifyContent: 'space-between', marginTop: S[1] },
+  small: { ...T.body, fontFamily: F.bold, color: P.textPri },
+  airlineHint: { ...T.body, color: P.textSec, marginBottom: S[1] + 2 },
+  // neutral by default; the caution and error grounds are applied inline
+  layover: {
+    backgroundColor: P.sunken, borderRadius: RA.sm, paddingVertical: S[1] + 2,
+    paddingHorizontal: S[3], marginVertical: S[2], alignSelf: 'center',
+  },
+  layoverText: { ...T.caption, fontFamily: F.bold, color: P.textSec },
+  lookup: {
+    backgroundColor: P.sunken, borderRadius: RA.md, paddingVertical: S[2] + 1,
+    alignItems: 'center', marginBottom: S[2],
+  },
+  lookupText: { ...T.caption, fontFamily: F.bold, fontSize: 14 },
+  addBtn: { paddingVertical: S[3] + 2, alignItems: 'center' },
+  addText: { ...T.body, fontFamily: F.bold },
+  total: { ...T.body, fontFamily: F.bold, color: P.textPri, textAlign: 'center', marginTop: S[1] },
+  note: { ...T.caption, fontSize: 12, color: P.textMuted, textAlign: 'center', marginTop: S[3], lineHeight: 17 },
 });
