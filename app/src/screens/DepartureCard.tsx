@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { getGuide, patchTrip, Trip } from '../api';
-import { C, tint } from '../theme';
+import { F, P, RA, S, T } from '../theme';
 
 const MODEK: Record<string, string> = { air: 'airport', ship: 'port', train: 'station', car: 'road' };
 
@@ -64,7 +64,7 @@ export default function DepartureCard({ trip, accent, onOpenPacking, onTripChang
       {!trip.depart_time && (
         <View style={s.row}>
           <TextInput style={s.input} value={timeInput} onChangeText={setTimeInput}
-            placeholder="Return flight time (HH:MM)" placeholderTextColor="#9AA9BB" />
+            placeholder="Return flight time (HH:MM)" placeholderTextColor={P.textMuted} />
           <Pressable disabled={saving} onPress={saveTime}>
             <Text style={[s.save, { color: accent }]}>{saving ? '…' : 'Set'}</Text>
           </Pressable>
@@ -94,14 +94,24 @@ export default function DepartureCard({ trip, accent, onOpenPacking, onTripChang
 }
 
 const s = StyleSheet.create({
-  card: { backgroundColor: '#fff', borderRadius: 22, padding: 18, marginBottom: 12, borderWidth: 2 },
-  kicker: { fontSize: 12, fontWeight: '800', letterSpacing: 0.8, marginBottom: 10 },
-  h: { fontSize: 16, fontWeight: '800', color: C.text, marginBottom: 4 },
-  body: { color: C.sub, lineHeight: 21 },
-  row: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
-  input: { flex: 1, backgroundColor: '#F1F4F9', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 15, color: C.text },
-  save: { fontWeight: '800', fontSize: 15, marginLeft: 12 },
-  link: { fontWeight: '800', marginTop: 8 },
-  svName: { color: C.text, fontWeight: '700' },
-  disclaimer: { color: '#9AA9BB', fontSize: 12, marginTop: 6 },
+  card: {
+    backgroundColor: P.card, borderRadius: RA.xl, padding: S[4] + 2,
+    marginBottom: S[3], borderWidth: 2,
+  },
+  // Every weight here was a fontWeight literal — 800 four times, 700 once —
+  // with no fontFamily at all. Against a single-weight Satoshi that makes the
+  // renderer smear the regular cut rather than reach for the bold one it
+  // ships. The T scale carries the real faces.
+  kicker: { ...T.label },
+  h: { ...T.title, fontFamily: F.bold, color: P.textPri, marginBottom: S[1] },
+  body: { ...T.body, color: P.textSec, lineHeight: 21 },
+  row: { flexDirection: 'row', alignItems: 'center', marginTop: S[2] },
+  input: {
+    flex: 1, backgroundColor: P.sunken, borderRadius: RA.md,
+    paddingHorizontal: S[3] + 2, paddingVertical: S[2] + 2, ...T.body, color: P.textPri,
+  },
+  save: { ...T.body, fontFamily: F.bold, marginLeft: S[3] },
+  link: { ...T.body, fontFamily: F.bold, marginTop: S[2] },
+  svName: { ...T.body, fontFamily: F.bold, color: P.textPri },
+  disclaimer: { ...T.caption, color: P.textMuted, marginTop: S[1] + 2 },
 });
