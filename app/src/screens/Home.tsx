@@ -154,7 +154,7 @@ export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, onArc
 
 const s = StyleSheet.create({
   center: { flex: 1, backgroundColor: P.pageBg, alignItems: 'center', justifyContent: 'center' },
-  greeting: { ...T.display, fontSize: 34, color: P.textPri, letterSpacing: -0.8, marginTop: S[4] + 2, marginBottom: S[4] + 2 },
+  greeting: { ...T.display, color: P.textPri, marginTop: S[4] + 2, marginBottom: S[4] + 2 },
   h2: { ...T.h2, color: P.textPri, marginBottom: S[1] },
   sub: { ...T.body, color: P.textSec, lineHeight: 20 },
   // An error banner reports a state, so it keeps colour. The neutral-grey rule
@@ -171,9 +171,9 @@ const s = StyleSheet.create({
     // P.card at full opacity would hide the artwork it floats on.
     backgroundColor: 'rgba(255,255,255,0.92)',
   },
-  pillText: { ...T.label, fontSize: 12, letterSpacing: 0 },
-  tripTitle: { ...T.h1, fontSize: 21, color: P.textPri, letterSpacing: -0.3 },
-  tripTitleBig: { fontSize: 24 },
+  pillText: { ...T.label, letterSpacing: 0 },
+  tripTitle: { ...T.h2, color: P.textPri },
+  tripTitleBig: { ...T.h1 },
   dates: { ...T.body, color: P.textSec, marginTop: 3, marginBottom: S[1] },
   wxLine: { ...T.caption, fontFamily: F.bold, marginBottom: S[2] },
   open: { ...T.body, fontFamily: F.bold },
