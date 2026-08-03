@@ -9,7 +9,7 @@ import Documents from './src/screens/Documents';
 import Home from './src/screens/Home';
 import Kits from './src/screens/Kits';
 import Login from './src/screens/Login';
-import BottomBar from './src/components/BottomBar';
+import TopBar, { FloatingAdd } from './src/components/TopBar';
 import Wordmark from './src/components/Wordmark';
 import Guide from './src/screens/Guide';
 import Packing from './src/screens/Packing';
@@ -94,11 +94,24 @@ export default function App() {
     );
   }
 
-  const showBar = route.name !== 'login';
+  // The identity bar belongs to Home only. Inner screens are hierarchical and
+  // keep their own `‹ Trip name` back links; a fixed logo bar cannot express
+  // "back one level", and stacking both would be two navigation systems.
+  const showTopBar = route.name === 'home' || route.name === 'profile';
+  // The + is reachable wherever a trip could be added from, but not over the
+  // login screen or a wizard that is already creating one.
+  const showAdd = route.name !== 'login' && route.name !== 'wizard';
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: P.pageBg }}>
       <StatusBar barStyle="dark-content" />
+      {showTopBar && (
+        <TopBar
+          active={route.name === 'home' ? 'home' : 'profile'}
+          onHome={goHome}
+          onProfile={() => setRoute({ name: 'profile' })}
+        />
+      )}
       <View style={{ flex: 1 }}>
       {route.name === 'login' && (
         <Login onDone={() => { setAuthed(true); goHome(); }} />
@@ -113,7 +126,6 @@ export default function App() {
           onNewTrip={() => setRoute({ name: 'wizard' })}
           onOpenTrip={(t: Trip) => setRoute({ name: 'hub', trip: t })}
           onArchive={(past) => setRoute({ name: 'archive', trips: past })}
-          onHomeTap={goHome}
         />
       )}
       {route.name === 'wizard' && (
@@ -181,14 +193,7 @@ export default function App() {
         />
       )}
       </View>
-      {showBar && (
-        <BottomBar
-          active={route.name === 'home' ? 'home' : route.name === 'profile' ? 'profile' : null}
-          onHome={goHome}
-          onNew={() => setRoute({ name: 'wizard' })}
-          onProfile={() => setRoute({ name: 'profile' })}
-        />
-      )}
+      {showAdd && <FloatingAdd onPress={() => setRoute({ name: 'wizard' })} />}
     </SafeAreaView>
   );
 }

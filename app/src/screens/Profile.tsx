@@ -6,6 +6,7 @@ import {
 import { Companion, Doc, getProfile, HomeOrigin, listDocuments, PlaceHit, putProfile, searchPlaces } from '../api';
 import { getEmail, signOut } from '../auth';
 import { Btn, Card, Chip, Field } from '../components/ui';
+import { FAB_CLEARANCE } from '../components/TopBar';
 import { COUNTRIES, countryName, flagOf } from '../countries';
 import { F, P, RA, S, T } from '../theme';
 
@@ -105,7 +106,7 @@ export default function Profile({ onSignedOut, onDocuments }: {
   })();
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={{ padding: S[5], paddingTop: S[6] }}>
+    <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={{ padding: S[5], paddingTop: S[5], paddingBottom: FAB_CLEARANCE }}>
       <Text style={s.h1}>Profile</Text>
       <Text style={s.email}>{getEmail() || 'Signed in'}</Text>
 

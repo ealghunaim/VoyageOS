@@ -4,8 +4,8 @@ import {
 } from 'react-native';
 import { getTripWeather, listTrips, Trip, WxDay } from '../api';
 import FlagField from '../components/FlagField';
-import Wordmark from '../components/Wordmark';
 import { Btn, Card } from '../components/ui';
+import { FAB_CLEARANCE } from '../components/TopBar';
 import { accentForTrip, F, P, RA, S, T, titleize } from '../theme';
 
 function daysUntil(dateStr: string) {
@@ -13,10 +13,9 @@ function daysUntil(dateStr: string) {
   return Math.ceil((d.getTime() - Date.now()) / 86400000);
 }
 
-export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, onArchive, onHomeTap, authed, onSignOut }: {
+export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, onArchive, authed, onSignOut }: {
   onNewTrip: () => void; onOpenTrip: (t: Trip) => void;
   onKits: () => void; onDocuments: () => void; onArchive: (past: Trip[]) => void;
-  onHomeTap?: () => void;
   authed?: boolean; onSignOut?: () => void;
 }) {
   const [trips, setTrips] = useState<Trip[] | null>(null);
@@ -55,14 +54,13 @@ export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, onArc
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: P.pageBg }}
-      contentContainerStyle={{ padding: S[5], paddingTop: S[6] }}
+      contentContainerStyle={{ padding: S[5], paddingTop: S[5], paddingBottom: FAB_CLEARANCE }}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={async () => {
           setRefreshing(true); await load(); setRefreshing(false);
         }} />
       }
     >
-      <Wordmark onPress={onHomeTap} />
       <Text style={s.greeting}>Where to next?</Text>
 
       {!!error && (
