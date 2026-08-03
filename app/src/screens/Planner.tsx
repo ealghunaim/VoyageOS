@@ -8,7 +8,12 @@ export default function Planner({ tripId, tripTitle, accent, startDate, endDate,
   tripId: string; tripTitle: string; accent: string; startDate: string; endDate: string; onBack: () => void;
 }) {
   const [items, setItems] = useState<PlanItem[]>([]);
-  const [drafts, setDrafts] = useState<Record<number, { title: string; time: string }>>({});
+  // `| undefined` is the truth: drafts starts empty and a day only gains an
+  // entry once it is typed into. Record<K,V> claims every key is populated,
+  // which made TypeScript read the defaults in setDraft as dead code — they
+  // are not, they are what a first keystroke on an untouched day lands on.
+  const [drafts, setDrafts] =
+    useState<Record<number, { title: string; time: string } | undefined>>({});
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
