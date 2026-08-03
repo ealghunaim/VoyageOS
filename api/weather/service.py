@@ -49,6 +49,50 @@ def _upsert_snapshots(db, dest_id: str, days: list[dict]) -> int:
     return len(rows)
 
 
+#: Destination ids this process has already tried to geocode. A destination
+#: that cannot be geocoded — a misspelling, an invented place — would otherwise
+#: be looked up again on every single read of the trip, forever. Marked before
+#: the attempt, not after, so a raising geocoder cannot slip past the guard.
+#:
+#: Deliberately in memory rather than a column: it costs no migration, and the
+#: worst case if the process restarts is one wasted lookup per destination per
+#: process. A column would be more durable and is the upgrade if this ever
+#: proves noisy.
+_GEOCODE_TRIED: set[str] = set()
+
+
+def _backfill_coords_once(db, dest: dict, trip: dict) -> dict:
+    """Self-heal a destination that was created without coordinates.
+
+    Only reached when a trip has no snapshots at all, which is the signature of
+    the bug this repairs: without lat/lng nothing can be fetched, so the trip
+    silently shows no weather while its neighbours show theirs.
+
+    Everything here is best-effort. This runs on a read path, so a failure must
+    degrade to "no weather" and never to an error — a geocoder outage cannot be
+    allowed to take the home screen down with it.
+    """
+    if dest["id"] in _GEOCODE_TRIED:
+        return dest
+    _GEOCODE_TRIED.add(dest["id"])
+    try:
+        filled = _ensure_coords(db, dest)
+        if not filled:
+            print(f"[weather] cannot geocode '{dest.get('place_name')}' — "
+                  "not retrying this process")
+            return dest
+        clim = provider.fetch_climatology(
+            filled["lat"], filled["lng"],
+            date.fromisoformat(trip["start_date"]), date.fromisoformat(trip["end_date"]))
+        if clim:
+            _upsert_snapshots(db, filled["id"], clim)
+        return filled
+    except Exception as e:  # noqa: BLE001 — a read must not fail on a backfill
+        print(f"[weather] backfill failed for '{dest.get('place_name')}': "
+              f"{type(e).__name__}: {e}")
+        return dest
+
+
 def load_snapshots(db, trip: dict) -> tuple[dict | None, list[dict]]:
     dest = _first_destination(db, trip["id"])
     if not dest:
@@ -56,6 +100,11 @@ def load_snapshots(db, trip: dict) -> tuple[dict | None, list[dict]]:
     rows = db.table("weather_snapshots").select("*").eq("destination_id", dest["id"]) \
         .gte("forecast_date", trip["start_date"]).lte("forecast_date", trip["end_date"]) \
         .order("forecast_date").execute().data
+    if not rows and (dest.get("lat") is None or dest.get("lng") is None):
+        dest = _backfill_coords_once(db, dest, trip)
+        rows = db.table("weather_snapshots").select("*").eq("destination_id", dest["id"]) \
+            .gte("forecast_date", trip["start_date"]).lte("forecast_date", trip["end_date"]) \
+            .order("forecast_date").execute().data
     days = [{"date": r["forecast_date"], "temp_max": r["temp_max"], "temp_min": r["temp_min"],
              "precip_prob": r["precip_prob"], "wind_kph": r["wind_kph"],
              "uv": (r.get("payload") or {}).get("uv"),
