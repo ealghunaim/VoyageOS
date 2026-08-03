@@ -1,5 +1,5 @@
 import React from 'react';
-import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
+import Svg, { Circle, Ellipse, Line, Path, Rect } from 'react-native-svg';
 import { lift, tint } from '../theme';
 
 /**
@@ -63,17 +63,33 @@ export default function TileIcon({ kind, accent, size = 30, palette = 'accent' }
         <Line x1="8.6" y1="16.8" x2="14.2" y2="16.8" {...line} />
       </>
     ),
-    // Both the fork head and the knife blade are filled: every other icon in
-    // the set leads with a solid shape inside the contour, and unfilled
-    // cutlery read as thin line-art next to them.
+    /**
+     * A bowl, seen from just above the rim.
+     *
+     * Cutlery could not hold this set's weight however it was drawn. Pack and
+     * play are single blocks spanning the full 18.4 units; a fork and knife are
+     * two narrow verticals that need whitespace between them to stay legible as
+     * cutlery, so at tile size they always read as line-art beside their
+     * neighbours. Thickening them only made the gap more conspicuous.
+     *
+     * The bowl spans exactly 18.4 — the same as pack and play — so the mass
+     * matches by construction rather than by eye.
+     *
+     * Deliberately a half-disc with a flat rim rather than a plate seen head
+     * on: currency is already a full disc with concentric rings, and a round
+     * plate would have read as its sibling. Nothing about these two
+     * silhouettes rhymes.
+     *
+     * The steam is what makes it food. A bare half-disc is a basket or a boat;
+     * two curls rising off it are unambiguous, and the wide shallow proportion
+     * keeps it from reading as a cup.
+     */
     eat: (
       <>
-        <Path d="M3.8 2.6h5.2v5.4a2.6 2.6 0 0 1-5.2 0z" fill={mid} {...o} />
-        <Line x1="5.2" y1="3.6" x2="5.2" y2="6.2" {...line} />
-        <Line x1="7.6" y1="3.6" x2="7.6" y2="6.2" {...line} />
-        <Line x1="6.4" y1="8" x2="6.4" y2="21.4" {...line} />
-        <Path d="M17.2 2.6c2.4 0 3.8 2.4 3.8 5.2s-1.4 4.8-3.8 4.8z" fill={top} {...o} />
-        <Line x1="17.2" y1="12.6" x2="17.2" y2="21.4" {...line} />
+        <Path d="M9.6 8.4c-1.3-1.3.7-2.4-.6-3.7" {...line} />
+        <Path d="M14.7 8.4c-1.3-1.3.7-2.4-.6-3.7" {...line} />
+        <Path d="M2.8 11.6h18.4a9.2 9.2 0 0 1-18.4 0z" fill={top} {...o} />
+        <Ellipse cx="12" cy="11.6" rx="9.2" ry="2" fill={mid} {...o} />
       </>
     ),
     play: (
