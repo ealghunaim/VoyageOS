@@ -1,30 +1,11 @@
-// VoyageOS design system v2 — "editorial travel": light, airy, premium, round.
-// One accent per destination: colors follow where you're going.
-export const C = {
-  bg: '#F2F6FA',
-  card: '#FFFFFF',
-  border: '#E3EAF3',
-  text: '#0A0E17',      // deep navy — premium over plain black
-  sub: '#7B8596',
-  blue: '#1D6BFF',      // brand base (wordmark, primary actions)
-  blueSoft: '#E4EEFF',
-  green: '#16A34A',
-  red: '#DC2626',
-  glacier: '#3FD1FF',
-  navy: '#0A0E17',
-};
+// VoyageOS design system — "Voyage. Optimized."
+// One accent per destination: colours follow where you're going.
+//
+// The v2 exports C, R and SHADOW lived here alongside these while screens moved
+// across one at a time. Nothing imports them any more, so they are gone; P, S,
+// RA, E and T below are the whole system.
 
 export const F = { reg: 'Satoshi', med: 'Satoshi-Medium', bold: 'Satoshi-Bold' };
-
-export const R = { card: 24, btn: 16, chip: 999, input: 14 };
-
-export const SHADOW = {
-  shadowColor: '#0B1526',
-  shadowOpacity: 0.06,
-  shadowRadius: 16,
-  shadowOffset: { width: 0, height: 8 },
-  elevation: 3,
-};
 
 // destination-driven accents — deterministic, curated, travel-toned
 const PALETTE = [
@@ -76,10 +57,10 @@ export function tint(hex: string, alpha = 0.14): string {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Brand system v3 — "Voyage. Optimized."
-// Additive on purpose: C / R / SHADOW above are untouched, so screens
-// that haven't migrated yet render exactly as before. Screens move onto
-// P / S / RA / E / T one at a time; the old exports go once the last does.
+// Brand system — "Voyage. Optimized."
+// P (colour) · S (4pt spacing) · RA (radii) · E (elevation) · T (type).
+// Every screen and component draws from these; there is no second system to
+// fall back to, which is the point.
 // ─────────────────────────────────────────────────────────────
 
 const RAMP = {
