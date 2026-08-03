@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { getPhrases, Phrase, Trip } from '../api';
 import { CURRENCIES, currencyForCountry, getRate } from '../fx';
-import { C, F, tint, P, S, RA, E, T } from '../theme';
+import { E, F, P, RA, S, T, tint } from '../theme';
 import TileIcon from '../components/icons';
 
 export default function TripExtras({ trip, accent, onSOS }: { trip: Trip; accent: string; onSOS?: () => void }) {
@@ -67,7 +67,7 @@ export default function TripExtras({ trip, accent, onSOS }: { trip: Trip; accent
             <>
               {!!phrases.language && <Text style={[s.lang, { color: accent }]}>{phrases.language}</Text>}
               {phrases.phrases.map((p, i) => (
-                <View key={i} style={[{ paddingVertical: 8 }, i > 0 && { borderTopWidth: 1, borderTopColor: C.border }]}>
+                <View key={i} style={[{ paddingVertical: S[2] }, i > 0 && { borderTopWidth: 1, borderTopColor: P.hairline }]}>
                   <Text style={s.local}>{p.local}</Text>
                   <Text style={s.en}>{p.en}{p.pron ? `  ·  ${p.pron}` : ''}</Text>
                 </View>
@@ -89,7 +89,7 @@ export default function TripExtras({ trip, accent, onSOS }: { trip: Trip; accent
             {ordered(fromCcy).map(c => (
               <Pressable key={c} onPress={() => setFromCcy(c)}
                 style={[s.ccyChip, c === fromCcy && { backgroundColor: accent, borderColor: accent }]}>
-                <Text style={[s.ccyChipText, c === fromCcy && { color: '#fff' }]}>{c}</Text>
+                <Text style={[s.ccyChipText, c === fromCcy && { color: P.textOnDark }]}>{c}</Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -98,7 +98,7 @@ export default function TripExtras({ trip, accent, onSOS }: { trip: Trip; accent
             {ordered(toCcy).map(c => (
               <Pressable key={c} onPress={() => setToCcy(c)}
                 style={[s.ccyChip, c === toCcy && { backgroundColor: accent, borderColor: accent }]}>
-                <Text style={[s.ccyChipText, c === toCcy && { color: '#fff' }]}>{c}</Text>
+                <Text style={[s.ccyChipText, c === toCcy && { color: P.textOnDark }]}>{c}</Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -125,13 +125,19 @@ const s = StyleSheet.create({
   sqLabel: { ...T.caption, fontFamily: F.med, color: P.textPri },
   panel: { backgroundColor: P.card, borderRadius: RA.lg, borderWidth: 1,
            borderColor: P.hairline, padding: S[4], marginTop: S[3], ...E.low },
-  lang: { fontFamily: F.bold, fontSize: 13, marginBottom: 4 },
-  local: { color: C.text, fontSize: 17, fontFamily: F.bold },
-  en: { color: C.sub, fontSize: 13, marginTop: 1 },
-  note: { color: '#9AA9BB', fontSize: 12, marginTop: 8 },
-  amt: { backgroundColor: '#F1F4F9', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 18, fontFamily: F.bold, color: C.text, marginBottom: 10 },
-  pickLabel: { color: C.sub, fontSize: 11, fontFamily: F.bold, letterSpacing: 0.6, marginBottom: 6 },
-  ccyChip: { borderWidth: 1.5, borderColor: C.border, backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, marginRight: 6 },
-  ccyChipText: { color: C.text, fontFamily: F.bold, fontSize: 13 },
-  result: { fontSize: 26, fontFamily: F.bold },
+  lang: { ...T.caption, fontFamily: F.bold, marginBottom: S[1] },
+  local: { ...T.title, fontFamily: F.bold, color: P.textPri },
+  en: { ...T.caption, color: P.textSec, marginTop: 1 },
+  note: { ...T.caption, color: P.textMuted, marginTop: S[2] },
+  amt: {
+    backgroundColor: P.sunken, borderRadius: RA.md, paddingHorizontal: S[3] + 2,
+    paddingVertical: S[3] - 1, ...T.h2, color: P.textPri, marginBottom: S[3],
+  },
+  pickLabel: { ...T.label, color: P.textSec, marginBottom: S[1] + 2 },
+  ccyChip: {
+    borderWidth: 1.5, borderColor: P.hairline, backgroundColor: P.card,
+    paddingHorizontal: S[3], paddingVertical: 7, borderRadius: RA.pill, marginRight: S[1] + 2,
+  },
+  ccyChipText: { ...T.caption, fontFamily: F.bold, color: P.textPri },
+  result: { ...T.h1, fontFamily: F.bold },
 });
