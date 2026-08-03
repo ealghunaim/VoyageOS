@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { addNote, listNotes, Note } from '../api';
 import { Btn, Card } from '../components/ui';
-import { C, F } from '../theme';
+import { F, P, RA, S, T } from '../theme';
 
 export default function Journal({ tripId, tripTitle, accent, onBack }: {
   tripId: string; tripTitle: string; accent: string; onBack: () => void;
@@ -29,18 +29,18 @@ export default function Journal({ tripId, tripTitle, accent, onBack }: {
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20 }}
+    <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={{ padding: S[5] }}
       keyboardShouldPersistTaps="handled">
-      <Pressable onPress={onBack} hitSlop={10} style={{ marginBottom: 10 }}>
-        <Text style={{ color: accent, fontSize: 16, fontFamily: F.bold }}>‹ {tripTitle}</Text>
+      <Pressable onPress={onBack} hitSlop={10} style={{ marginBottom: S[3] }}>
+        <Text style={[s.back, { color: accent }]}>‹ {tripTitle}</Text>
       </Pressable>
       <Text style={s.h1}>Journal</Text>
       <Card>
         <TextInput
           style={s.input} value={draft} onChangeText={setDraft} multiline
-          placeholder="A moment worth keeping…" placeholderTextColor="#9AA9BB"
+          placeholder="A moment worth keeping…" placeholderTextColor={P.textMuted}
         />
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: S[3] }}>
           {photos.map((p, i) => (
             <Pressable key={i} onPress={() => setPhotos(photos.filter((_, j2) => j2 !== i))}>
               <Image source={{ uri: p.uri }} style={sx.thumb} />
@@ -56,8 +56,8 @@ export default function Journal({ tripId, tripTitle, accent, onBack }: {
                 setPhotos([...photos, { b64: a2.base64, mime: a2.mimeType ?? 'image/jpeg', uri: a2.uri }]);
               }
             }}>
-              <Text style={{ color: accent, fontSize: 22, fontFamily: F.bold }}>+</Text>
-              <Text style={{ color: C.sub, fontSize: 10 }}>photo</Text>
+              <Text style={[sx.addPlus, { color: accent }]}>+</Text>
+              <Text style={sx.addLabel}>photo</Text>
             </Pressable>
           )}
         </View>
@@ -68,7 +68,7 @@ export default function Journal({ tripId, tripTitle, accent, onBack }: {
           <Text style={s.when}>{new Date(n.created_at).toLocaleString()}</Text>
           <Text style={s.body}>{n.body}</Text>
           {!!n.photos?.length && (
-            <View style={{ flexDirection: 'row', marginTop: 10 }}>
+            <View style={{ flexDirection: 'row', marginTop: S[3] }}>
               {n.photos.map((u, i) => <Image key={i} source={{ uri: u }} style={sx.noteImg} />)}
             </View>
           )}
@@ -80,15 +80,29 @@ export default function Journal({ tripId, tripTitle, accent, onBack }: {
 }
 
 const s = StyleSheet.create({
-  h1: { fontSize: 30, fontFamily: F.bold, color: C.text, letterSpacing: -0.6, marginBottom: 14 },
-  input: { backgroundColor: '#F1F4F9', borderRadius: 14, padding: 14, minHeight: 90, fontSize: 16, color: C.text, marginBottom: 12, textAlignVertical: 'top' },
-  when: { color: '#9AA9BB', fontSize: 11, marginBottom: 6 },
-  body: { color: C.text, fontSize: 15, lineHeight: 22 },
-  hint: { color: '#9AA9BB', fontSize: 12, textAlign: 'center', marginTop: 8, lineHeight: 17 },
+  back: { ...T.title, fontFamily: F.bold },
+  h1: { ...T.display, color: P.textPri, marginBottom: S[3] + 2 },
+  input: {
+    backgroundColor: P.sunken, borderRadius: RA.md, padding: S[3] + 2, minHeight: 90,
+    ...T.title, fontFamily: F.reg, color: P.textPri, marginBottom: S[3],
+    textAlignVertical: 'top',
+  },
+  when: { ...T.caption, color: P.textMuted, marginBottom: S[1] + 2 },
+  body: { ...T.body, color: P.textPri, lineHeight: 22 },
+  hint: { ...T.caption, color: P.textMuted, textAlign: 'center', marginTop: S[2] },
 });
 
+// Image geometry, deliberately in pixels. A thumbnail grid is sized by what
+// looks right at a glance, not by the 4pt spacing rhythm — pushing 56 and 120
+// onto the scale would be tokens for their own sake. Only the radii are
+// tokenised, so photos round like every other surface.
 const sx = StyleSheet.create({
-  thumb: { width: 56, height: 56, borderRadius: 12, marginRight: 8 },
-  addPhoto: { width: 56, height: 56, borderRadius: 12, backgroundColor: '#F1F4F9', alignItems: 'center', justifyContent: 'center' },
-  noteImg: { width: 120, height: 120, borderRadius: 14, marginRight: 8 },
+  thumb: { width: 56, height: 56, borderRadius: RA.md, marginRight: S[2] },
+  addPhoto: {
+    width: 56, height: 56, borderRadius: RA.md, backgroundColor: P.sunken,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  addPlus: { ...T.h1, fontFamily: F.bold },
+  addLabel: { ...T.label, letterSpacing: 0, color: P.textSec },
+  noteImg: { width: 120, height: 120, borderRadius: RA.md, marginRight: S[2] },
 });
