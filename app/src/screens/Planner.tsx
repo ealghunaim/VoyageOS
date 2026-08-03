@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { addPlanItem, deletePlanItem, listPlan, patchPlanItem, PlanItem } from '../api';
 import { Card } from '../components/ui';
-import { C, F, P } from '../theme';
+import { F, P, RA, S, T } from '../theme';
 
 export default function Planner({ tripId, tripTitle, accent, startDate, endDate, onBack }: {
   tripId: string; tripTitle: string; accent: string; startDate: string; endDate: string; onBack: () => void;
@@ -67,10 +67,10 @@ export default function Planner({ tripId, tripTitle, accent, startDate, endDate,
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 20 }}
+    <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={{ padding: S[5] }}
       keyboardShouldPersistTaps="handled">
-      <Pressable onPress={onBack} hitSlop={10} style={{ marginBottom: 10 }}>
-        <Text style={{ color: accent, fontSize: 16, fontFamily: F.bold }}>‹ {tripTitle}</Text>
+      <Pressable onPress={onBack} hitSlop={10} style={{ marginBottom: S[3] }}>
+        <Text style={[s.back, { color: accent }]}>‹ {tripTitle}</Text>
       </Pressable>
       <Text style={s.h1}>Plan</Text>
       <Text style={s.sub}>Map out each day — tap an item to mark it done.</Text>
@@ -102,10 +102,10 @@ export default function Planner({ tripId, tripTitle, accent, startDate, endDate,
             <View style={s.addRow}>
               <TextInput style={s.timeInput} value={draft.time}
                 onChangeText={(t) => setDraft(k, { time: t })}
-                placeholder="9:00" placeholderTextColor="#9AA9BB" />
+                placeholder="9:00" placeholderTextColor={P.textMuted} />
               <TextInput style={s.titleInput} value={draft.title}
                 onChangeText={(t) => setDraft(k, { title: t })}
-                placeholder="Add a plan…" placeholderTextColor="#9AA9BB"
+                placeholder="Add a plan…" placeholderTextColor={P.textMuted}
                 onSubmitEditing={() => add(k)} returnKeyType="done" />
               <Pressable onPress={() => add(k)} disabled={busy || !draft.title.trim()}
                 style={[s.addBtn, { backgroundColor: accent, opacity: draft.title.trim() ? 1 : 0.4 }]}>
@@ -130,20 +130,41 @@ export default function Planner({ tripId, tripTitle, accent, startDate, endDate,
  * consequence.
  */
 const s = StyleSheet.create({
-  h1: { color: C.text, fontSize: 30, fontFamily: F.bold, marginBottom: 4 },
-  sub: { color: C.sub, fontSize: 14, marginBottom: 12 },
-  dayHead: { fontSize: 12, fontFamily: F.bold, letterSpacing: 0.6, marginBottom: 8 },
-  empty: { color: C.sub, fontSize: 13, marginBottom: 8 },
-  row: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E6EAEF' },
-  dot: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: '#C3CCD6', marginRight: 10, marginTop: 1, alignItems: 'center', justifyContent: 'center' },
-  check: { color: '#fff', fontSize: 13, fontFamily: F.bold },
-  title: { color: C.text, fontSize: 15, fontFamily: F.med },
-  doneText: { textDecorationLine: 'line-through', color: C.sub },
-  note: { color: C.sub, fontSize: 13, marginTop: 2 },
-  x: { color: P.textMuted, fontSize: 15, paddingLeft: 8, paddingTop: 2 },
-  addRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
-  timeInput: { width: 54, backgroundColor: '#F3F5F8', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 8, marginRight: 6, color: C.text, fontSize: 14 },
-  titleInput: { flex: 1, backgroundColor: '#F3F5F8', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, color: C.text, fontSize: 14 },
-  addBtn: { marginLeft: 6, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 9 },
-  addBtnText: { color: '#fff', fontFamily: F.bold, fontSize: 14 },
+  back: { ...T.title, fontFamily: F.bold },
+  h1: { ...T.display, color: P.textPri, marginBottom: S[1] },
+  sub: { ...T.body, color: P.textSec, marginBottom: S[3] },
+  dayHead: { ...T.label, marginBottom: S[2] },
+  empty: { ...T.caption, color: P.textSec, marginBottom: S[2] },
+  row: {
+    flexDirection: 'row', alignItems: 'flex-start', paddingVertical: S[2],
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: P.hairline,
+  },
+  // hairlineStrong, not hairline: at 1.5px an unticked circle on the page
+  // ground all but disappears in the lighter tone.
+  dot: {
+    width: 22, height: 22, borderRadius: RA.pill, borderWidth: 1.5,
+    borderColor: P.hairlineStrong, marginRight: S[3] - 2, marginTop: 1,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  check: { ...T.caption, fontFamily: F.bold, color: P.textOnDark },
+  title: { ...T.body, fontFamily: F.med, color: P.textPri },
+  doneText: { textDecorationLine: 'line-through', color: P.textMuted },
+  note: { ...T.caption, color: P.textSec, marginTop: 2 },
+  x: { ...T.body, color: P.textMuted, paddingLeft: S[2], paddingTop: 2 },
+  addRow: { flexDirection: 'row', alignItems: 'center', marginTop: S[3] },
+  timeInput: {
+    width: 54, backgroundColor: P.sunken, borderRadius: RA.sm,
+    paddingHorizontal: S[2], paddingVertical: S[2], marginRight: S[1] + 2,
+    ...T.body, color: P.textPri,
+  },
+  titleInput: {
+    flex: 1, backgroundColor: P.sunken, borderRadius: RA.sm,
+    paddingHorizontal: S[2] + 2, paddingVertical: S[2],
+    ...T.body, color: P.textPri,
+  },
+  addBtn: {
+    marginLeft: S[1] + 2, borderRadius: RA.sm,
+    paddingHorizontal: S[3] + 2, paddingVertical: S[2] + 1,
+  },
+  addBtnText: { ...T.body, fontFamily: F.bold, color: P.textOnDark },
 });
