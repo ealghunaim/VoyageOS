@@ -1,9 +1,9 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
-import { lookupFlight, patchTrip, Segment, Trip } from '../api';
+import { lookupFlight, patchTrip, PlaceHit, searchPlaces, Segment, Trip } from '../api';
 import { airlineFromRef } from '../airlines';
 import { Btn } from '../components/ui';
 import { F, P, RA, S, T, tint } from '../theme';
@@ -37,6 +37,10 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved, onSaveLo
   const [saving, setSaving] = useState(false);
   const [picking, setPicking] = useState<{ i: number; field: 'depart' | 'arrive' } | null>(null);
   const [lookingUp, setLookingUp] = useState<number | null>(null);
+  // One suggestion list at a time — keyed by segment index and which end of the
+  // leg is being typed, so two inputs on the same row cannot both be open.
+  const [acFor, setAcFor] = useState<{ i: number; field: 'origin' | 'dest' } | null>(null);
+  const [acHits, setAcHits] = useState<PlaceHit[]>([]);
 
   const update = (i: number, patch: Partial<Segment>) =>
     setSegs(segs.map((s, j) => (j === i ? { ...s, ...patch } : s)));
@@ -80,6 +84,25 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved, onSaveLo
     } catch (e: any) { Alert.alert('Flight lookup', e.message || 'Could not find that flight.'); }
     finally { setLookingUp(null); }
   }
+
+  // Same shape as the wizard's destination field: 250ms debounce, deduped,
+  // fails soft to an empty list so a lookup error never blocks typing.
+  useEffect(() => {
+    if (!acFor) { setAcHits([]); return; }
+    const q = (segs[acFor.i]?.[acFor.field] ?? '').trim();
+    if (q.length < 2) { setAcHits([]); return; }
+    const t = setTimeout(() => {
+      searchPlaces(q).then(res => {
+        const seen = new Set<string>();
+        setAcHits(res.filter(h => {
+          const k = `${h.name}|${h.admin ?? ''}|${h.country_code}`;
+          if (seen.has(k)) return false;
+          seen.add(k); return true;
+        }).slice(0, 5));
+      }).catch(() => setAcHits([]));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [acFor, segs]);
 
   const totalMins = segs.length >= 1 ? gapMins(segs[0].depart, segs[segs.length - 1].arrive) : null;
 
@@ -165,11 +188,37 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved, onSaveLo
                         </Pressable>
                       )}
                       <View style={{ flexDirection: 'row' }}>
-                        <TextInput style={[s.input, { flex: 1, marginRight: 8 }]} value={sg.origin ?? ''} onChangeText={t => update(i, { origin: t })}
-                          placeholder="From" placeholderTextColor="#9AA9BB" />
-                        <TextInput style={[s.input, { flex: 1 }]} value={sg.dest ?? ''} onChangeText={t => update(i, { dest: t })}
-                          placeholder="To" placeholderTextColor="#9AA9BB" />
+                        <TextInput
+                          style={[s.input, { flex: 1, marginRight: S[2] }]}
+                          value={sg.origin ?? ''}
+                          onChangeText={t => { update(i, { origin: t }); setAcFor({ i, field: 'origin' }); }}
+                          onFocus={() => setAcFor({ i, field: 'origin' })}
+                          placeholder="From" placeholderTextColor={P.textMuted} />
+                        <TextInput
+                          style={[s.input, { flex: 1 }]}
+                          value={sg.dest ?? ''}
+                          onChangeText={t => { update(i, { dest: t }); setAcFor({ i, field: 'dest' }); }}
+                          onFocus={() => setAcFor({ i, field: 'dest' })}
+                          placeholder="To" placeholderTextColor={P.textMuted} />
                       </View>
+                      {acFor?.i === i && acHits.length > 0 && (
+                        <View style={s.acBox}>
+                          {acHits.map((h, k) => (
+                            <Pressable
+                              key={`${h.name}-${h.lat}-${h.lng}-${k}`}
+                              style={s.acHit}
+                              onPress={() => {
+                                update(i, { [acFor.field]: h.name } as Partial<Segment>);
+                                setAcFor(null); setAcHits([]);
+                              }}>
+                              <Text style={s.acName}>{h.name}</Text>
+                              <Text style={s.acSub}>
+                                {[h.admin, h.country_code].filter(Boolean).join(' · ')}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      )}
                       <View style={{ flexDirection: 'row', marginTop: 4 }}>
                         <Pressable style={[s.timeBtn, { marginRight: 8 }]} onPress={() => setPicking({ i, field: 'depart' })}>
                           <Text style={s.timeLabel}>DEPART</Text><Text style={s.timeVal}>{fmtDT(sg.depart)}</Text>
@@ -271,6 +320,13 @@ const s = StyleSheet.create({
   timeVal: { ...T.body, fontFamily: F.bold, color: P.textPri, marginTop: 2 },
   rowBtns: { flexDirection: 'row', justifyContent: 'space-between', marginTop: S[1] },
   small: { ...T.body, fontFamily: F.bold, color: P.textPri },
+  acBox: {
+    backgroundColor: P.card, borderRadius: RA.md, borderWidth: 1,
+    borderColor: P.hairline, marginBottom: S[2], overflow: 'hidden',
+  },
+  acHit: { paddingVertical: S[2] + 1, paddingHorizontal: S[3] },
+  acName: { ...T.body, color: P.textPri },
+  acSub: { ...T.caption, color: P.textSec },
   airlineHint: { ...T.body, color: P.textSec, marginBottom: S[1] + 2 },
   // neutral by default; the caution and error grounds are applied inline
   layover: {
