@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { lookupFlight, patchTrip, PlaceHit, searchPlaces, Segment, Trip } from '../api';
 import { airlineFromRef } from '../airlines';
+import { Airport, searchAirports } from '../airports';
 import { Btn } from '../components/ui';
 import { F, P, RA, S, T, tint } from '../theme';
 
@@ -41,6 +42,7 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved, onSaveLo
   // leg is being typed, so two inputs on the same row cannot both be open.
   const [acFor, setAcFor] = useState<{ i: number; field: 'origin' | 'dest' } | null>(null);
   const [acHits, setAcHits] = useState<PlaceHit[]>([]);
+  const [airHits, setAirHits] = useState<Airport[]>([]);
 
   const update = (i: number, patch: Partial<Segment>) =>
     setSegs(segs.map((s, j) => (j === i ? { ...s, ...patch } : s)));
@@ -88,9 +90,13 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved, onSaveLo
   // Same shape as the wizard's destination field: 250ms debounce, deduped,
   // fails soft to an empty list so a lookup error never blocks typing.
   useEffect(() => {
-    if (!acFor) { setAcHits([]); return; }
+    if (!acFor) { setAcHits([]); setAirHits([]); return; }
     const q = (segs[acFor.i]?.[acFor.field] ?? '').trim();
-    if (q.length < 2) { setAcHits([]); return; }
+    if (q.length < 2) { setAcHits([]); setAirHits([]); return; }
+    // Airports resolve locally and instantly, so they answer first; the city
+    // geocoder only fills in behind them. A leg is written BKK -> SIN, and the
+    // geocoder knows neither code.
+    setAirHits(searchAirports(q, 5));
     const t = setTimeout(() => {
       searchPlaces(q).then(res => {
         const seen = new Set<string>();
@@ -201,15 +207,32 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved, onSaveLo
                           onFocus={() => setAcFor({ i, field: 'dest' })}
                           placeholder="To" placeholderTextColor={P.textMuted} />
                       </View>
-                      {acFor?.i === i && acHits.length > 0 && (
+                      {acFor?.i === i && (airHits.length > 0 || acHits.length > 0) && (
                         <View style={s.acBox}>
+                          {airHits.map((a, k) => (
+                            <Pressable
+                              key={`ap-${a.iata}-${k}`}
+                              style={s.acHit}
+                              onPress={() => {
+                                // The code is what the flight feed speaks, so it
+                                // is what gets stored; the city is only the label.
+                                update(i, { [acFor.field]: a.iata } as Partial<Segment>);
+                                setAcFor(null); setAcHits([]); setAirHits([]);
+                              }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <Text style={s.acCode}>{a.iata}</Text>
+                                <Text style={s.acName}>{a.city || a.name}</Text>
+                              </View>
+                              <Text style={s.acSub}>{a.name} · {a.cc}</Text>
+                            </Pressable>
+                          ))}
                           {acHits.map((h, k) => (
                             <Pressable
                               key={`${h.name}-${h.lat}-${h.lng}-${k}`}
                               style={s.acHit}
                               onPress={() => {
                                 update(i, { [acFor.field]: h.name } as Partial<Segment>);
-                                setAcFor(null); setAcHits([]);
+                                setAcFor(null); setAcHits([]); setAirHits([]);
                               }}>
                               <Text style={s.acName}>{h.name}</Text>
                               <Text style={s.acSub}>
@@ -325,6 +348,7 @@ const s = StyleSheet.create({
     borderColor: P.hairline, marginBottom: S[2], overflow: 'hidden',
   },
   acHit: { paddingVertical: S[2] + 1, paddingHorizontal: S[3] },
+  acCode: { ...T.body, fontFamily: F.bold, color: P.textPri, width: 42 },
   acName: { ...T.body, color: P.textPri },
   acSub: { ...T.caption, color: P.textSec },
   airlineHint: { ...T.body, color: P.textSec, marginBottom: S[1] + 2 },
