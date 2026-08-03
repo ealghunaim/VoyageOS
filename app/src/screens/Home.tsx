@@ -6,7 +6,7 @@ import { getTripWeather, listTrips, Trip, WxDay } from '../api';
 import FlagField from '../components/FlagField';
 import Wordmark from '../components/Wordmark';
 import { Btn, Card } from '../components/ui';
-import { accentForTrip, C, F, titleize } from '../theme';
+import { accentForTrip, F, P, RA, S, T, titleize } from '../theme';
 
 function daysUntil(dateStr: string) {
   const d = new Date(dateStr + 'T00:00:00');
@@ -47,15 +47,15 @@ export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, onArc
   if (trips === null) {
     return (
       <View style={s.center}>
-        <ActivityIndicator size="large" color={C.blue} />
+        <ActivityIndicator size="large" color={P.brand} />
       </View>
     );
   }
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: C.bg }}
-      contentContainerStyle={{ padding: 20, paddingTop: 24 }}
+      style={{ flex: 1, backgroundColor: P.pageBg }}
+      contentContainerStyle={{ padding: S[5], paddingTop: S[6] }}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={async () => {
           setRefreshing(true); await load(); setRefreshing(false);
@@ -66,7 +66,7 @@ export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, onArc
       <Text style={s.greeting}>Where to next?</Text>
 
       {!!error && (
-        <Card><Text style={{ color: C.red }}>{error}</Text></Card>
+        <Card><Text style={s.error}>{error}</Text></Card>
       )}
 
       {trips.length === 0 && !error && (
@@ -99,8 +99,8 @@ export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, onArc
                   <Text style={[s.pillText, { color: accent }]}>{done ? 'debriefed ✓' : when}</Text>
                 </View>
               </View>
-              <View style={{ padding: 18, paddingTop: 12 }}>
-                <Text style={[s.tripTitle, imminent && { fontSize: 24 }]} numberOfLines={1}>{titleize(t.title)}</Text>
+              <View style={{ padding: S[4] + 2, paddingTop: S[3] }}>
+                <Text style={[s.tripTitle, imminent && s.tripTitleBig]} numberOfLines={1}>{titleize(t.title)}</Text>
                 <Text style={s.dates}>{t.start_date} → {t.end_date}</Text>
                 {(() => {
                   const days = wx[t.id] ?? [];
@@ -140,11 +140,11 @@ export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, onArc
         {past.length > 0 && (
           <>
             <Pressable onPress={() => onArchive(past)}><Text style={s.link}>Past trips ({past.length}) ›</Text></Pressable>
-            <Text style={{ color: C.sub }}>{'    ·    '}</Text>
+            <Text style={s.linkSep}>{'    ·    '}</Text>
           </>
         )}
         <Pressable onPress={onKits}><Text style={s.link}>My kits ›</Text></Pressable>
-        <Text style={{ color: C.sub }}>{'    ·    '}</Text>
+        <Text style={s.linkSep}>{'    ·    '}</Text>
         <Pressable onPress={onDocuments}><Text style={s.link}>Documents ›</Text></Pressable>
       </View>
       <Text style={s.footer}>v1.0-dev{authed ? '' : ' · local mode'}</Text>
@@ -153,23 +153,32 @@ export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, onArc
 }
 
 const s = StyleSheet.create({
-  center: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
-  greeting: { fontSize: 34, fontFamily: F.bold, color: C.text, letterSpacing: -0.8, marginTop: 18, marginBottom: 18 },
-  h2: { fontSize: 18, fontFamily: F.bold, color: C.text, marginBottom: 4 },
-  sub: { color: C.sub, lineHeight: 20 },
-  band: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 12 },
-  dot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
-  place: { fontSize: 11, fontFamily: F.bold, letterSpacing: 1.2 },
+  center: { flex: 1, backgroundColor: P.pageBg, alignItems: 'center', justifyContent: 'center' },
+  greeting: { ...T.display, fontSize: 34, color: P.textPri, letterSpacing: -0.8, marginTop: S[4] + 2, marginBottom: S[4] + 2 },
+  h2: { ...T.h2, color: P.textPri, marginBottom: S[1] },
+  sub: { ...T.body, color: P.textSec, lineHeight: 20 },
+  // An error banner reports a state, so it keeps colour. The neutral-grey rule
+  // covers destructive *actions* — sign out, delete — which this is not.
+  error: { ...T.body, color: P.danger },
+  band: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: S[4] + 2, paddingVertical: S[3] },
+  // 8x8 made circular needs exactly half its width; RA.sm would over-round it.
+  dot: { width: 8, height: 8, borderRadius: 4, marginRight: S[2] },
+  place: { ...T.label, letterSpacing: 1.2 },
   pillFloat: {
-    position: 'absolute', top: 10, right: 12, paddingHorizontal: 12, paddingVertical: 5,
-    borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.92)',
+    position: 'absolute', top: S[3] - 2, right: S[3], paddingHorizontal: S[3], paddingVertical: 5,
+    borderRadius: RA.pill,
+    // A scrim over the flag hero — the palette has no translucent surface, and
+    // P.card at full opacity would hide the artwork it floats on.
+    backgroundColor: 'rgba(255,255,255,0.92)',
   },
-  pillText: { fontFamily: F.bold, fontSize: 12 },
-  tripTitle: { fontSize: 21, fontFamily: F.bold, color: C.text, letterSpacing: -0.3 },
-  dates: { color: C.sub, marginTop: 3, marginBottom: 4 },
-  wxLine: { fontFamily: F.bold, fontSize: 13, marginBottom: 8 },
-  open: { fontFamily: F.bold },
-  links: { flexDirection: 'row', justifyContent: 'center', marginTop: 18 },
-  link: { color: C.blue, fontFamily: F.bold },
-  footer: { color: '#9AA9BB', textAlign: 'center', marginTop: 14, fontSize: 12 },
+  pillText: { ...T.label, fontSize: 12, letterSpacing: 0 },
+  tripTitle: { ...T.h1, fontSize: 21, color: P.textPri, letterSpacing: -0.3 },
+  tripTitleBig: { fontSize: 24 },
+  dates: { ...T.body, color: P.textSec, marginTop: 3, marginBottom: S[1] },
+  wxLine: { ...T.caption, fontFamily: F.bold, marginBottom: S[2] },
+  open: { ...T.body, fontFamily: F.bold },
+  links: { flexDirection: 'row', justifyContent: 'center', marginTop: S[4] + 2 },
+  link: { ...T.body, fontFamily: F.bold, color: P.brand },
+  linkSep: { ...T.body, color: P.textSec },
+  footer: { ...T.caption, color: P.textMuted, textAlign: 'center', marginTop: S[3] + 2 },
 });
