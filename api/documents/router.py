@@ -66,6 +66,10 @@ def _public(doc: dict) -> dict:
     deliberate request.
     """
     doc.pop("number_encrypted", None)
+    # Dropped by migration 0022, but popped rather than assumed absent: this
+    # code deploys before the column goes, and for that window the row still
+    # carries it. It was never read by anything, here or in the app.
+    doc.pop("key_version", None)
     doc["has_number"] = bool(doc.pop("_has_number", False))
     doc["has_photo"] = bool(doc.get("file_key"))
     doc.pop("file_key", None)
@@ -83,15 +87,16 @@ def _with_status(doc: dict) -> dict:
 def _seal_number(db, user_id: str, number: str) -> dict:
     """Encrypt a number into the columns that store it.
 
-    key_version records which master key wrapped the DEK, so a later rotation
-    knows what it is looking at without decrypting anything.
+    No key version is recorded here. Which master key wraps a DEK is a fact
+    about the DEK, and user_keys.key_version is where it lives; a copy on every
+    document could only ever drift out of step with it — and did, the moment
+    the master key was rotated. See migration 0022.
     """
     uk = crypto.get_or_create_user_key(db, user_id)
     return {
         "number_encrypted": crypto._encode(
             crypto.encrypt_field(uk.dek, user_id, "number", number)),
         "number_last4": crypto.last4(number),
-        "key_version": uk.key_version,
     }
 
 
@@ -222,7 +227,7 @@ def upload_photo(doc_id: str, body: PhotoUpload, user_id: str = Depends(current_
     if doc.get("file_key"):
         photos.remove(db, doc["file_key"])      # replace, never accumulate
     db.table("documents").update({
-        "file_key": key, "key_version": uk.key_version,
+        "file_key": key,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }).eq("id", doc_id).eq("user_id", user_id).execute()
     return {"id": doc_id, "has_photo": True, "bytes": len(raw)}

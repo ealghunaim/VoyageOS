@@ -131,7 +131,7 @@ def main() -> int:
         dek_after = crypto.unwrap_dek(wrapped_after, uid, 2)
         ok &= check("the DEK itself did NOT change", dek_after == dek_before)
 
-        stored = db.table("documents").select("number_encrypted,key_version") \
+        stored = db.table("documents").select("number_encrypted") \
             .eq("id", doc_id).limit(1).execute().data[0]
         ok &= check("ciphertext was not touched by the rotation",
                     crypto._decode(stored["number_encrypted"]) == blob)
