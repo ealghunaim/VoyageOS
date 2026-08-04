@@ -62,17 +62,34 @@ def describe_key(key: str) -> str:
     return f"{masked}  type=unrecognised"
 
 
-def env(name: str) -> str:
-    """Prefer a real environment variable; fall back to .env for local runs."""
+def env(name: str) -> tuple[str, str]:
+    """Value and where it came from. Prefers a real environment variable."""
     if os.environ.get(name):
-        return os.environ[name].strip()
+        return os.environ[name].strip(), "environment"
     try:
         text = open(os.path.join(os.path.dirname(os.path.dirname(
             os.path.abspath(__file__))), ".env")).read()
         found = dict(re.findall(r"^(\w+)=(.*)$", text, re.M))
-        return found.get(name, "").strip()
+        return found.get(name, "").strip(), ".env"
     except FileNotFoundError:
-        return ""
+        return "", "nowhere"
+
+
+def looks_like_a_master_key(key: str) -> bool:
+    """True for base64 that decodes to exactly 32 bytes — an AES-256 key.
+
+    MASTER_KEK_V1 has this shape and no Supabase key ever does. Checked before
+    the first request, because a key pasted into the wrong variable is still
+    sent to supabase.co in an Authorization header, where it may be logged.
+    Refusing to transmit it is the whole point of this guard.
+    """
+    if key.startswith(("sb_secret_", "sb_publishable_", "eyJ")):
+        return False
+    try:
+        import base64
+        return len(base64.b64decode(key, validate=True)) == 32
+    except Exception:
+        return False
 
 
 def needs_coords(d: dict) -> bool:
@@ -85,9 +102,33 @@ def needs_country(d: dict) -> bool:
 
 def main() -> int:
     apply = "--apply" in sys.argv
-    url, key = env("SUPABASE_URL"), env("SUPABASE_SERVICE_KEY")
+    url, url_from = env("SUPABASE_URL")
+    key, key_from = env("SUPABASE_SERVICE_KEY")
     if not url or not key:
         print("SUPABASE_URL / SUPABASE_SERVICE_KEY not set."); return 2
+
+    # A key pasted into the wrong variable must never reach the network. It
+    # would go out as a bearer token to a service that logs failed auth, and a
+    # master key in someone else's request log is an incident.
+    if looks_like_a_master_key(key):
+        print("  ✗ REFUSING TO CONNECT — SUPABASE_SERVICE_KEY decodes to 32 bytes.")
+        print("    That is the shape of MASTER_KEK_V1, the encryption master key.")
+        print("    A Supabase key starts with sb_secret_, sb_publishable_ or eyJ.")
+        print("    Nothing was transmitted. If you did paste the master key here,")
+        print("    treat it as exposed and rotate it — see scripts/rotation_drill.py.")
+        return 2
+
+    # Overriding one of the pair and inheriting the other silently produces a
+    # mismatched pair: prod credentials aimed at the dev project, or worse.
+    if url_from != key_from:
+        print(f"  ✗ MISMATCHED SOURCES — url from {url_from}, key from {key_from}.")
+        print(f"    That would point {key_from} credentials at {url}.")
+        print("    Set both inline, or neither:")
+        print("      SUPABASE_URL='https://<project>.supabase.co' \\")
+        print("      SUPABASE_SERVICE_KEY='<its service key>' \\")
+        print(f"      {sys.argv[0]}" + (" --apply" if apply else ""))
+        return 2
+
     db = create_client(url, key)
 
     print(f"  target   : {url}")
