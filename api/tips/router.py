@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from api.core.auth import current_user_id
 from api.core.db import get_db
+from api.core import photo_urls
 
 router = APIRouter(prefix="/v1/food-tips", tags=["tips"])
 
@@ -47,7 +48,10 @@ def list_tips(place: str, cc: str | None = None, category: str = "eat",
         r["is_mine"] = r["user_id"] == user_id
         r["author"] = "You" if r["is_mine"] else f"Traveler {r['user_id'][:4]}"
         r.pop("user_id", None)
-    return rows[:30]
+    rows = rows[:30]
+    for r in rows:
+        r["photos"] = photo_urls.sign(db, r.get("photos"))
+    return rows
 
 
 def _upload(db, user_id: str, photos) -> list[str]:
@@ -58,7 +62,8 @@ def _upload(db, user_id: str, photos) -> list[str]:
             ext = "png" if "png" in p.mime else "jpg"
             key = f"{user_id}/tips/{uuid.uuid4().hex}.{ext}"
             db.storage.from_("journal").upload(key, raw, {"content-type": p.mime})
-            urls.append(db.storage.from_("journal").get_public_url(key))
+            # the KEY is stored, not a URL — see api/core/photo_urls.py
+            urls.append(key)
         except Exception as e:
             print(f"[tips] photo upload failed: {type(e).__name__}: {e}")
     return urls
@@ -81,6 +86,7 @@ def add_tip(body: TipCreate, user_id: str = Depends(current_user_id)):
     row["is_mine"] = True
     row["author"] = "You"
     row.pop("user_id", None)
+    row["photos"] = photo_urls.sign(db, row.get("photos"))
     return row
 
 

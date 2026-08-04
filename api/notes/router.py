@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from api.core.auth import current_user_id
 from api.core.db import get_db
+from api.core import photo_urls
 
 router = APIRouter(prefix="/v1/trips", tags=["journal"])
 
@@ -29,24 +30,28 @@ def _own(db, trip_id, user_id):
 def list_notes(trip_id: str, user_id: str = Depends(current_user_id)):
     db = get_db()
     _own(db, trip_id, user_id)
-    return db.table("trip_notes").select("*").eq("trip_id", trip_id) \
+    rows = db.table("trip_notes").select("*").eq("trip_id", trip_id) \
         .order("created_at", desc=True).execute().data
+    for r in rows:
+        r["photos"] = photo_urls.sign(db, r.get("photos"))
+    return rows
 
 
 @router.post("/{trip_id}/notes", status_code=201)
 def add_note(trip_id: str, body: NoteCreate, user_id: str = Depends(current_user_id)):
     db = get_db()
     _own(db, trip_id, user_id)
-    urls = []
+    keys = []
     for p in body.photos[:2]:
         try:
             raw = base64.b64decode(p.b64)
             ext = "png" if "png" in p.mime else "jpg"
             key = f"{user_id}/{trip_id}/{uuid.uuid4().hex}.{ext}"
             db.storage.from_("journal").upload(key, raw, {"content-type": p.mime})
-            urls.append(db.storage.from_("journal").get_public_url(key))
+            # the KEY is stored, not a URL — see api/core/photo_urls.py
+            keys.append(key)
         except Exception as e:
             print(f"[journal] photo upload failed: {type(e).__name__}: {e}")
     return db.table("trip_notes").insert(
         {"trip_id": trip_id, "user_id": user_id, "body": body.body,
-         "photos": urls}).execute().data[0]
+         "photos": keys}).execute().data[0]
