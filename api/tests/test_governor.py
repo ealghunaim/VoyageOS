@@ -55,8 +55,17 @@ def test_muted_class_and_quiet_hours():
 
 
 def test_cap_one_picks_single_most_important():
+    """Arbitration under a budget of one: the higher class wins the slot.
+
+    Written with 'document' as the important class, which no longer works as an
+    example — document is budget-exempt, so it sends without taking the slot
+    and the loser keeps it. Rewritten with two classes that do draw on the
+    budget, so it still tests the ordering it was written to test. The document
+    behaviour it used to assert now lives in
+    test_governor_document_budget.py::test_documents_do_not_starve_the_classes_they_outrank.
+    """
     state = UserState(daily_cap=1)
-    cands = [Candidate("t", "task", "task:x"), Candidate("doc", "document", "doc:passport")]
+    cands = [Candidate("w", "weather", "weather:x"), Candidate("t", "task", "task:x")]
     dec = evaluate(NOON, cands, state)
-    assert d(dec, "doc").action == Action.SEND
-    assert d(dec, "t").action == Action.DIGEST
+    assert d(dec, "t").action == Action.SEND       # task (3) outranks weather (2)
+    assert d(dec, "w").action == Action.DIGEST

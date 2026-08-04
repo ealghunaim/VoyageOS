@@ -27,6 +27,24 @@ CLASS_PRIORITY = {
     "system": 0,
 }
 
+#: Classes that do not draw from the daily budget.
+#:
+#: Priority alone could not protect these. Arbitration ranks candidates within
+#: a single tick, but `sent_today` is spent across the whole day — so three
+#: weather nudges at 08:00 leave budget=0, and a passport reminder at 09:00
+#: loses to nothing at all. It was marked 'digested', which is terminal and
+#: which nothing reads: the reminder was deleted in all but name.
+#:
+#: 'document' is exempted because the class is rare (at most three reminders in
+#: a visa's life, one in a passport's), individually actionable, and explicitly
+#: created by the traveller. The daily cap exists to hold back ambient noise —
+#: weather, tasks, social — and a renewal deadline is not that.
+#:
+#: Narrower than the 'safety' bypass on purpose: exempt candidates still
+#: respect quiet hours, mutes, snooze and topic cooldown, because all of those
+#: are decided before arbitration. Only the budget is bypassed.
+BUDGET_EXEMPT = {"document"}
+
 
 class Action(str, Enum):
     SEND = "send"
@@ -107,10 +125,19 @@ def evaluate(
         contenders.append(c)
 
     # --- arbitration: highest score wins the remaining budget ---
+    #
+    # `spent` counts only what actually draws on the budget. Using the loop
+    # index instead would let a budget-exempt candidate consume a slot it never
+    # used, silently digesting a weather nudge that should have been sent.
     contenders.sort(key=lambda c: _score(c, state), reverse=True)
-    for i, c in enumerate(contenders):
-        if i < max(budget, 0):
+    spent = 0
+    for c in contenders:
+        if c.cls in BUDGET_EXEMPT:
+            decisions.append(Decision(c.id, Action.SEND, f"'{c.cls}' exempt from budget"))
+            continue
+        if spent < max(budget, 0):
             decisions.append(Decision(c.id, Action.SEND, "won arbitration"))
+            spent += 1
         else:
             decisions.append(Decision(c.id, Action.DIGEST, "over daily budget"))
 

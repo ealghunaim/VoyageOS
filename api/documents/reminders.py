@@ -10,17 +10,23 @@ than dropping them, and 'document' sits at priority 5 — behind safety, ahead
 of everything else — so a passport warning is not crowded out by a weather
 nudge under the daily cap.
 
-KNOWN LIMITATION — the worker that drains these rows is an in-process
-APScheduler job on a 60-second tick (api/main.py). It only runs while the API
-process is alive: a deploy, a crash or a sleeping instance means those ticks
-never happen, and nothing re-hydrates them afterwards. A row whose send_at
-passed during downtime is still 'pending' and will go out late on the next
-tick, which is tolerable for a task reminder measured in hours and poor for
-"your passport expires in six months", where the whole value is arriving on
-time. Document reminders should move to a durable, re-hydrating scheduler —
-a real cron sweeping overdue pending rows, or a queue with its own
-persistence — before this feature is leaned on. Not a phase A blocker
-because the rows themselves are durable; only the firing is fragile.
+DURABILITY — this note used to warn that the in-process APScheduler tick made
+delivery fragile and that reminders needed a re-hydrating scheduler. That was
+aimed at the wrong target. APScheduler here is a heartbeat, not a job store:
+nothing is ever held in memory, so a restart has nothing to lose. The due
+query has no lower bound on send_at, so a row whose moment passed during
+downtime is picked up on the next tick. Downtime costs lateness, not delivery.
+
+What did lose reminders was the governor. 'document' had priority 5 and it
+protected nothing, because arbitration ranks candidates within one tick while
+the daily cap is spent across the whole day — three weather nudges in the
+morning left no budget, and the afternoon's passport warning was marked
+'digested', a terminal status that nothing reads. The class is now exempt from
+the budget (see BUDGET_EXEMPT in notifications/governor.py); it still respects
+quiet hours, mutes, snooze and cooldown.
+
+The worker also claims rows before sending, so the two instances Render runs
+side by side during a deploy cannot both deliver the same reminder.
 """
 from __future__ import annotations
 
