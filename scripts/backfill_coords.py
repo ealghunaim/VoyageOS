@@ -35,6 +35,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from supabase import create_client  # noqa: E402
 
+from api.core.crypto import looks_like_master_key  # noqa: E402
 from api.weather import provider  # noqa: E402
 
 
@@ -75,23 +76,6 @@ def env(name: str) -> tuple[str, str]:
         return "", "nowhere"
 
 
-def looks_like_a_master_key(key: str) -> bool:
-    """True for base64 that decodes to exactly 32 bytes — an AES-256 key.
-
-    MASTER_KEK_V1 has this shape and no Supabase key ever does. Checked before
-    the first request, because a key pasted into the wrong variable is still
-    sent to supabase.co in an Authorization header, where it may be logged.
-    Refusing to transmit it is the whole point of this guard.
-    """
-    if key.startswith(("sb_secret_", "sb_publishable_", "eyJ")):
-        return False
-    try:
-        import base64
-        return len(base64.b64decode(key, validate=True)) == 32
-    except Exception:
-        return False
-
-
 def needs_coords(d: dict) -> bool:
     return d.get("lat") is None or d.get("lng") is None
 
@@ -110,7 +94,7 @@ def main() -> int:
     # A key pasted into the wrong variable must never reach the network. It
     # would go out as a bearer token to a service that logs failed auth, and a
     # master key in someone else's request log is an incident.
-    if looks_like_a_master_key(key):
+    if looks_like_master_key(key):
         print("  ✗ REFUSING TO CONNECT — SUPABASE_SERVICE_KEY decodes to 32 bytes.")
         print("    That is the shape of MASTER_KEK_V1, the encryption master key.")
         print("    A Supabase key starts with sb_secret_, sb_publishable_ or eyJ.")

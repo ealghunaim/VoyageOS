@@ -115,6 +115,32 @@ def generate_master_kek() -> str:
     return base64.b64encode(os.urandom(32)).decode()
 
 
+def fingerprint(key: bytes) -> str:
+    """Short public identifier for a key. Safe to print; not the key.
+
+    sha256 does not run backwards, so this can be logged, read aloud, or
+    written on the paper backup. It is how two copies of a key are compared
+    without either being shown.
+    """
+    import hashlib
+    return hashlib.sha256(key).hexdigest()[:12]
+
+
+def looks_like_master_key(value: str) -> bool:
+    """True for base64 decoding to exactly 32 bytes — the master KEK shape.
+
+    Lives here because it is a fact about this module's key format. Callers use
+    it to refuse a master key pasted where a service credential belongs: no
+    Supabase key is ever bare base64, so the shapes cannot collide.
+    """
+    if value.startswith(("sb_secret_", "sb_publishable_", "eyJ")):
+        return False
+    try:
+        return len(base64.b64decode(value, validate=True)) == 32
+    except Exception:
+        return False
+
+
 # ── the primitive ────────────────────────────────────────────────────────────
 
 def _seal(key: bytes, plaintext: bytes, aad: bytes) -> bytes:
