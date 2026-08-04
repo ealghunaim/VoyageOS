@@ -35,14 +35,32 @@ AAD = b"key-ceremony"
 
 
 def read_key(prompt: str) -> bytes:
-    raw = getpass.getpass(prompt).strip()
+    raw = getpass.getpass(prompt)
+    # Strip every kind of whitespace, not just the ends: a key copied out of a
+    # wrapped terminal or a password manager can arrive with a newline or a
+    # space through the middle of it.
+    raw = "".join(raw.split())
+
+    if not raw:
+        print("  ✗ nothing was entered.")
+        print("    If you pasted several commands at once, the shell fed the next")
+        print("    line into this prompt. Run one command at a time.")
+        sys.exit(1)
+    if raw.startswith(".venv") or raw.startswith("rm ") or "/" in raw and " " in raw:
+        print("  ✗ that looks like a shell command, not a key.")
+        print("    Pasting multiple commands at once feeds the next line into this")
+        print("    prompt. Run one command at a time.")
+        sys.exit(1)
     try:
-        key = base64.b64decode(raw)
+        key = base64.b64decode(raw, validate=True)
     except Exception:
-        print("  ✗ not valid base64 — check for a transcription slip"); sys.exit(1)
+        print(f"  ✗ not valid base64 ({len(raw)} characters read).")
+        print("    A master key is 44 characters ending in '='. Check for a")
+        print("    dropped or doubled character — I and l, 0 and O are the usual ones.")
+        sys.exit(1)
     if len(key) != 32:
-        print(f"  ✗ decodes to {len(key)} bytes, expected 32 — likely a missing "
-              "or extra character"); sys.exit(1)
+        print(f"  ✗ decodes to {len(key)} bytes, expected 32 — a character is "
+              "missing or extra."); sys.exit(1)
     return key
 
 
