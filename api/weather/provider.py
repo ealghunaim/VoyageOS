@@ -21,23 +21,74 @@ HORIZON_DAYS = 15
 PROVIDER = "open-meteo"
 
 
-def geocode(place_name: str, country_code: str | None = None) -> tuple[float, float] | None:
+def _search(place_name: str) -> list[dict]:
     try:
         with httpx.Client(timeout=10, headers={"User-Agent": USER_AGENT}) as c:
             r = c.get(GEOCODE_URL, params={"name": place_name, "count": 5, "language": "en"})
             r.raise_for_status()
-            results = r.json().get("results") or []
+            return r.json().get("results") or []
     except Exception as e:
         print(f"[weather] geocode failed for '{place_name}': {type(e).__name__}: {e}")
-        return None
+        return []
+
+
+def geocode(place_name: str, country_code: str | None = None) -> tuple[float, float, str | None] | None:
+    """Coordinates AND the country, because the geocoder returns both.
+
+    This used to hand back only the latitude and longitude while reading
+    country_code from the same response to disambiguate. Callers that had no
+    country therefore had no way to learn one, which is how destinations ended
+    up with coordinates and a null country_code — enough for weather, not
+    enough for a flag.
+    """
+    results = _search(place_name)
     if not results:
         print(f"[weather] geocode: no results for '{place_name}'")
         return None
     if country_code:
         for res in results:
             if (res.get("country_code") or "").upper() == country_code.upper():
-                return (res["latitude"], res["longitude"])
-    return (results[0]["latitude"], results[0]["longitude"])
+                return (res["latitude"], res["longitude"], (res.get("country_code") or "").upper() or None)
+    top = results[0]
+    return (top["latitude"], top["longitude"], (top.get("country_code") or "").upper() or None)
+
+
+def _km_between(a_lat: float, a_lng: float, b_lat: float, b_lng: float) -> float:
+    from math import asin, cos, radians, sin, sqrt
+    dlat, dlng = radians(b_lat - a_lat), radians(b_lng - a_lng)
+    h = sin(dlat / 2) ** 2 + cos(radians(a_lat)) * cos(radians(b_lat)) * sin(dlng / 2) ** 2
+    return 2 * 6371 * asin(sqrt(h))
+
+
+#: How far a named candidate may sit from stored coordinates and still be
+#: believed. Generous, because a country-level name resolves to a centroid that
+#: can be a long way from the island someone is staying on — but not so
+#: generous that a same-named place on another continent slips through.
+COUNTRY_MATCH_KM = 300
+
+
+def country_near(place_name: str, lat: float, lng: float) -> str | None:
+    """The country for a destination that already has coordinates.
+
+    Open-Meteo offers no reverse endpoint, so this searches the name and takes
+    the candidate closest to the coordinates already on the row. Proximity is
+    what makes it safe: "Springfield" returns a dozen answers, and only one of
+    them is near the point already stored.
+    """
+    best, best_km = None, None
+    for res in _search(place_name):
+        km = _km_between(lat, lng, res["latitude"], res["longitude"])
+        if best_km is None or km < best_km:
+            best, best_km = res, km
+    if best is None:
+        return None
+    if best_km > COUNTRY_MATCH_KM:
+        print(f"[weather] country_near('{place_name}'): nearest match is "
+              f"{best_km:.0f}km away — too far to trust, leaving it null")
+        return None
+    cc = (best.get("country_code") or "").upper() or None
+    print(f"[weather] country_near('{place_name}') → {cc} ({best_km:.0f}km)")
+    return cc
 
 
 def _fetch_open_meteo(lat: float, lng: float) -> list[dict]:

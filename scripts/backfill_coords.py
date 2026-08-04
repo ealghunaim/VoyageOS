@@ -1,4 +1,4 @@
-"""Eagerly repair destinations that were created without coordinates.
+"""Eagerly repair destinations missing coordinates or a country code.
 
 A destination with no lat/lng can fetch neither forecast nor climatology, so
 its trip shows no weather at all while its neighbours show theirs. The read
@@ -75,6 +75,14 @@ def env(name: str) -> str:
         return ""
 
 
+def needs_coords(d: dict) -> bool:
+    return d.get("lat") is None or d.get("lng") is None
+
+
+def needs_country(d: dict) -> bool:
+    return not d.get("country_code")
+
+
 def main() -> int:
     apply = "--apply" in sys.argv
     url, key = env("SUPABASE_URL"), env("SUPABASE_SERVICE_KEY")
@@ -99,9 +107,10 @@ def main() -> int:
         print("  without raising. Supabase dashboard → Project Settings → API Keys →")
         print("  'service_role' / 'secret'. The publishable key will not work.")
         return 1
-    broken = [d for d in rows if d.get("lat") is None or d.get("lng") is None]
+    broken = [d for d in rows if needs_coords(d) or needs_country(d)]
     print(f"  destinations total : {len(rows)}")
-    print(f"  missing coordinates: {len(broken)}\n")
+    print(f"  missing coordinates: {sum(1 for d in rows if needs_coords(d))}")
+    print(f"  missing country    : {sum(1 for d in rows if needs_country(d))}\n")
     if not broken:
         print("  nothing to repair."); return 0
 
@@ -114,22 +123,43 @@ def main() -> int:
         label = f"{d['place_name']!r}" + (f" ({trip['title']})" if trip else "")
         if not trip:
             print(f"    skip   {label} — no parent trip"); skipped += 1; continue
-        coords = provider.geocode(d["place_name"], d.get("country_code"))
-        if not coords:
-            print(f"    FAIL   {label} — geocoder found nothing"); failed += 1; continue
-        lat, lng = coords
+        patch: dict = {}
+        if needs_coords(d):
+            found = provider.geocode(d["place_name"], d.get("country_code"))
+            if not found:
+                print(f"    FAIL   {label} — geocoder found nothing"); failed += 1; continue
+            lat, lng, cc = found
+            patch.update(lat=lat, lng=lng)
+            if cc and needs_country(d):
+                patch["country_code"] = cc
+        elif needs_country(d):
+            # Coordinates are already known, so trusting the top hit for an
+            # ambiguous name could move the destination. Match on proximity to
+            # what is stored instead.
+            cc = provider.country_near(d["place_name"], d["lat"], d["lng"])
+            if not cc:
+                print(f"    FAIL   {label} — no country within range of its coordinates")
+                failed += 1; continue
+            patch["country_code"] = cc
+
+        if not patch:
+            skipped += 1; continue
+        desc = ", ".join(f"{k}={v}" for k, v in patch.items())
         if not apply:
-            print(f"    would  {label} → {lat}, {lng}"); healed += 1; continue
+            print(f"    would  {label} → {desc}"); healed += 1; continue
         try:
-            db.table("destinations").update({"lat": lat, "lng": lng}).eq("id", d["id"]).execute()
-            clim = provider.fetch_climatology(
-                lat, lng, date.fromisoformat(trip["start_date"]),
-                date.fromisoformat(trip["end_date"]))
+            db.table("destinations").update(patch).eq("id", d["id"]).execute()
             n = 0
-            if clim:
-                from api.weather.service import _upsert_snapshots
-                n = _upsert_snapshots(db, d["id"], clim) or len(clim)
-            print(f"    ok     {label} → {lat}, {lng}  ({n} snapshot rows)")
+            # Only fetch weather when coordinates were the thing missing; a
+            # country fill is no reason to re-download a forecast.
+            if "lat" in patch:
+                clim = provider.fetch_climatology(
+                    patch["lat"], patch["lng"], date.fromisoformat(trip["start_date"]),
+                    date.fromisoformat(trip["end_date"]))
+                if clim:
+                    from api.weather.service import _upsert_snapshots
+                    n = _upsert_snapshots(db, d["id"], clim) or len(clim)
+            print(f"    ok     {label} → {desc}" + (f"  ({n} snapshot rows)" if n else ""))
             healed += 1
         except Exception as e:  # noqa: BLE001 — one bad row must not stop the run
             print(f"    ERROR  {label} — {type(e).__name__}: {e}")

@@ -21,14 +21,38 @@ def _first_destination(db, trip_id: str) -> dict | None:
 
 
 def _ensure_coords(db, dest: dict) -> dict | None:
-    if dest.get("lat") is not None and dest.get("lng") is not None:
+    """Fill in whatever the destination is missing — coordinates, country, or both.
+
+    It used to write only lat and lng, so a self-healed destination got its
+    weather back and kept a broken flag: the geocoder had returned the country
+    all along and it was discarded. That produced rows with coordinates and a
+    null country_code, which is a state nothing else repaired.
+    """
+    has_coords = dest.get("lat") is not None and dest.get("lng") is not None
+    has_country = bool(dest.get("country_code"))
+    if has_coords and has_country:
         return dest
-    coords = provider.geocode(dest["place_name"], dest.get("country_code"))
-    if not coords:
-        return None
-    lat, lng = coords
-    db.table("destinations").update({"lat": lat, "lng": lng}).eq("id", dest["id"]).execute()
-    return {**dest, "lat": lat, "lng": lng}
+
+    patch: dict = {}
+    if not has_coords:
+        found = provider.geocode(dest["place_name"], dest.get("country_code"))
+        if not found:
+            return None
+        lat, lng, cc = found
+        patch.update(lat=lat, lng=lng)
+        if cc and not has_country:
+            patch["country_code"] = cc
+    elif not has_country:
+        # Coordinates already known, so the name alone could be ambiguous —
+        # match on proximity to what is stored rather than trusting the top hit.
+        cc = provider.country_near(dest["place_name"], dest["lat"], dest["lng"])
+        if cc:
+            patch["country_code"] = cc
+
+    if not patch:
+        return dest
+    db.table("destinations").update(patch).eq("id", dest["id"]).execute()
+    return {**dest, **patch}
 
 
 def _upsert_snapshots(db, dest_id: str, days: list[dict]) -> int:
@@ -61,12 +85,17 @@ def _upsert_snapshots(db, dest_id: str, days: list[dict]) -> int:
 _GEOCODE_TRIED: set[str] = set()
 
 
-def _backfill_coords_once(db, dest: dict, trip: dict) -> dict:
-    """Self-heal a destination that was created without coordinates.
+def _backfill_once(db, dest: dict, trip: dict, *, fetch_weather: bool) -> dict:
+    """Self-heal a destination missing coordinates, a country, or both.
 
-    Only reached when a trip has no snapshots at all, which is the signature of
-    the bug this repairs: without lat/lng nothing can be fetched, so the trip
-    silently shows no weather while its neighbours show theirs.
+    Two distinct repairs share this path. Missing coordinates means the trip
+    shows no weather at all while its neighbours show theirs; missing
+    country_code means the flag hero falls back to a generic colour. The second
+    was invisible for a while because filling the first fixed the symptom
+    everyone noticed.
+
+    fetch_weather is False when the trip already has snapshots — filling in a
+    country is no reason to re-download a forecast.
 
     Everything here is best-effort. This runs on a read path, so a failure must
     degrade to "no weather" and never to an error — a geocoder outage cannot be
@@ -81,11 +110,12 @@ def _backfill_coords_once(db, dest: dict, trip: dict) -> dict:
             print(f"[weather] cannot geocode '{dest.get('place_name')}' — "
                   "not retrying this process")
             return dest
-        clim = provider.fetch_climatology(
-            filled["lat"], filled["lng"],
-            date.fromisoformat(trip["start_date"]), date.fromisoformat(trip["end_date"]))
-        if clim:
-            _upsert_snapshots(db, filled["id"], clim)
+        if fetch_weather and filled.get("lat") is not None:
+            clim = provider.fetch_climatology(
+                filled["lat"], filled["lng"],
+                date.fromisoformat(trip["start_date"]), date.fromisoformat(trip["end_date"]))
+            if clim:
+                _upsert_snapshots(db, filled["id"], clim)
         return filled
     except Exception as e:  # noqa: BLE001 — a read must not fail on a backfill
         print(f"[weather] backfill failed for '{dest.get('place_name')}': "
@@ -100,8 +130,10 @@ def load_snapshots(db, trip: dict) -> tuple[dict | None, list[dict]]:
     rows = db.table("weather_snapshots").select("*").eq("destination_id", dest["id"]) \
         .gte("forecast_date", trip["start_date"]).lte("forecast_date", trip["end_date"]) \
         .order("forecast_date").execute().data
-    if not rows and (dest.get("lat") is None or dest.get("lng") is None):
-        dest = _backfill_coords_once(db, dest, trip)
+    needs_coords = dest.get("lat") is None or dest.get("lng") is None
+    needs_country = not dest.get("country_code")
+    if (not rows and needs_coords) or needs_country:
+        dest = _backfill_once(db, dest, trip, fetch_weather=not rows)
         rows = db.table("weather_snapshots").select("*").eq("destination_id", dest["id"]) \
             .gte("forecast_date", trip["start_date"]).lte("forecast_date", trip["end_date"]) \
             .order("forecast_date").execute().data
