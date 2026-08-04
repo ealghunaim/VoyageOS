@@ -2,10 +2,12 @@
 
 Three commands, in the order you use them.
 
-    generate   mint a master key straight onto the clipboard, never on screen
-    seal       encrypt a sentinel under the key you are about to write down,
-               saving the ciphertext to a file that is safe to keep
-    verify     type the key back from paper and prove it opens that sentinel
+    generate     mint a master key straight onto the clipboard, never on screen
+    seal         encrypt a sentinel under the key you are about to write down,
+                 saving the ciphertext to a file that is safe to keep
+    verify       type the key back from paper and prove it opens that sentinel
+    fingerprint  identify any copy of the key — Render, a password manager —
+                 without storing or changing anything
 
 The verify step is the part that matters. Copying a key into three places is
 storage; typing it back from the paper copy and watching it decrypt something
@@ -82,6 +84,23 @@ def cmd_generate() -> int:
     return 0
 
 
+def cmd_fingerprint() -> int:
+    """Identify a key without storing, printing or comparing anything.
+
+    For checking that a copy elsewhere — Render's environment field, a password
+    manager entry — is the same key you verified from paper. Matching
+    fingerprints mean matching keys; the fingerprint itself is safe to read
+    aloud or write down, because sha256 does not run backwards.
+
+    Read-only on purpose: seal would answer the same question but rewrites the
+    proof file, and a command run to check something should not change it.
+    """
+    key = read_key("  Paste the key to identify (input hidden): ")
+    print(f"\n  fingerprint: {fingerprint(key)}")
+    print("  Compare it against the one you recorded. Equal means the same key.")
+    return 0
+
+
 def cmd_seal() -> int:
     key = read_key("  Paste the master key (input hidden): ")
     nonce = os.urandom(12)
@@ -118,7 +137,8 @@ def cmd_verify() -> int:
 
 
 def main() -> int:
-    cmds = {"generate": cmd_generate, "seal": cmd_seal, "verify": cmd_verify}
+    cmds = {"generate": cmd_generate, "seal": cmd_seal, "verify": cmd_verify,
+            "fingerprint": cmd_fingerprint}
     if len(sys.argv) < 2 or sys.argv[1] not in cmds:
         print(__doc__)
         print(f"  usage: {sys.argv[0]} [{' | '.join(cmds)}]")
