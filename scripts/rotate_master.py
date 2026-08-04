@@ -198,8 +198,79 @@ def cmd_rewrap() -> int:
     return 0 if ok else 1
 
 
+def cmd_verify() -> int:
+    """Actually open everything under the keys currently loaded.
+
+    status only reads key_version, which is a label — it would report a clean
+    rotation even if every wrapped DEK were garbage. This unwraps each DEK and
+    decrypts each stored number, so a passing run is evidence rather than
+    bookkeeping. Worth running once after removing the old key, which is the
+    moment a mistake stops being recoverable.
+
+    No secret is printed. A decrypted number is checked against number_last4,
+    which is already stored in clear, so the assertion needs no plaintext.
+    """
+    db, url = connect()
+    if not db:
+        return 2
+    print(f"  target           : {url}\n")
+    if not show_keys():
+        return 2
+
+    rows = db.table("user_keys").select("user_id,key_version").execute().data
+    print(f"\n  unwrapping {len(rows)} DEK(s):")
+    deks: dict[str, bytes] = {}
+    ok = True
+    for r in rows:
+        uid = r["user_id"]
+        try:
+            deks[uid] = crypto.get_or_create_user_key(db, uid).dek
+            print(f"    ok    {uid[:8]}…  v{r['key_version']}")
+        except Exception as e:  # noqa: BLE001
+            print(f"    FAIL  {uid[:8]}…  v{r['key_version']}  {type(e).__name__}: {e}")
+            ok = False
+
+    docs = db.table("documents").select(
+        "id,user_id,number_encrypted,number_last4,file_key").execute().data
+    with_num = [d for d in docs if d.get("number_encrypted")]
+    with_pic = [d for d in docs if d.get("file_key")]
+    print(f"\n  documents: {len(docs)}   with number: {len(with_num)}   "
+          f"with photo: {len(with_pic)}")
+    for d in with_num:
+        dek = deks.get(d["user_id"])
+        if not dek:
+            print(f"    FAIL  {d['id'][:8]}…  no usable DEK for its owner")
+            ok = False
+            continue
+        try:
+            num = crypto.decrypt_field(dek, d["user_id"], "number", d["number_encrypted"])
+            match = crypto.last4(num) == (d.get("number_last4") or "")
+            print(f"    {'ok  ' if match else 'FAIL'}  {d['id'][:8]}…  "
+                  f"decrypts, last4 {'matches' if match else 'MISMATCH'}")
+            ok &= match
+        except Exception as e:  # noqa: BLE001
+            print(f"    FAIL  {d['id'][:8]}…  {type(e).__name__}: {e}")
+            ok = False
+    if with_pic:
+        print(f"    ({len(with_pic)} photo(s) not fetched — pass --photos to "
+              "download and decrypt them too)")
+        if "--photos" in sys.argv:
+            from api.documents import photos as photo_store
+            for d in with_pic:
+                try:
+                    raw = photo_store.fetch(db, d["user_id"], d["id"],
+                                            d["file_key"], deks[d["user_id"]])
+                    print(f"    ok    {d['id'][:8]}…  photo decrypts, {len(raw)} bytes")
+                except Exception as e:  # noqa: BLE001
+                    print(f"    FAIL  {d['id'][:8]}…  photo  {type(e).__name__}: {e}")
+                    ok = False
+
+    print(f"\n  {'✓ EVERYTHING OPENS under the loaded key(s)' if ok else '✗ SOMETHING DID NOT OPEN — do not remove any key'}")
+    return 0 if ok else 1
+
+
 def main() -> int:
-    cmds = {"status": cmd_status, "rewrap": cmd_rewrap}
+    cmds = {"status": cmd_status, "rewrap": cmd_rewrap, "verify": cmd_verify}
     if len(sys.argv) < 2 or sys.argv[1] not in cmds:
         print(__doc__)
         print(f"  usage: {sys.argv[0]} [{' | '.join(cmds)}] [--confirm]")
