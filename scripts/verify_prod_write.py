@@ -40,8 +40,8 @@ NUMBER = "X1234567"                      # shaped like a passport number
 LABEL = "0022-WRITE-PATH-CHECK"
 
 
-def prod_config() -> tuple[str, str]:
-    """API URL and publishable key, straight from the committed app.json.
+def prod_config() -> tuple[str, str, str]:
+    """API URL, publishable key and shared app key, from the committed app.json.
 
     The working copy carries a local dev override, so it is deliberately NOT
     read here — HEAD is the prod configuration by definition.
@@ -49,7 +49,8 @@ def prod_config() -> tuple[str, str]:
     raw = subprocess.run(["git", "show", "HEAD:app/app.json"],
                          capture_output=True, text=True, check=True).stdout
     extra = json.loads(raw)["expo"]["extra"]
-    return extra["apiUrl"].rstrip("/"), extra["supabaseAnonKey"]
+    return (extra["apiUrl"].rstrip("/"), extra["supabaseAnonKey"],
+            extra.get("appKey", ""))
 
 
 def post(url: str, body: dict | None, headers: dict, method: str = "POST"):
@@ -69,11 +70,13 @@ def post(url: str, body: dict | None, headers: dict, method: str = "POST"):
 
 
 def main() -> int:
-    api, anon = prod_config()
+    api, anon, app_key = prod_config()
     supabase = "https://njvpjzojnzbynwlqsdbw.supabase.co"
     print(f"  api      : {api}")
     print(f"  supabase : {supabase}")
     print(f"  anon key : {anon[:10]}…({len(anon)} chars)")
+    print(f"  app key  : {app_key[:8]}…({len(app_key)} chars)"
+          if app_key else "  app key  : MISSING — every call will 401 at the middleware")
     print(f"  account  : {EMAIL}")
     if "--dry-run" in sys.argv:
         print("\n  dry run — nothing sent.")
@@ -92,13 +95,27 @@ def main() -> int:
               f"{(tok or {}).get('error_description') or (tok or {}).get('msg') or tok}")
         return 1
     print("  ✓ signed in")
-    auth = {"Authorization": f"Bearer {token}", "apikey": anon}
+    # x-voyageos-key clears the shared_secret_guard middleware (api/main.py),
+    # which rejects every path but /health before auth or any route is reached.
+    # Without it the API answers 401 {"detail":"unauthorized"} — indistinguishable
+    # from a token problem unless you read the body, which is why this check
+    # once looked like a broken sign-in.
+    auth = {"Authorization": f"Bearer {token}", "apikey": anon,
+            "x-voyageos-key": app_key}
 
     ok = True
     status, doc = post(f"{api}/v1/documents",
                        {"type": "passport", "label": LABEL, "number": NUMBER}, auth)
     if status != 201:
         print(f"\n  ✗ CREATE FAILED ({status}): {doc}")
+        detail = (doc or {}).get("detail", "")
+        if status == 401 and detail == "unauthorized":
+            print("    That is the shared-secret middleware, not auth and not the")
+            print("    document code — x-voyageos-key is missing or wrong. The")
+            print("    schema was never exercised.")
+        elif status == 401:
+            print("    That is the auth dependency: the token was rejected. The")
+            print("    middleware was cleared, so the app key is fine.")
         if status >= 500:
             print("    A 500 here is the failure this check exists to catch: the")
             print("    running code still writes documents.key_version, which 0022")
