@@ -1,6 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { createDocument, deleteDocument, Doc, listDocuments, patchDocument } from '../api';
+import {
+  ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView,
+  StyleSheet, Text, TextInput, View,
+} from 'react-native';
+import {
+  createDocument, deleteDocument, deleteDocumentPhoto, Doc, getDocumentPhoto,
+  listDocuments, patchDocument, revealDocumentNumber, uploadDocumentPhoto,
+} from '../api';
+import * as ImagePicker from 'expo-image-picker';
 import { deviceTz } from '../notifications';
 import { Btn, Card, Chip } from '../components/ui';
 import { F, P, RA, S, T } from '../theme';
@@ -37,17 +44,30 @@ const OFFSETS: Record<string, number[]> = {
 
 type Draft = {
   id: string | null; type: string; label: string;
-  expiry: string; country: string; notes: string;
+  expiry: string; country: string; notes: string; number: string;
 };
 
-const EMPTY: Draft = { id: null, type: 'passport', label: '', expiry: '', country: '', notes: '' };
+const EMPTY: Draft = {
+  id: null, type: 'passport', label: '', expiry: '', country: '', notes: '', number: '',
+};
+
+/** Types where a number is the point of storing the document at all. */
+const WANTS_NUMBER = new Set(['passport', 'visa', 'driving_license', 'insurance']);
 
 export default function Documents({ onBack }: { onBack: () => void }) {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [d, setD] = useState<Draft>(EMPTY);
   const [busy, setBusy] = useState(false);
+  // A revealed number is held for one document at a time and dropped as soon
+  // as the list reloads or another is revealed — it should not accumulate in
+  // memory behind a screen the traveller has moved on from.
+  const [revealed, setRevealed] = useState<{ id: string; number: string } | null>(null);
+  const [photoFor, setPhotoFor] = useState<string | null>(null);
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
 
   const load = useCallback(async () => {
+    setRevealed(null);
     try { setDocs(await listDocuments()); } catch (e: any) { Alert.alert('Error', e.message); }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -68,6 +88,9 @@ export default function Documents({ onBack }: { onBack: () => void }) {
         country_code: d.type === 'visa' && d.country.trim() ? d.country.trim().toUpperCase() : null,
         notes: d.notes.trim() || null,
         tz: deviceTz(),
+        // Only sent when typed. An untouched field must not clear a stored
+        // number, so the key is omitted entirely rather than sent as null.
+        ...(d.number.trim() ? { number: d.number.trim() } : {}),
       };
       const saved = editing ? await patchDocument(d.id!, body) : await createDocument(body);
       setD(EMPTY);
@@ -84,7 +107,44 @@ export default function Documents({ onBack }: { onBack: () => void }) {
       id: doc.id, type: doc.type, label: doc.label ?? '',
       expiry: doc.expiry_date ?? '', country: doc.country_code ?? '',
       notes: doc.notes ?? '',
+      // Never prefilled: the ciphertext does not come down with the list, and
+      // silently re-sending a blank would wipe a stored number. Blank means
+      // "leave it alone"; the Clear action is how you remove one.
+      number: '',
     });
+  }
+
+  async function reveal(doc: Doc) {
+    if (revealed?.id === doc.id) { setRevealed(null); return; }   // tap again to hide
+    try {
+      const r = await revealDocumentNumber(doc.id);
+      setRevealed({ id: doc.id, number: r.number });
+    } catch (e: any) { Alert.alert('Reveal', e.message); }
+  }
+
+  async function pickPhoto(docId: string) {
+    const r = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'], quality: 0.5, base64: true,
+    });
+    const a = r.assets?.[0];
+    if (r.canceled || !a?.base64) return;
+    setPhotoBusy(true);
+    try {
+      await uploadDocumentPhoto(docId, a.base64, a.mimeType ?? 'image/jpeg');
+      await load();
+    } catch (e: any) { Alert.alert('Photo', e.message); }
+    finally { setPhotoBusy(false); }
+  }
+
+  async function viewPhoto(docId: string) {
+    setPhotoFor(docId); setPhotoUri(null); setPhotoBusy(true);
+    try {
+      // Decrypted server-side and streamed; what comes back are bytes, held
+      // only in memory for as long as the viewer is open.
+      setPhotoUri(await getDocumentPhoto(docId));
+    } catch (e: any) {
+      setPhotoFor(null); Alert.alert('Photo', e.message);
+    } finally { setPhotoBusy(false); }
   }
 
   const title = (doc: Doc) =>
@@ -134,6 +194,48 @@ export default function Documents({ onBack }: { onBack: () => void }) {
               {doc.expiry.message}
             </Text>
             {!!doc.notes && <Text style={s.notes}>{doc.notes}</Text>}
+
+            {(doc.has_number || doc.has_photo) && (
+              <View style={s.secureRow}>
+                {doc.has_number && (
+                  <Pressable hitSlop={8} onPress={() => reveal(doc)}>
+                    <Text style={s.masked}>
+                      {revealed?.id === doc.id
+                        ? revealed.number
+                        : `•••• ${doc.number_last4 ?? '····'}`}
+                      <Text style={s.revealHint}>
+                        {revealed?.id === doc.id ? '   hide' : '   reveal'}
+                      </Text>
+                    </Text>
+                  </Pressable>
+                )}
+                {doc.has_photo && (
+                  <Pressable hitSlop={8} onPress={() => viewPhoto(doc.id)}>
+                    <Text style={s.photoLink}>View photo</Text>
+                  </Pressable>
+                )}
+              </View>
+            )}
+
+            <View style={s.secureRow}>
+              <Pressable hitSlop={8} onPress={() => pickPhoto(doc.id)}>
+                <Text style={s.photoLink}>
+                  {doc.has_photo ? 'Replace photo' : 'Add photo'}
+                </Text>
+              </Pressable>
+              {doc.has_photo && (
+                <Pressable hitSlop={8} onPress={() =>
+                  Alert.alert('Remove photo?', title(doc), [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Remove', style: 'destructive', onPress: async () => {
+                      try { await deleteDocumentPhoto(doc.id); load(); }
+                      catch (e: any) { Alert.alert('Photo', e.message); }
+                    } },
+                  ])}>
+                  <Text style={s.removeLink}>Remove photo</Text>
+                </Pressable>
+              )}
+            </View>
           </Card>
         </Pressable>
       ))}
@@ -163,6 +265,26 @@ export default function Documents({ onBack }: { onBack: () => void }) {
           value={d.expiry} onChangeText={t => set('expiry', t)}
           placeholder="Expiry YYYY-MM-DD" placeholderTextColor={P.textMuted} autoCapitalize="none" />
         {!dateOk && <Text style={s.err}>Use YYYY-MM-DD, e.g. 2029-04-30.</Text>}
+        {WANTS_NUMBER.has(d.type) && (
+          <>
+            <Text style={s.fieldLabel}>
+              {editing ? 'Document number — leave blank to keep the stored one' : 'Document number'}
+            </Text>
+            <TextInput
+              style={s.input} value={d.number} onChangeText={t => set('number', t)}
+              placeholder={editing ? 'Unchanged' : 'e.g. X1234567'}
+              placeholderTextColor={P.textMuted}
+              autoCapitalize="characters" autoCorrect={false}
+              // No autofill, no suggestion bar, no keyboard learning: this is
+              // the one field on the screen that must not be remembered.
+              textContentType="none" autoComplete="off" spellCheck={false} />
+            <Text style={s.secureNote}>
+              Encrypted before it leaves your phone's reach. Only the last four
+              digits are shown in this list.
+            </Text>
+          </>
+        )}
+
         <TextInput style={[s.input, s.notesInput]} value={d.notes} onChangeText={t => set('notes', t)}
           placeholder="Notes (optional)" placeholderTextColor={P.textMuted} multiline />
 
@@ -181,8 +303,20 @@ export default function Documents({ onBack }: { onBack: () => void }) {
       </Card>
 
       <Text style={s.foot}>
-        Expiry tracking only. VoyageOS does not store document numbers or scans.
+        Numbers and photos are encrypted with a key only your account can use.
       </Text>
+
+      <Modal visible={!!photoFor} transparent animationType="fade"
+             onRequestClose={() => { setPhotoFor(null); setPhotoUri(null); }}>
+        <Pressable style={s.viewerBack}
+                   onPress={() => { setPhotoFor(null); setPhotoUri(null); }}>
+          {photoBusy && !photoUri && <ActivityIndicator size="large" color={P.textOnDark} />}
+          {!!photoUri && (
+            <Image source={{ uri: photoUri }} style={s.viewerImg} resizeMode="contain" />
+          )}
+          <Text style={s.viewerHint}>Tap anywhere to close</Text>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }
@@ -196,6 +330,20 @@ const s = StyleSheet.create({
   sub: { ...T.caption, color: P.textSec, marginTop: 2 },
   status: { ...T.caption, fontFamily: F.med, marginTop: S[1] },
   notes: { ...T.caption, color: P.textMuted, marginTop: S[1] },
+  secureRow: { flexDirection: 'row', alignItems: 'center', marginTop: S[2], flexWrap: 'wrap' },
+  // Monospaced so the digits line up between the masked and revealed states
+  // and the row does not jump when it changes.
+  masked: { ...T.body, fontFamily: 'Courier', color: P.textPri, marginRight: S[4] },
+  revealHint: { ...T.caption, fontFamily: F.med, color: P.brand },
+  photoLink: { ...T.caption, fontFamily: F.med, color: P.brand, marginRight: S[4] },
+  removeLink: { ...T.caption, fontFamily: F.med, color: P.textSec },
+  secureNote: { ...T.caption, color: P.textMuted, marginTop: -S[2], marginBottom: S[3] },
+  viewerBack: {
+    flex: 1, backgroundColor: 'rgba(13,24,42,0.94)',
+    alignItems: 'center', justifyContent: 'center', padding: S[5],
+  },
+  viewerImg: { width: '100%', height: '80%' },
+  viewerHint: { ...T.caption, color: P.textMuted, marginTop: S[4] },
   x: { ...T.title, fontFamily: F.reg, color: P.textSec },
   q: { ...T.h2, color: P.textPri, marginBottom: S[2] },
   fieldLabel: { ...T.caption, color: P.textSec, marginBottom: S[1] },

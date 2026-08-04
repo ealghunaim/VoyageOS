@@ -113,6 +113,11 @@ export const setBagLimit = (tripId: string, limit_g: number | null) =>
 export type Doc = {
   id: string; type: string; label: string | null; expiry_date: string | null;
   country_code: string | null; notes: string | null;
+  /** last four digits, in clear, so a list renders without decrypting */
+  number_last4: string | null;
+  /** whether a number/photo exists — the values themselves never come down */
+  has_number?: boolean;
+  has_photo?: boolean;
   expiry: { level: string; message: string; days_left: number | null };
   /** how many renewal reminders the server scheduled for this document */
   reminders?: number;
@@ -124,6 +129,48 @@ export const patchDocument = (id: string, b: object): Promise<Doc> =>
   req(`/v1/documents/${id}`, { method: 'PATCH', body: JSON.stringify(b) });
 export const deleteDocument = (id: string) =>
   req(`/v1/documents/${id}`, { method: 'DELETE' });
+
+/** The full number, decrypted server-side. Deliberately a separate request:
+ *  a list renders last4, and decrypting every row to draw a screen would mean
+ *  more key use and more exposure for something nobody is reading. */
+export const revealDocumentNumber = (id: string): Promise<{ id: string; number: string }> =>
+  req(`/v1/documents/${id}/number`);
+
+export const uploadDocumentPhoto = (id: string, b64: string, mime: string) =>
+  req(`/v1/documents/${id}/photo`, { method: 'POST', body: JSON.stringify({ b64, mime }) });
+
+export const deleteDocumentPhoto = (id: string) =>
+  req(`/v1/documents/${id}/photo`, { method: 'DELETE' });
+
+/**
+ * The photo, as a data URI ready for <Image>.
+ *
+ * The endpoint streams decrypted bytes rather than returning a link, so there
+ * is nothing to hand to <Image source={{uri}}> directly — a URL would be a
+ * forwardable credential, which is the thing the design avoids. The bytes are
+ * read here and turned into a data URI that lives only in memory.
+ */
+export async function getDocumentPhoto(id: string): Promise<string> {
+  const token = getToken();
+  const res = await fetch(`${API_URL}/v1/documents/${id}/photo`, {
+    headers: {
+      ...(APP_KEY ? { 'x-voyageos-key': APP_KEY } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
+    try { detail = (await res.json()).detail || detail; } catch {}
+    throw new Error(detail);
+  }
+  const blob = await res.blob();
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read that photo.'));
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.readAsDataURL(blob);
+  });
+}
 
 export type WxDay = {
   date: string; temp_max: number | null; temp_min: number | null;
