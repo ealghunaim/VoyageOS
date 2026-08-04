@@ -94,19 +94,60 @@ def _is_departure_window(db, user_id: str, tz: ZoneInfo) -> bool:
     return bool(rows)
 
 
+#: How long a claim may sit before another worker may take it back. Long
+#: enough that a slow Expo push cannot lose its own row, short enough that a
+#: crashed tick costs one cycle rather than a whole reminder.
+CLAIM_TIMEOUT = timedelta(minutes=10)
+
+BATCH = 25
+
+
+def _reap_stale_claims(db, now_utc: datetime) -> int:
+    """Return abandoned claims to the pool.
+
+    Claiming introduces a failure the old select-then-send did not have: a
+    process that dies between claiming a row and delivering it leaves that row
+    held forever, which would be a new silent-loss path in the middle of a fix
+    for silent loss. Nothing else ever moves a row out of 'claimed'.
+    """
+    stale = (now_utc - CLAIM_TIMEOUT).isoformat()
+    rows = db.table("notification_schedule").update({"status": "pending"}) \
+        .eq("status", "claimed").lt("claimed_at", stale).execute().data
+    if rows:
+        print(f"[worker] reclaimed {len(rows)} stale claim(s)")
+    return len(rows)
+
+
 def run_due() -> int:
     """One tick. Returns rows processed. Never raises out (the scheduler must live)."""
     try:
         db = get_db()
         now_utc = datetime.now(timezone.utc)
-        due = db.table("notification_schedule").select("*") \
+        _reap_stale_claims(db, now_utc)
+
+        # Oldest first, deterministically. Without an order the 25 rows chosen
+        # under a backlog are whatever Postgres happens to return, so a row
+        # could in principle be passed over repeatedly.
+        due = db.table("notification_schedule").select("id") \
             .eq("status", "pending").lte("send_at", now_utc.isoformat()) \
-            .limit(25).execute().data
+            .order("send_at").limit(BATCH).execute().data
         if not due:
             return 0
 
+        # Claim before acting. Render runs old and new instances together
+        # during a deploy, and both carry this 60-second tick; select-then-send
+        # let both read the same pending rows and both deliver. The update
+        # filters on status='pending', so each row is won exactly once and the
+        # loser simply gets fewer rows back.
+        claimed = db.table("notification_schedule") \
+            .update({"status": "claimed", "claimed_at": now_utc.isoformat()}) \
+            .in_("id", [r["id"] for r in due]).eq("status", "pending") \
+            .execute().data
+        if not claimed:
+            return 0
+
         by_user: dict[str, list[dict]] = {}
-        for row in due:
+        for row in claimed:
             by_user.setdefault(row["user_id"], []).append(row)
 
         processed = 0
@@ -133,8 +174,12 @@ def run_due() -> int:
                         second=0, microsecond=0)
                     if quiet_end_local <= datetime.now(tz):
                         quiet_end_local += timedelta(days=1)
-                    db.table("notification_schedule").update(
-                        {"send_at": quiet_end_local.astimezone(timezone.utc).isoformat()}) \
+                    # Back to 'pending', not left 'claimed' — a deferred row is
+                    # owed another look, and waiting on the reaper would cost
+                    # it ten minutes for no reason.
+                    db.table("notification_schedule").update({
+                        "send_at": quiet_end_local.astimezone(timezone.utc).isoformat(),
+                        "status": "pending", "claimed_at": None}) \
                         .eq("id", row["id"]).execute()
                 else:  # DIGEST / SUPPRESS — recorded with the governor's reason
                     status = "digested" if d.action == Action.DIGEST else "suppressed"
