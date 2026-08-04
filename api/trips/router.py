@@ -92,29 +92,50 @@ def add_destination(trip_id: str, body: DestinationCreate, user_id: str = Depend
         "accommodation": body.accommodation if isinstance(body.accommodation, dict) else None,
         "seq": body.seq or 1,
     }
-    try:
-        return db.table("destinations").insert(row).execute().data[0]
-    except Exception as e:
-        # Never fail the whole build on a destination hiccup — retry without the
-        # field that actually breaks, so the trip still forms.
-        #
-        # The retry used to drop lat and lng along with accommodation, on the
-        # reasoning that "optional fields are the usual culprits". They are not:
-        # accommodation is a JSON blob and the plausible failure, while
-        # coordinates are two floats that no insert has ever rejected. Dropping
-        # them was collateral damage, and permanent — a destination without
-        # coordinates can fetch neither forecast nor climatology, so its trip
-        # shows no weather at all while its neighbours show theirs, with nothing
-        # to indicate why. Eight of fourteen destinations on dev had been
-        # silently created this way, every one of them on a multi-stop trip.
-        detail = str(e)
-        culprit = next((f for f in ("accommodation", "country_code", "place_name",
-                                    "seq", "lat", "lng") if f in detail), "unknown")
-        print(f"[destinations] insert failed for {row['place_name']!r} "
-              f"({type(e).__name__}: {detail[:200]}) — field named in the error: "
-              f"{culprit}; retrying without accommodation")
-        lean = {k: v for k, v in row.items() if k != "accommodation"}
-        return db.table("destinations").insert(lean).execute().data[0]
+    # Three attempts, shedding as little as possible at each step. The wizard
+    # wraps a whole trip build in one try/catch, so an insert that escapes here
+    # costs the traveller their stops and their packing list — the retry must
+    # stay as forgiving as it was.
+    #
+    # What changed is the order in which things are given up. The old fallback
+    # dropped lat and lng together with accommodation, reasoning that "optional
+    # fields are the usual culprits". They are not: accommodation is a JSON
+    # blob and the plausible failure, while coordinates are two floats no
+    # insert has rejected. Losing them is silent and permanent — a destination
+    # without coordinates can fetch neither forecast nor climatology, so its
+    # trip shows no weather while its neighbours show theirs, and nothing says
+    # why. Eight of fourteen destinations on dev had been created that way.
+    #
+    # So coordinates are surrendered last, and only to keep a trip build alive.
+    minimal = {"trip_id": trip_id, "place_name": row["place_name"],
+               "country_code": row["country_code"], "seq": row["seq"]}
+    attempts = [
+        ("full", row),
+        ("without accommodation", {k: v for k, v in row.items() if k != "accommodation"}),
+        ("minimal", minimal),
+    ]
+    last: Exception | None = None
+    for i, (label, payload) in enumerate(attempts):
+        try:
+            saved = db.table("destinations").insert(payload).execute().data[0]
+            if i and "lat" not in payload:
+                print(f"[destinations] {row['place_name']!r} saved WITHOUT coordinates "
+                      f"({label}) — weather will be unavailable until it is backfilled; "
+                      "see scripts/backfill_coords.py")
+            elif i:
+                print(f"[destinations] {row['place_name']!r} saved on retry ({label})")
+            return saved
+        except Exception as e:  # noqa: BLE001 — try the next, narrower payload
+            last = e
+            detail = str(e)
+            # Name what the database actually complained about instead of
+            # asserting which fields are usually to blame.
+            culprit = next((f for f in ("accommodation", "country_code", "place_name",
+                                        "seq", "lat", "lng") if f in detail), "unknown")
+            print(f"[destinations] insert failed for {row['place_name']!r} "
+                  f"[{label}] ({type(e).__name__}: {detail[:160]}) — "
+                  f"field named in the error: {culprit}")
+    raise last  # type: ignore[misc]
 
 
 @router.post("/{trip_id}/activities", status_code=201)
