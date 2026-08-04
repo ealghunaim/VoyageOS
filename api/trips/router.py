@@ -96,10 +96,24 @@ def add_destination(trip_id: str, body: DestinationCreate, user_id: str = Depend
         return db.table("destinations").insert(row).execute().data[0]
     except Exception as e:
         # Never fail the whole build on a destination hiccup — retry without the
-        # optional/blob fields, which are the usual culprits, so the trip still forms.
-        print(f"[destinations] insert failed ({type(e).__name__}: {str(e)[:200]}); retrying lean")
-        lean = {"trip_id": trip_id, "place_name": row["place_name"],
-                "country_code": row["country_code"], "seq": row["seq"]}
+        # field that actually breaks, so the trip still forms.
+        #
+        # The retry used to drop lat and lng along with accommodation, on the
+        # reasoning that "optional fields are the usual culprits". They are not:
+        # accommodation is a JSON blob and the plausible failure, while
+        # coordinates are two floats that no insert has ever rejected. Dropping
+        # them was collateral damage, and permanent — a destination without
+        # coordinates can fetch neither forecast nor climatology, so its trip
+        # shows no weather at all while its neighbours show theirs, with nothing
+        # to indicate why. Eight of fourteen destinations on dev had been
+        # silently created this way, every one of them on a multi-stop trip.
+        detail = str(e)
+        culprit = next((f for f in ("accommodation", "country_code", "place_name",
+                                    "seq", "lat", "lng") if f in detail), "unknown")
+        print(f"[destinations] insert failed for {row['place_name']!r} "
+              f"({type(e).__name__}: {detail[:200]}) — field named in the error: "
+              f"{culprit}; retrying without accommodation")
+        lean = {k: v for k, v in row.items() if k != "accommodation"}
         return db.table("destinations").insert(lean).execute().data[0]
 
 
