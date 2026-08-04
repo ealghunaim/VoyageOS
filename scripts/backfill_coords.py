@@ -38,6 +38,30 @@ from supabase import create_client  # noqa: E402
 from api.weather import provider  # noqa: E402
 
 
+def describe_key(key: str) -> str:
+    """Name the key type without ever printing the key.
+
+    A JWT carries its role in the payload, which is the only reliable way to
+    tell a service key from a publishable one before making a request.
+    """
+    masked = f"{key[:6]}…{key[-4:]} ({len(key)} chars)"
+    if key.startswith("sb_secret_"):
+        return f"{masked}  type=secret (service) ✅"
+    if key.startswith("sb_publishable_"):
+        return f"{masked}  type=PUBLISHABLE ⚠️  RLS applies — cannot read destinations"
+    if key.startswith("eyJ"):
+        import base64, json as _json
+        try:
+            payload = key.split(".")[1]
+            payload += "=" * (-len(payload) % 4)
+            role = _json.loads(base64.urlsafe_b64decode(payload)).get("role", "?")
+        except Exception:
+            role = "unreadable"
+        ok = "✅" if role == "service_role" else "⚠️  RLS applies"
+        return f"{masked}  type=JWT role={role} {ok}"
+    return f"{masked}  type=unrecognised"
+
+
 def env(name: str) -> str:
     """Prefer a real environment variable; fall back to .env for local runs."""
     if os.environ.get(name):
@@ -58,12 +82,23 @@ def main() -> int:
         print("SUPABASE_URL / SUPABASE_SERVICE_KEY not set."); return 2
     db = create_client(url, key)
 
-    host = url.split("//")[-1].split(".")[0]
     print(f"  target   : {url}")
-    print(f"  mode     : {'APPLY — will write' if apply else 'DRY RUN — no writes'}\n")
+    print(f"  mode     : {'APPLY — will write' if apply else 'DRY RUN — no writes'}")
+    print(f"  key      : {describe_key(key)}\n")
 
     rows = db.table("destinations").select("id,trip_id,place_name,country_code,lat,lng") \
         .execute().data
+    # A key without service_role is silently filtered by RLS to zero rows rather
+    # than rejected, so an empty read is ambiguous: it means either "no
+    # destinations" or "wrong key". Say which, instead of reporting 0 and
+    # leaving the caller to guess.
+    if not rows:
+        print("  destinations visible to this key: 0")
+        print("  If the table is not actually empty, this key is not service_role —")
+        print("  RLS (migration 0020) filters anon and authenticated to zero rows")
+        print("  without raising. Supabase dashboard → Project Settings → API Keys →")
+        print("  'service_role' / 'secret'. The publishable key will not work.")
+        return 1
     broken = [d for d in rows if d.get("lat") is None or d.get("lng") is None]
     print(f"  destinations total : {len(rows)}")
     print(f"  missing coordinates: {len(broken)}\n")
