@@ -11,6 +11,8 @@ from datetime import date, timedelta
 
 import httpx
 
+from api.core.geo import km_between
+
 GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 MET_NO_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
@@ -53,13 +55,6 @@ def geocode(place_name: str, country_code: str | None = None) -> tuple[float, fl
     return (top["latitude"], top["longitude"], (top.get("country_code") or "").upper() or None)
 
 
-def _km_between(a_lat: float, a_lng: float, b_lat: float, b_lng: float) -> float:
-    from math import asin, cos, radians, sin, sqrt
-    dlat, dlng = radians(b_lat - a_lat), radians(b_lng - a_lng)
-    h = sin(dlat / 2) ** 2 + cos(radians(a_lat)) * cos(radians(b_lat)) * sin(dlng / 2) ** 2
-    return 2 * 6371 * asin(sqrt(h))
-
-
 #: How far a named candidate may sit from stored coordinates and still be
 #: believed. Generous, because a country-level name resolves to a centroid that
 #: can be a long way from the island someone is staying on — but not so
@@ -77,7 +72,7 @@ def country_near(place_name: str, lat: float, lng: float) -> str | None:
     """
     best, best_km = None, None
     for res in _search(place_name):
-        km = _km_between(lat, lng, res["latitude"], res["longitude"])
+        km = km_between(lat, lng, res["latitude"], res["longitude"])
         if best_km is None or km < best_km:
             best, best_km = res, km
     if best is None:

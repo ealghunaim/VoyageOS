@@ -3,7 +3,7 @@ import {
   ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Image as RNImage,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { getFamilyPlay, FamilyActivity, addFoodTip, deleteFoodTip, dishPhoto, FoodTip, getGuidePart, getProfile, getTrip, Guide as GuideT, listFoodTips, patchTrip, TipCategory, Trip, TripDetail } from '../api';
+import { getFamilyPlay, FamilyActivity, addFoodTip, deleteFoodTip, dishPhoto, FoodTip, getGuidePart, getProfile, getTrip, Guide as GuideT, listFoodTips, patchTrip, placePhotos, PlacePhoto, TipCategory, Trip, TripDetail } from '../api';
 import { transitFor } from '../airlines';
 import JourneyLoader from '../components/JourneyLoader';
 import PlugArt from '../components/PlugArt';
@@ -42,6 +42,10 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
   const [familyPlay, setFamilyPlay] = useState<{ activities: FamilyActivity[] } | null>(null);
   const [familyBusy, setFamilyBusy] = useState(false);
   const [dishPhotos, setDishPhotos] = useState<Record<string, string>>({});
+  // Landmark photos for Visit and Play. null is cached deliberately: about a
+  // third of items have no publishable photo, and without keeping the misses
+  // every re-render would ask again to be told the same thing.
+  const [placePics, setPlacePics] = useState<Record<string, PlacePhoto | null>>({});
   const [g2, setG] = useState<GuideT | null>(null);
   const [aReady, setAReady] = useState(false);
   const [bReady, setBReady] = useState(false);
@@ -118,6 +122,21 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
     })();
     return () => { cancelled = true; };
   }, [g2?.dishes, place]);
+
+  // One batch call rather than one request per item: a guide carries roughly
+  // 20 sights and experiences, and several of them are the same entity in both
+  // sections, so the server deduplicates and answers in a single round trip.
+  useEffect(() => {
+    const names = [...(g2?.visit ?? []).map(v => v.name),
+                   ...(g2?.play ?? []).map(v => v.name)];
+    const wanted = names.filter(n => !(n in placePics));
+    if (!activeDestId || !wanted.length) return;
+    let cancelled = false;
+    placePhotos(activeDestId, wanted)
+      .then(r => { if (!cancelled) setPlacePics(p => ({ ...p, ...r })); })
+      .catch(() => { /* no photo is an acceptable outcome */ });
+    return () => { cancelled = true; };
+  }, [g2?.visit, g2?.play, activeDestId]);
 
   useEffect(() => {
     load();
@@ -239,6 +258,27 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
     );
   };
 
+  // The photo is labelled with the Wikimedia article it came from, not with
+  // the guide item. A confident match can legitimately be the containing
+  // district — Arashiyama for its bamboo grove — which is true and useful when
+  // named honestly, and a false claim about a real place when captioned as the
+  // item. Attribution is not decoration: CC BY and CC BY-SA both require the
+  // author and licence, so the server withholds any photo it cannot attribute.
+  const PlaceImage = ({ name }: { name: string }) => {
+    const ph = placePics[name];
+    if (!ph) return null;
+    return (
+      <View style={sx.photoWrap}>
+        <RNImage source={{ uri: ph.url }} style={sx.photo} resizeMode="cover" />
+        <Pressable onPress={() => ph.page && open(ph.page)} hitSlop={6}>
+          <Text style={sx.photoCredit} numberOfLines={1}>
+            {ph.title} · {ph.credit} · {ph.license}
+          </Text>
+        </Pressable>
+      </View>
+    );
+  };
+
   const Rows = ({ items }: { items: { name: string; note: string }[] }) => (
     <>
       {items.length === 0 && <Text style={s.sub}>Nothing here yet — try ↻ regenerate.</Text>}
@@ -246,6 +286,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
         <View key={i} style={s.row}>
           <Text style={s.rowName}>{it.name}</Text>
           {!!it.note && <Text style={s.sub}>{it.note}</Text>}
+          <PlaceImage name={it.name} />
           {linksFor(it.name)}
         </View>
       ))}
@@ -270,6 +311,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
               {[it.fee ? (FEE_LABEL[it.fee] ?? it.fee) : '', it.access ? '♿ ' + it.access : ''].filter(Boolean).join('  ·  ')}
             </Text>
           )}
+          <PlaceImage name={it.name} />
         </View>
       ))}
       {items.length > 0 && <Text style={[s.disclaimer, { marginTop: S[1] }]}>Ratings & fees are AI estimates — confirm before you go.</Text>}
@@ -639,6 +681,12 @@ const s = StyleSheet.create({
 });
 
 const sx = StyleSheet.create({
+  photoWrap: { marginTop: S[2] },
+  photo: { width: '100%', height: 150, borderRadius: RA.sm, backgroundColor: P.sunken },
+  // Attribution is a licence condition, not a caption — it must stay legible
+  // and must not be clipped away, so it sits under the image rather than over it.
+  photoCredit: { ...T.caption, color: P.textMuted, marginTop: S[1] },
+
   vChip: { borderWidth: 1, borderColor: P.hairlineStrong, backgroundColor: P.card,
            paddingHorizontal: S[3], paddingVertical: S[2], borderRadius: RA.pill,
            marginRight: S[2], marginBottom: S[2] },

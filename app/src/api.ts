@@ -281,6 +281,23 @@ export const searchRoute = (origin: string, dest: string, date: string): Promise
 export const lookupFlight = (number: string, date: string): Promise<{ number: string; origin: string | null; dest: string | null; depart: string | null; arrive: string | null; status: string | null }> =>
   req(`/v1/flights/${encodeURIComponent(number)}/${date}`);
 
+/** A landmark photo sourced from Wikimedia, or null when nothing could be
+ *  matched confidently. Null is a real answer — roughly a third of guide items
+ *  legitimately have no publishable photo, and a placeholder would only invite
+ *  a caption over the wrong picture. `title` is the article the photo actually
+ *  came from and is what the UI must label it with: the match can legitimately
+ *  be the containing district (Arashiyama for its bamboo grove), which is true
+ *  and useful when named honestly and a false claim when not. */
+export type PlacePhoto = {
+  name: string; url: string; title: string; source: string;
+  credit: string; license: string; license_url?: string; page?: string;
+};
+
+export const placePhotos = (
+  destination_id: string, names: string[],
+): Promise<Record<string, PlacePhoto | null>> =>
+  req('/v1/photos/places', { method: 'POST', body: JSON.stringify({ destination_id, names }) });
+
 export const dishPhoto = (name: string, place: string): Promise<{ name: string; url: string | null; credit?: string }> =>
   req(`/v1/photos/dish?name=${encodeURIComponent(name)}&place=${encodeURIComponent(place)}`);
 
