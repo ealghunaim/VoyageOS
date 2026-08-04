@@ -143,6 +143,13 @@ def run_due() -> int:
             .update({"status": "claimed", "claimed_at": now_utc.isoformat()}) \
             .in_("id", [r["id"] for r in due]).eq("status", "pending") \
             .execute().data
+        # Contention is otherwise invisible: the losing worker simply receives
+        # fewer rows and carries on, so "is claiming doing anything?" can only
+        # be inferred. Logged only when it actually happens — a normal tick
+        # claims everything it selected and says nothing.
+        if len(claimed) < len(due):
+            print(f"[worker] claimed {len(claimed)}/{len(due)} — "
+                  "another instance took the rest")
         if not claimed:
             return 0
 

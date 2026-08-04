@@ -101,6 +101,75 @@ def main() -> int:
         check("winner claims the row", len(a) == 1, f"{len(a)} row(s)")
         check("loser gets nothing", len(b) == 0, f"{len(b)} row(s)")
 
+        # ── 1b · contention is logged, not silently absorbed ────────────
+        #
+        # A genuine race is needed: the row must be pending when run_due
+        # selects it and claimed by the time run_due updates. Stealing it
+        # inside the select's execute() is the only deterministic way to sit
+        # in that gap. Guarded to fire once, and only on the due-select, which
+        # is the only query returning rows of just {"id"}.
+        print("\n  1b · contention logging")
+        thief_state = {"done": False, "stolen": None}
+
+        def steal(data):
+            if thief_state["done"] or not data:
+                return
+            if not all(set(r.keys()) == {"id"} for r in data):
+                return
+            thief_state["done"] = True
+            thief_state["stolen"] = data[0]["id"]
+            get_db().table("notification_schedule").update(
+                {"status": "claimed", "claimed_at": now.isoformat()}) \
+                .eq("id", data[0]["id"]).eq("status", "pending").execute()
+
+        class Q:
+            def __init__(self, q): self.q = q
+            def execute(self):
+                res = self.q.execute()
+                steal(res.data)
+                return res
+            def __getattr__(self, n):
+                a = getattr(self.q, n)
+                if callable(a):
+                    def w(*ar, **kw):
+                        r = a(*ar, **kw)
+                        return Q(r) if hasattr(r, "execute") else r
+                    return w
+                return a
+
+        class T:
+            def __init__(self, t): self.t = t
+            def select(self, *a, **k): return Q(self.t.select(*a, **k))
+            def __getattr__(self, n): return getattr(self.t, n)
+
+        class C:
+            def __init__(self, c): self.c = c
+            def table(self, name):
+                t = self.c.table(name)
+                return T(t) if name == "notification_schedule" else t
+            def __getattr__(self, n): return getattr(self.c, n)
+
+        ids = [r["id"] for r in db.table("notification_schedule").insert(
+            [row(uid, now - timedelta(minutes=2)) for _ in range(3)]).execute().data]
+        import contextlib, io
+        real_get_db = worker.get_db
+        worker.get_db = lambda: C(real_get_db())
+        buf = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(buf):
+                worker.run_due()
+        finally:
+            worker.get_db = real_get_db
+        out = buf.getvalue()
+        check("a row was stolen mid-tick", thief_state["stolen"] is not None)
+        check("contention was logged", "another instance took the rest" in out,
+              next((l.strip() for l in out.splitlines() if "claimed " in l), "no line"))
+        # Only this step's rows — a blanket cleanup here would delete the row
+        # step 2 is still holding.
+        for i in ids:
+            db.table("notification_log").delete().eq("schedule_id", i).execute()
+            db.table("notification_schedule").delete().eq("id", i).execute()
+
         # ── 2 · the reaper frees an abandoned claim ─────────────────────
         print("\n  2 · reaper")
         db.table("notification_schedule").update(
