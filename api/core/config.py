@@ -1,5 +1,19 @@
 """Config — model IDs, budgets, and provider keys live HERE, never in code (Part 1 §6)."""
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
+
+# Put .env into the real process environment, not just into Settings.
+#
+# Pydantic reads .env to populate this class and stops there, so anything that
+# consults os.environ directly sees nothing locally. api/core/crypto.py does
+# exactly that — its keys are versioned (MASTER_KEK_V1, _V2, …) and cannot be
+# declared as fields — so without this the app starts with no master key on a
+# developer machine while working perfectly on Render, where the variables are
+# genuinely in the environment. A failure that only appears locally is the kind
+# that gets debugged twice.
+#
+# override=False: a real environment variable always wins over the file.
+load_dotenv(override=False)
 
 
 class Settings(BaseSettings):

@@ -32,6 +32,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from supabase import create_client  # noqa: E402
 
+from api.core import config  # noqa: E402,F401  — load_dotenv, so crypto sees the keys
 from api.core import crypto  # noqa: E402
 
 # Shaped like a real passport number, so last4 is exercised the way it
@@ -68,10 +69,6 @@ def main() -> int:
         print("\n  This writes and rotates key material. Re-run with --confirm.")
         return 1
 
-    # crypto.py reads the environment, so make .env's key visible to it
-    for n in ("MASTER_KEK_V1", "MASTER_KEK_VERSION"):
-        if env(n) and not os.environ.get(n):
-            os.environ[n] = env(n)
     if not env("MASTER_KEK_V1"):
         print("  MASTER_KEK_V1 not set."); return 2
 
