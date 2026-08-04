@@ -22,6 +22,12 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        # Tolerate env vars this class does not model. MASTER_KEK_V1, _V2 … are
+        # read straight from os.environ by api/core/crypto.py, because their
+        # names are versioned and a settings class cannot declare a field per
+        # future rotation. Without this, adding one to .env fails validation at
+        # import and takes down every module that touches settings.
+        extra = "ignore"
 
 
 settings = Settings()
