@@ -30,6 +30,7 @@ with no cached guide is now simply never fetched.
 """
 from __future__ import annotations
 
+import difflib
 import getpass
 import json
 import subprocess
@@ -141,10 +142,20 @@ def main() -> int:
                 data = res.json()
                 hits = {n: v for n, v in data.items() if v}
                 print(f"\n  === {dest['place_name']}  {len(hits)}/{len(names)} matched ===")
-                for n, v in list(hits.items())[:6]:
+                # Flag the ones a human should look at. A match whose title
+                # diverges from the item is where Charleston, Notre-Dame and
+                # Gare d'Orsay all lived — the gates now reject those three,
+                # but the list is enumerated and prod has items dev never had.
+                for n, v in sorted(hits.items(),
+                                   key=lambda kv: difflib.SequenceMatcher(
+                                       None, kv[0].lower(),
+                                       kv[1]["title"].lower()).ratio()):
+                    near = difflib.SequenceMatcher(
+                        None, n.lower(), v["title"].lower()).ratio()
+                    mark = "?? CHECK" if near < 0.55 else ("?  " if near < 0.75 else "ok ")
                     has_credit = bool(v.get("credit")) and bool(v.get("license"))
                     ok &= has_credit and str(v.get("url", "")).startswith("http")
-                    print(f"    ✓ {n[:38]:<40} → {v['title']}")
+                    print(f"    {mark} {n[:38]:<40} → {v['title']}   ({near:.2f})")
                     print(f"       {v['credit'][:34]} · {v['license']}")
                     print(f"       {'ok' if has_credit else 'MISSING ATTRIBUTION'} · "
                           f"{v['url'][:66]}…")
