@@ -91,6 +91,7 @@ const FACE: Record<string, Face> = {
   AE: { kind: 'hoistTrap', bands: ['#00732F', '#FFFFFF', '#000000'], trap: '#FF0000' },
   JO: { kind: 'hoistTri',  bands: ['#000000', '#FFFFFF', '#007A3D'], triangle: '#CE1126' },
   SD: { kind: 'hoistTri',  bands: ['#D21034', '#FFFFFF', '#000000'], triangle: '#007229' },
+  SC: { kind: 'hoistTri',  bands: ['#FCD856', '#D92223', '#FFFFFF'], triangle: '#003F87' },
   PH: { kind: 'hoistTri',  bands: ['#0038A8', '#0038A8', '#CE1126'], triangle: '#FFFFFF' },
   CZ: { kind: 'hoistTri',  bands: ['#FFFFFF', '#FFFFFF', '#D7141A'], triangle: '#11457E' },
   QA: { kind: 'vbi',    bands: ['#FFFFFF', '#8A1538'] },
@@ -111,6 +112,18 @@ const FACE: Record<string, Face> = {
 
 const W = 400, H = 140;
 
+/** Darken or lighten a hex colour — used only to derive a second band for a
+ *  country we have no artwork for, so it still reads as a flag. */
+function shade(hex: string, factor: number): string {
+  const h = hex.replace('#', '');
+  const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
+  const r = clamp(((n >> 16) & 255) * factor);
+  const g = clamp(((n >> 8) & 255) * factor);
+  const b = clamp((n & 255) * factor);
+  return `#${[r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')}`;
+}
+
 /** One flag drawn inside x..x+w. Geometry is simplified but proportioned. */
 function FlagFace({ cc, place, x, w }: { cc: string; place: string; x: number; w: number }) {
   const c = (cc || '').toUpperCase();
@@ -127,13 +140,14 @@ function FlagFace({ cc, place, x, w }: { cc: string; place: string; x: number; w
     for (let i = 0; i < c.length; i++) hash = (hash * 31 + c.charCodeAt(i)) >>> 0;
     const vertical = hash % 2 === 0;
 
+    // A country with no accents used to collapse to bands=[base] and render a
+    // single flat Rect — which reads as a missing image rather than as a flag
+    // we happen not to draw. Seychelles looked like that: a valid code, real
+    // data, and a blank panel. Two shades derived from the base give it the
+    // silhouette of a bicolour, so an unmapped country still reads as a flag.
     const bands = acc.length >= 2 ? [base, acc[0], acc[1]]
                 : acc.length === 1 ? [base, acc[0]]
-                : [base];
-
-    if (bands.length === 1) {
-      return <Rect x={x} y={0} width={w} height={H} fill={base} />;
-    }
+                : [base, shade(base, 0.72)];
     return (
       <G>
         {bands.map((b, i) =>

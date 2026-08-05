@@ -34,6 +34,19 @@ function pretty(d: string) {
   return isNaN(dt.getTime()) ? d : dt.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
+/**
+ * A country code, or nothing — never the first two letters of a country name.
+ *
+ * This used to be `.toUpperCase().slice(0, 2)`, which turns "Scotland" into
+ * "SC" — a real code, belonging to Seychelles. Truncation cannot fail loudly:
+ * every country name yields something that looks like an ISO code, so a wrong
+ * one flows all the way to a flag.
+ */
+function iso2(v: string | null | undefined): string | null {
+  const c = (v || '').trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(c) ? c : null;
+}
+
 export default function Wizard({ onDone, onCancel }: {
   onDone: (trip: Trip) => void; onCancel: () => void;
 }) {
@@ -185,7 +198,7 @@ export default function Wizard({ onDone, onCancel }: {
       setBusy('Adding destination…');
       await addDestination(trip.id, {
         place_name: place,
-        country_code: country ? country.toUpperCase().slice(0, 2) : null,
+        country_code: iso2(country),
         lat: coords?.lat ?? null, lng: coords?.lng ?? null,
         accommodation: stay.trim() ? { name: stay.trim() } : null,
         seq: 1,
@@ -196,7 +209,7 @@ export default function Wizard({ onDone, onCancel }: {
         for (const stp of stops) {
           await addDestination(trip.id, {
             place_name: stp.name,
-            country_code: stp.country ? stp.country.toUpperCase().slice(0, 2) : null,
+            country_code: iso2(stp.country),
             lat: stp.lat, lng: stp.lng, seq: seq++,
           });
         }
@@ -239,7 +252,7 @@ export default function Wizard({ onDone, onCancel }: {
       <Card>
         <Text style={s.label}>DESTINATION</Text>
         <Field label="" value={place}
-          onChange={(t) => { setPlace(t); setChosen(false); setCoords(null); }}
+          onChange={(t) => { setPlace(t); setChosen(false); setCoords(null); setCountry(''); }}
           placeholder="Start typing — e.g. Chamonix" />
         {hits.map((h, i) => (
           <Pressable key={`${h.name}-${h.lat}-${h.lng}-${i}`} onPress={() => pick(h)} style={s.hit}>
