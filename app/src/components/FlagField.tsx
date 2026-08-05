@@ -110,6 +110,64 @@ const FACE: Record<string, Face> = {
   NZ: { kind: 'unionCanton', field: '#00247D', figures: ['#FFFFFF', '#CC142B'] },
 };
 
+/** Every colour a face paints, so their separation can be measured. */
+function faceColors(f: Face | undefined, fallback: string): string[] {
+  if (!f) return [fallback];
+  switch (f.kind) {
+    case 'disc': case 'swiss': case 'crescent': case 'starBand':
+      return [f.field, f.figure];
+    case 'union': case 'nordic': case 'unionCanton':
+      return [f.field, ...f.figures];
+    case 'vtri': case 'htri': case 'wideMiddle':
+      return [...f.bands];
+    case 'hbi': case 'vbi':
+      return [...f.bands];
+    case 'hoistTri':  return [...f.bands, f.triangle];
+    case 'hoistTrap': return [...f.bands, f.trap];
+    case 'cantonStripes': return [f.stripeA, f.stripeB, f.canton];
+    case 'centreEmblem':  return [...f.bands, f.emblem];
+    default: return [fallback];
+  }
+}
+
+function mixOver(fg: string, bg: string, a: number): [number, number, number] {
+  const f = parseInt(fg.slice(1), 16), b = parseInt(bg.slice(1), 16);
+  return [16, 8, 0].map(sh =>
+    Math.round(a * ((f >> sh) & 255) + (1 - a) * ((b >> sh) & 255))
+  ) as [number, number, number];
+}
+
+/** Redmean distance — a cheap perceptual approximation, good enough to tell
+ *  "two different colours" from "the same colour twice". */
+function colourDistance(x: [number, number, number], y: [number, number, number]): number {
+  const rm = (x[0] + y[0]) / 2;
+  const [dr, dg, db] = [x[0] - y[0], x[1] - y[1], x[2] - y[2]];
+  return Math.sqrt((2 + rm / 256) * dr * dr + 4 * dg * dg + (2 + (255 - rm) / 256) * db * db);
+}
+
+/** Below this the bands stop reading as separate and the flag becomes a panel.
+ *  Set from measured cases: Thailand collapses at 59, Japan is comfortable at
+ *  195, and Kuwait and the UK sit between at 85 and 99 — all three of those
+ *  wanted more, Japan wanted nothing. */
+const MIN_BAND_SEPARATION = 130;
+
+function legibleOpacity(
+  stops: { country_code: string | null }[], ground: string, base: number,
+): number {
+  const colours = stops.flatMap(st =>
+    faceColors(FACE[(st.country_code || '').toUpperCase()], ground));
+  if (colours.length < 2) return base;
+  for (let a = base; a <= 1.0001; a += 0.01) {
+    const mixed = colours.map(c => mixOver(c, ground, a));
+    let worst = Infinity;
+    for (let i = 0; i < mixed.length; i++)
+      for (let j = i + 1; j < mixed.length; j++)
+        worst = Math.min(worst, colourDistance(mixed[i], mixed[j]));
+    if (worst >= MIN_BAND_SEPARATION) return Math.min(1, a);
+  }
+  return 1;
+}
+
 const W = 400, H = 140;
 
 /** Darken or lighten a hex colour — used only to derive a second band for a
@@ -402,9 +460,21 @@ export default function FlagField({ stops, style, height = 124 }: {
   const lead = list[0];
   const leadBase = accentForTrip(lead?.country_code, lead?.place_name ?? '');
 
-  // How much flag you actually see. Lower = more of the brand's calm, higher =
-  // more of the country. This is the dial the four styles differ on.
-  const faceOpacity = style === 'panels' ? 1 : style === 'veil' ? 0.5 : 0.32;
+  // How much flag you actually see, chosen so the flag stays legible rather
+  // than fixed at one number.
+  //
+  // A wash silently fails when a flag's own colours sit close together over
+  // its own ground. Thailand is the case: at 0.32 its red and blue bands
+  // composite to #4D1C45 and #27214D — 59 apart on a perceptual scale, so the
+  // three bands read as one purple panel. Japan never had the problem: white
+  // against red stays 195 apart at any opacity.
+  //
+  // Keying on the ground's luminance alone could not tell those apart, since
+  // both grounds are dark. What matters is whether the bands remain
+  // distinguishable FROM EACH OTHER once mixed, so that is what is measured,
+  // and opacity rises only until they are.
+  const faceOpacity = style === 'panels' ? 1
+    : legibleOpacity(list, leadBase, style === 'veil' ? 0.5 : 0.32);
 
   return (
     <View style={{ height, overflow: 'hidden', backgroundColor: leadBase }}>

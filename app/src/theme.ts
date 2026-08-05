@@ -142,14 +142,17 @@ export const FOLD = { depth: 18 } as const;
  * Japan crimson to Colombia yellow, so white is not always safe — this picks
  * white or deep ink by relative luminance rather than assuming.
  */
-export function onColor(hex: string): string {
+export function luminance(hex: string): number {
   const n = parseInt(hex.slice(1), 16);
   const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => {
     const c = v / 255;
     return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
   });
-  const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return L > 0.45 ? RAMP.ink : '#FFFFFF';
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+export function onColor(hex: string): string {
+  return luminance(hex) > 0.45 ? RAMP.ink : '#FFFFFF';
 }
 
 /**
