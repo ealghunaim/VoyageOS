@@ -9,7 +9,7 @@ import Documents from './src/screens/Documents';
 import Home from './src/screens/Home';
 import Kits from './src/screens/Kits';
 import Login from './src/screens/Login';
-import TopBar, { FloatingAdd } from './src/components/TopBar';
+import TopBar, { FloatingAdd, FloatingHome, FloatingProfile } from './src/components/TopBar';
 import Wordmark from './src/components/Wordmark';
 import Guide from './src/screens/Guide';
 import Packing from './src/screens/Packing';
@@ -101,17 +101,15 @@ export default function App() {
   // The + is reachable wherever a trip could be added from, but not over the
   // login screen or a wizard that is already creating one.
   const showAdd = route.name !== 'login' && route.name !== 'wizard';
+  // Home is reachable from everywhere the + is, except Home itself — a button
+  // that navigates to the screen you are on is just a dead target.
+  const showHome = showAdd && route.name !== 'home';
+  const showProfile = showAdd && route.name !== 'profile';
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: P.pageBg }}>
       <StatusBar barStyle="dark-content" />
-      {showTopBar && (
-        <TopBar
-          active={route.name === 'home' ? 'home' : 'profile'}
-          onHome={goHome}
-          onProfile={() => setRoute({ name: 'profile' })}
-        />
-      )}
+      {showTopBar && <TopBar />}
       <View style={{ flex: 1 }}>
       {route.name === 'login' && (
         <Login onDone={() => { setAuthed(true); goHome(); }} />
@@ -193,6 +191,8 @@ export default function App() {
         />
       )}
       </View>
+      {showHome && <FloatingHome onPress={goHome} />}
+      {showProfile && <FloatingProfile onPress={() => setRoute({ name: 'profile' })} />}
       {showAdd && <FloatingAdd onPress={() => setRoute({ name: 'wizard' })} />}
     </SafeAreaView>
   );
