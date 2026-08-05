@@ -35,7 +35,18 @@ import sys
 import urllib.error
 import urllib.request
 
-EMAIL = "dr.ealghunaim@gmail.com"
+#: Default only. Prod has more than one account and the one holding the data
+#: is not the one this was first written against — pass --email to choose.
+DEFAULT_EMAIL = "dr.ealghunaim@gmail.com"
+
+
+def account() -> str:
+    for a in sys.argv:
+        if a.startswith("--email="):
+            return a.split("=", 1)[1]
+    return DEFAULT_EMAIL
+
+
 NUMBER = "X1234567"                      # shaped like a passport number
 LABEL = "0022-WRITE-PATH-CHECK"
 
@@ -71,6 +82,7 @@ def post(url: str, body: dict | None, headers: dict, method: str = "POST"):
 
 def main() -> int:
     api, anon, app_key = prod_config()
+    EMAIL = account()
     supabase = "https://njvpjzojnzbynwlqsdbw.supabase.co"
     print(f"  api      : {api}")
     print(f"  supabase : {supabase}")
