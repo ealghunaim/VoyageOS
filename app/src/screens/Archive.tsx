@@ -4,12 +4,13 @@ import { Trip } from '../api';
 import TripArt from '../components/TripArt';
 import { Card } from '../components/ui';
 import { accentForTrip, P, S, T, titleize } from '../theme';
+import { FAB_CLEARANCE } from '../components/TopBar';
 
 export default function Archive({ trips, onOpen, onBack }: {
   trips: Trip[]; onOpen: (t: Trip) => void; onBack: () => void;
 }) {
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={{ padding: S[5] }}>
+    <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={{ padding: S[5], paddingBottom: FAB_CLEARANCE }}>
       <Pressable onPress={onBack} hitSlop={10} style={{ marginBottom: S[3] }}>
         <Text style={[T.title, { color: P.brand }]}>‹ Home</Text>
       </Pressable>

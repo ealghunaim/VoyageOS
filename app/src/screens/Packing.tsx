@@ -8,6 +8,7 @@ import { deviceTz, permissionStatus, requestPermission, syncReminders, testPing 
 import { Btn, Card, Progress } from '../components/ui';
 import JourneyLoader from '../components/JourneyLoader';
 import { F, P, RA, S, T, tint } from '../theme';
+import { FAB_CLEARANCE } from '../components/TopBar';
 
 export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }: {
   tripId: string; tripTitle: string; accent?: string; onBack: () => void; onDebrief: () => void;
@@ -152,7 +153,7 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
       </View>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: S[4], paddingTop: S[1] }}
+        contentContainerStyle={{ padding: S[4], paddingTop: S[1], paddingBottom: FAB_CLEARANCE }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={async () => {
             setRefreshing(true); await load(); setRefreshing(false);

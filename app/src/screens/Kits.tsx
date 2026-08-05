@@ -3,6 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { addKitItem, createKit, getKit, Kit, listKits, removeKitItem } from '../api';
 import { Btn, Card } from '../components/ui';
 import { P, RA, S, T } from '../theme';
+import { FAB_CLEARANCE } from '../components/TopBar';
 
 export default function Kits({ onBack }: { onBack: () => void }) {
   const [kits, setKits] = useState<Kit[]>([]);
@@ -81,7 +82,7 @@ export default function Kits({ onBack }: { onBack: () => void }) {
 }
 
 const s = StyleSheet.create({
-  wrap: { padding: S[4], paddingTop: S[6] },
+  wrap: { padding: S[4], paddingTop: S[6] , paddingBottom: FAB_CLEARANCE },
   header: {
     flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between', marginBottom: S[3],

@@ -3,6 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { addPlanItem, deletePlanItem, listPlan, patchPlanItem, PlanItem } from '../api';
 import { Card } from '../components/ui';
 import { F, P, RA, S, T } from '../theme';
+import { FAB_CLEARANCE } from '../components/TopBar';
 
 export default function Planner({ tripId, tripTitle, accent, startDate, endDate, onBack }: {
   tripId: string; tripTitle: string; accent: string; startDate: string; endDate: string; onBack: () => void;
@@ -67,7 +68,7 @@ export default function Planner({ tripId, tripTitle, accent, startDate, endDate,
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={{ padding: S[5] }}
+    <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={{ padding: S[5], paddingBottom: FAB_CLEARANCE }}
       keyboardShouldPersistTaps="handled">
       <Pressable onPress={onBack} hitSlop={10} style={{ marginBottom: S[3] }}>
         <Text style={[s.back, { color: accent }]}>‹ {tripTitle}</Text>

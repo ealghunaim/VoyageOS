@@ -4,6 +4,7 @@ import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View 
 import { addNote, listNotes, Note } from '../api';
 import { Btn, Card } from '../components/ui';
 import { F, P, RA, S, T } from '../theme';
+import { FAB_CLEARANCE } from '../components/TopBar';
 
 export default function Journal({ tripId, tripTitle, accent, onBack }: {
   tripId: string; tripTitle: string; accent: string; onBack: () => void;
@@ -29,7 +30,7 @@ export default function Journal({ tripId, tripTitle, accent, onBack }: {
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={{ padding: S[5] }}
+    <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={{ padding: S[5], paddingBottom: FAB_CLEARANCE }}
       keyboardShouldPersistTaps="handled">
       <Pressable onPress={onBack} hitSlop={10} style={{ marginBottom: S[3] }}>
         <Text style={[s.back, { color: accent }]}>‹ {tripTitle}</Text>

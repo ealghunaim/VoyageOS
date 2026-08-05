@@ -11,6 +11,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { deviceTz } from '../notifications';
 import { Btn, Card, Chip } from '../components/ui';
 import { F, P, RA, S, T } from '../theme';
+import { FAB_CLEARANCE } from '../components/TopBar';
 
 const TYPES = [
   ['passport', 'Passport'], ['visa', 'Visa'], ['insurance', 'Insurance'],
@@ -322,7 +323,7 @@ export default function Documents({ onBack }: { onBack: () => void }) {
 }
 
 const s = StyleSheet.create({
-  wrap: { padding: S[4], paddingTop: S[6] },
+  wrap: { padding: S[4], paddingTop: S[6] , paddingBottom: FAB_CLEARANCE },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: S[3] },
   back: { ...T.title, color: P.brand },
   h2: { ...T.h2, color: P.textPri },

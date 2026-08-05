@@ -5,6 +5,7 @@ import { Card } from '../components/ui';
 import { countryName, flagOf } from '../countries';
 import { EMERGENCY } from '../emergency';
 import { tint, P, S, RA, T } from '../theme';
+import { FAB_CLEARANCE } from '../components/TopBar';
 
 export default function SOS({ tripId, tripTitle, place, accent, onBack }: {
   tripId: string; tripTitle: string; place: string; accent: string; onBack: () => void;
@@ -25,7 +26,7 @@ export default function SOS({ tripId, tripTitle, place, accent, onBack }: {
     Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q + ' near ' + place)}`).catch(() => {});
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={{ padding: S[5] }}>
+    <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={{ padding: S[5], paddingBottom: FAB_CLEARANCE }}>
       <Pressable onPress={onBack} hitSlop={10} style={{ marginBottom: 10 }}>
         <Text style={[T.title, { color: accent }]}>‹ {tripTitle}</Text>
       </Pressable>

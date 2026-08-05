@@ -3,6 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { getPackingList, PackItem, searchItems, submitDebrief } from '../api';
 import { Btn, Card, Chip } from '../components/ui';
 import { P, S, RA, T } from '../theme';
+import { FAB_CLEARANCE } from '../components/TopBar';
 
 export default function Debrief({ tripId, tripTitle, onDone }: {
   tripId: string; tripTitle: string; onDone: () => void;
@@ -70,7 +71,7 @@ export default function Debrief({ tripId, tripTitle, onDone }: {
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={{ padding: S[4], paddingTop: S[6] }}>
+    <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={{ padding: S[4], paddingTop: S[6], paddingBottom: FAB_CLEARANCE }}>
       <View style={s.header}>
         <Pressable onPress={onDone} hitSlop={10}>
           <Text style={[T.title, { color: P.brand }]}>Skip</Text>

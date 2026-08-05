@@ -9,6 +9,7 @@ import JourneyEditor from './JourneyEditor';
 import TripExtras from './TripExtras';
 import FlagField from '../components/FlagField';
 import { accentForTrip, onColor, tint, titleize, P, S, RA, E, T, FOLD } from '../theme';
+import { FAB_CLEARANCE } from '../components/TopBar';
 
 const TILES: { key: string; label: string; sub: string }[] = [
   { key: 'pack', label: 'Pack', sub: 'With reasons' },
@@ -122,7 +123,7 @@ export default function TripHub({ trip, accent, onBack, onPack, onPlan, onGuide,
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }}
-      contentContainerStyle={{ padding: S[5], paddingTop: S[4], paddingBottom: S[10] }}>
+      contentContainerStyle={{ padding: S[5], paddingTop: S[4], paddingBottom: FAB_CLEARANCE }}>
 
 
 
@@ -284,12 +285,27 @@ export default function TripHub({ trip, accent, onBack, onPack, onPlan, onGuide,
       </Pressable>
 
       <View style={s.footRow}>
-        <Pressable onPress={() => setEditing(v => !v)}>
+        <Pressable onPress={() => setEditing(v => !v)} hitSlop={8}>
           <Text style={[T.caption, { color: P.textSec }]}>{editing ? 'Cancel' : 'Edit dates'}</Text>
         </Pressable>
-        <Text style={[T.caption, { color: P.hairlineStrong }]}>    ·    </Text>
-        <Pressable onPress={() =>
-          Alert.alert('Delete this trip?', 'The list, guide, journal, and reminders go with it.', [
+      </View>
+
+      {/* Delete sits on its own row, hard left, clear of the floating orbs in
+          the bottom-right. It used to be the right half of a centred pair,
+          landing around 122-201pt from the right edge — directly under the Home
+          orb at 144-190pt — so aiming for it hit Home instead. A destructive
+          action should be hard to reach by accident in the layout, not only in
+          the dialog.
+
+          The delete is a hard one: api/trips/router.py drops the row and the FK
+          cascade takes destinations, guides, guide parts, packing lists, notes,
+          phrases and plan items with it. Nothing is recoverable, so the copy
+          says so. */}
+      <View style={s.dangerRow}>
+        <Pressable hitSlop={10} onPress={() =>
+          Alert.alert('Delete this trip?',
+            'The destinations, guide, packing list, journal and reminders go with it. '
+            + 'This cannot be undone.', [
             { text: 'Keep it', style: 'cancel' },
             { text: 'Delete', style: 'destructive', onPress: async () => {
               try { await deleteTrip(trip.id); onTripChanged(null); }
@@ -357,5 +373,8 @@ const s = StyleSheet.create({
   tileHead: { flexDirection: 'row', alignItems: 'center' },
   dateCell: { flex: 1, backgroundColor: P.sunken, borderRadius: RA.md, padding: S[3] },
   footLink: { alignItems: 'center', marginTop: S[4] },
-  footRow: { flexDirection: 'row', justifyContent: 'center', marginTop: S[4] },
+  footRow: { flexDirection: 'row', justifyContent: 'flex-start', marginTop: S[4] },
+  // Hard left and set apart: the one irreversible control on the screen is now
+  // nowhere near the orbs, and not adjacent to 'Edit dates' either.
+  dangerRow: { flexDirection: 'row', justifyContent: 'flex-start', marginTop: S[6] },
 });

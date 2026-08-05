@@ -10,6 +10,7 @@ import PlugArt from '../components/PlugArt';
 import { countryName, flagOf } from '../countries';
 import { Card, Chip } from '../components/ui';
 import { tint, F, P, S, RA, T } from '../theme';
+import { FAB_CLEARANCE } from '../components/TopBar';
 
 const SECTIONS = ['know', 'eat', 'play', 'visit', 'go'];
 
@@ -351,7 +352,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
         </ScrollView>
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingTop: 8 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingTop: 8, paddingBottom: FAB_CLEARANCE }}>
         {tab === 'know' && !aReady && <Card><JourneyLoader accent={accent} label="Loading essentials…" /></Card>}
         {tab === 'know' && aReady && (
           <>
