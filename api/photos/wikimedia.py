@@ -76,6 +76,32 @@ _AFFIX = re.compile(
     r"\s+(visit|walk|hike|hopping|at night|at sunset|trail|experience)$",
     re.I)
 _PAREN = re.compile(r"\s*\([^)]*\)")
+_WORD = re.compile(r"[^a-z0-9]+")
+#: Words too common to justify a match on their own.
+_STOP = {"the", "of", "a", "an", "and", "in", "at", "de", "la", "el",
+         "national", "city"}
+#: How close two words must be to count as the same one. Loose enough for a
+#: transliteration ("senso-ji" / "sensō-ji"), tight enough that "market" and
+#: "airport" are not the same word.
+WORD_MATCH = 0.8
+
+#: Words that make an article about an EVENT or a DIFFERENT KIND OF THING,
+#: even when the name matches. "Notre-Dame Cathedral" found "Notre-Dame fire"
+#: and would have illustrated a sightseeing guide with the 2019 blaze; "Musée
+#: d'Orsay" found "Musée d'Orsay station" and offered railway platforms. Both
+#: passed every other gate, because the names genuinely do match — what
+#: differs is what the article is ABOUT.
+#:
+#: Only rejected when the item itself does not use the word. Someone visiting
+#: a station or an airport can still have its photo.
+_WRONG_SUBJECT = {"fire", "attack", "bombing", "siege", "seizure", "disaster",
+                  "crash", "massacre", "shooting", "riot", "flood", "protest",
+                  "earthquake", "incident", "controversy", "trial", "scandal",
+                  "station", "airport", "closure", "collapse",
+                  # Guides are full of non-English names, so the station words
+                  # have to be too — "Musée d'Orsay" matched "Gare d'Orsay".
+                  "gare", "bahnhof", "estacion", "estación", "stazione",
+                  "aeropuerto", "flughafen", "aeroporto"}
 _TAG = re.compile(r"<[^>]+>")
 _NON_FREE = re.compile(r"fair use|non-free|nonfree|NC-|noncommercial|"
                        r"all rights reserved", re.I)
@@ -143,6 +169,43 @@ def query_variants(name: str) -> list[str]:
         add(tail)
 
     return out[:MAX_VARIANTS]
+
+
+def _tokens(s: str) -> list[str]:
+    return [t for t in _WORD.split(normalize(s)) if t and t not in _STOP]
+
+
+def justified_by_more_than_the_place(item: str, title: str, place: str) -> bool:
+    """Does anything but the destination's own name connect these two?
+
+    The gate that "Charleston Old Market" needed and did not have. The search
+    appends the destination, so the city's name appears in nearly every
+    candidate title — and character similarity counts those shared letters as
+    evidence. "Charleston Old Market" against "Charleston International
+    Airport" scored 0.642 and passed, on the strength of the eleven characters
+    both share with the city. The only tokens in common were {charleston}; the
+    words that actually distinguish the two places, "old market" and
+    "international airport", agree on nothing.
+
+    So the place name is removed from both sides and at least one of the item's
+    remaining words must appear in what is left of the title. Raising the
+    similarity threshold could not have fixed this: 0.642 sits above real
+    matches like "Senso-ji Temple" → "Sensō-ji" at 0.609.
+    """
+    place_tokens = set(_tokens(place))
+    item_tokens = [t for t in _tokens(item) if t not in place_tokens]
+    title_tokens = [t for t in _tokens(title) if t not in place_tokens]
+    if not item_tokens:
+        return True                      # the item is the place itself
+    joined = _WORD.sub("", " ".join(title_tokens))
+    for word in item_tokens:
+        if any(difflib.SequenceMatcher(None, word, other).ratio() >= WORD_MATCH
+               for other in title_tokens):
+            return True
+        # A title split by punctuation ("Myeong-dong") still holds the word.
+        if joined and difflib.SequenceMatcher(None, word, joined).ratio() >= WORD_MATCH:
+            return True
+    return False
 
 
 # ── cache ────────────────────────────────────────────────────────────────────
@@ -224,7 +287,7 @@ def _attribution(client: httpx.Client, image_url: str) -> dict | None:
 
 
 def _candidate(client: httpx.Client, title: str, lat: float, lng: float,
-               target: str) -> tuple[float, str] | None:
+               target: str, place_name: str) -> tuple[float, str] | None:
     """Score one article. Returns (similarity, image_url) or None."""
     data = _get(client, WIKI_API, {
         "action": "query", "titles": title,
@@ -240,6 +303,11 @@ def _candidate(client: httpx.Client, title: str, lat: float, lng: float,
     similarity = difflib.SequenceMatcher(None, target, normalize(title)).ratio()
     if similarity < MIN_SIMILARITY:
         return None
+    if not justified_by_more_than_the_place(target, title, place_name):
+        return None                                   # matched only on the city
+    intruders = set(_tokens(title)) & _WRONG_SUBJECT - set(_tokens(target))
+    if intruders:
+        return None                                   # an event, or another thing
     image = ((page.get("original") or {}).get("source")
              or (page.get("thumbnail") or {}).get("source"))
     return (similarity, image) if image else None
@@ -264,7 +332,7 @@ def _lookup_one(client: httpx.Client, name: str, place_name: str,
                 "action": "query", "list": "search",
                 "srsearch": f"{query} {place_name}", "srlimit": SEARCH_CANDIDATES})
             for hit in found.get("query", {}).get("search", []):
-                scored = _candidate(client, hit["title"], lat, lng, target)
+                scored = _candidate(client, hit["title"], lat, lng, target, place_name)
                 if scored and (best is None or scored[0] > best[0]):
                     best = (scored[0], scored[1], hit["title"])
             if best:
