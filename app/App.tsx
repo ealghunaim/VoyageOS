@@ -1,6 +1,6 @@
 import { useFonts } from 'expo-font';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, StatusBar, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Image, SafeAreaView, StatusBar, Text, TextInput, View } from 'react-native';
 import { setAuthFailHandler, Trip } from './src/api';
 import { hasAuthKeys, loadSession, signOut } from './src/auth';
 import { registerForPush } from './src/push';
@@ -10,7 +10,6 @@ import Home from './src/screens/Home';
 import Kits from './src/screens/Kits';
 import Login from './src/screens/Login';
 import TopBar, { FloatingAdd, FloatingHome, FloatingProfile } from './src/components/TopBar';
-import Wordmark from './src/components/Wordmark';
 import Guide from './src/screens/Guide';
 import Packing from './src/screens/Packing';
 import Profile from './src/screens/Profile';
@@ -32,6 +31,10 @@ import { accentForTrip, F, P, S, titleize } from './src/theme';
  * still overrides. Screens migrated onto the T scale get it either way; this
  * is the guarantee for the ones that have not moved yet.
  */
+/** Measured from the artwork's alpha bounds (743 x 600) — a wrong ratio
+ *  stretches the mark, and this one is shown large. */
+const LOCKUP_ASPECT = 743 / 600;
+
 function defaultToSatoshi() {
   for (const Comp of [Text, TextInput] as any[]) {
     Comp.defaultProps = Comp.defaultProps || {};
@@ -84,11 +87,25 @@ export default function App() {
   }, []);
 
   if (booting || !fontsLoaded) {
+    // Deliberately the same picture as the native splash: the full lockup —
+    // mark, VOYAGE OS, and "Voyage. Optimized." — at 70% of screen width on
+    // P.pageBg, which is what app.json's splash backgroundColor is set to.
+    // The old screen showed the horizontal wordmark with no tagline, so the
+    // handoff from native splash to JS was a visible jump between two
+    // different logos. Matching them makes the boundary disappear.
+    const lockW = Dimensions.get('window').width * 0.70;
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: P.pageBg }}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Wordmark size={28} />
-          <ActivityIndicator style={{ marginTop: S[4] }} color={P.brand} />
+          {/* @ts-ignore — image module typing lives in the Expo project */}
+          <Image
+            source={require('./assets/lockup.png')}
+            style={{ width: lockW, height: lockW / LOCKUP_ASPECT }}
+            resizeMode="contain"
+            accessibilityRole="image"
+            accessibilityLabel="VoyageOS — Voyage. Optimized."
+          />
+          <ActivityIndicator style={{ marginTop: S[8] }} color={P.brand} />
         </View>
       </SafeAreaView>
     );
