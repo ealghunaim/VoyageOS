@@ -28,6 +28,7 @@ from api.flights.router import router as flights_router
 from api.flights.routes import router as flight_routes_router
 from api.photos.router import router as photos_router
 from api.notifications.worker import run_due
+from api.subscriptions.router import router as subscription_router
 from api.weather.job import run_weather_tick
 
 
@@ -60,7 +61,7 @@ async def shared_secret_guard(request: Request, call_next):
 
 for r in (trips_router, packing_router, packing_items_router, timeline_router,
           notifications_router, history_router, gear_router, documents_router,
-          weather_router, places_router, guide_router, me_router, notes_router, tips_router, quick_router, qa_router, flights_router, photos_router, planner_router, flight_routes_router):
+          weather_router, subscription_router, places_router, guide_router, me_router, notes_router, tips_router, quick_router, qa_router, flights_router, photos_router, planner_router, flight_routes_router):
     app.include_router(r)
 
 

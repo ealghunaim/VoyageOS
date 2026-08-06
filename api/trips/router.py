@@ -2,6 +2,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from api.core.auth import current_user_id
 from api.core.db import get_db
+from api.subscriptions import service as subscriptions
+from api.subscriptions.tiers import limit_for
 from api.trips.models import TripPatch, ActivityCreate, DestinationCreate, TripCreate
 
 router = APIRouter(prefix="/v1/trips", tags=["trips"])
@@ -23,11 +25,33 @@ def _owned_trip_or_404(db, trip_id: str, user_id: str) -> dict:
 def create_trip(body: TripCreate, user_id: str = Depends(current_user_id)):
     db = get_db()
     _ensure_profile(db, user_id)
+
+    # The one choke point. Every trip in the system is inserted here, so the
+    # tier limit needs to exist in exactly one place — unlike the lock in
+    # phase 2, which has to reach a dozen mutation paths.
+    #
+    # 402 rather than 429: a paywall is not a rate limit. 429 tells clients,
+    # proxies and SDKs "transient, back off and retry", which is wrong in both
+    # halves — this will not clear on its own, and retrying cannot help.
+    sub = subscriptions.get(db, user_id)
+    tier = subscriptions.tier_for(db, user_id, sub)
+    limit = limit_for(tier)
+    used = subscriptions.trip_count(db, user_id)
+    if used >= limit:
+        raise HTTPException(402, subscriptions.limit_body(tier, limit, used))
+
     trip = (
         db.table("trips")
         .insert({"owner_id": user_id, "status": "upcoming", **body.model_dump(mode="json")})
         .execute()
     ).data[0]
+
+    # First trip is on us, once ever. Granted whatever the tier — the promise
+    # is about the first trip, not about being unpaid, and a subscriber who
+    # later lapses keeps premium on the trip they made, which sits better with
+    # "existing trips are never deleted" than revoking it would.
+    if not subscriptions.has_used_demo(db, user_id, sub):
+        subscriptions.consume_demo(db, user_id, trip["id"])
     db.table("trip_travelers").insert(
         {"trip_id": trip["id"], "user_id": user_id, "role": "owner"}
     ).execute()
