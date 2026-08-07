@@ -12,9 +12,11 @@
 -- reason it was wrong when dropping documents.key_version: the running code
 -- names something this migration takes away.
 --
--- The unique index on token is kept deliberately. A token identifies exactly
--- one device in Expo's system, so two rows sharing one is a bug — and the
--- pruning path deletes by token, which wants the index anyway.
+-- The unique index on token created below turned out to be wrong and is
+-- removed by 0027: registration upserts the new row before sweeping the old
+-- one, so a token moving between installs collides with itself. It also set
+-- up a second identity competing with (user_id, device_id). Left here rather
+-- than edited out, because this file describes what was actually applied.
 --
 -- Safe to re-run.
 
