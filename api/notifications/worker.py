@@ -15,6 +15,8 @@ from zoneinfo import ZoneInfo
 
 from api.core.db import get_db
 from api.notifications.governor import Action, Candidate, UserState, evaluate
+from api.notifications.push import (MAX_DEVICES_PER_USER, choose_tokens,
+                                    dead_tokens)
 
 
 class ConsoleAdapter:
@@ -24,17 +26,29 @@ class ConsoleAdapter:
 
 
 class ExpoPushAdapter:
-    """Production delivery: Expo push to every registered device, console echo
-    kept for the log trail. Console-only until a device registers a token."""
+    """Production delivery: Expo push to a user's devices, console echo kept
+    for the log trail. Console-only until a device registers a token.
+
+    "A user's devices" used to mean every row in device_tokens, which is how
+    one reminder became five notifications on one phone: Expo issues a new
+    token per install and nothing removed the old ones. Now the list is capped
+    and the reply is read, so dead tokens are deleted instead of accumulating.
+    """
     URL = "https://exp.host/--/api/v2/push/send"
 
     def deliver(self, user_id: str, payload: dict) -> None:
         print(f"[deliver] {user_id[:8]}… «{payload.get('title')}» — {payload.get('body')}")
         try:
-            tokens = [r["token"] for r in get_db().table("device_tokens")
-                      .select("token").eq("user_id", user_id).execute().data]
+            rows = get_db().table("device_tokens").select("token,updated_at") \
+                .eq("user_id", user_id).execute().data
         except Exception:
-            tokens = []
+            rows = []
+        tokens, dropped = choose_tokens(rows)
+        if dropped:
+            # Loud on purpose. The cap is a backstop; if it fires, pruning is
+            # not keeping up and that is worth seeing rather than absorbing.
+            print(f"[push] {user_id[:8]}… has {len(rows)} tokens — capped to "
+                  f"{MAX_DEVICES_PER_USER}, {dropped} dropped")
         if not tokens:
             return
         msgs = [{"to": t, "title": payload.get("title", "VoyageOS"),
@@ -42,9 +56,26 @@ class ExpoPushAdapter:
         try:
             with httpx.Client(timeout=10) as c:
                 r = c.post(self.URL, json=msgs)
+            body = r.json() if r.headers.get("content-type", "").startswith("application/json") else None
             print(f"[push] expo {r.status_code} → {len(tokens)} device(s)")
         except Exception as e:
             print(f"[push] send failed: {type(e).__name__}: {e}")
+            return
+        self._prune(dead_tokens(tokens, body))
+
+    @staticmethod
+    def _prune(dead: list[str]) -> None:
+        """Delete tokens Expo says are gone. Best effort: a failure here must
+        not affect a notification that has already been delivered."""
+        if not dead:
+            return
+        try:
+            db = get_db()
+            for token in dead:
+                db.table("device_tokens").delete().eq("token", token).execute()
+            print(f"[push] pruned {len(dead)} dead token(s)")
+        except Exception as e:  # noqa: BLE001
+            print(f"[push] prune failed: {type(e).__name__}: {e}")
 
 
 adapter = ExpoPushAdapter()
