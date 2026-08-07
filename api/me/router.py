@@ -3,7 +3,7 @@ user_preferences.extras (jsonb) until companions graduate into real shared
 travelers (design doc Part 6). merge() is pure and tested."""
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends
@@ -81,11 +81,33 @@ def put_profile(body: ProfileBody, user_id: str = Depends(current_user_id)):
 class DeviceToken(BaseModel):
     token: str = Field(min_length=10, max_length=200)
     platform: Literal["ios", "android"] = "ios"
+    #: A stable id for the install, minted by the client and kept in
+    #: SecureStore. Optional so a client from before this change still
+    #: registers; those fall back to the token, which is exactly the old
+    #: behaviour — one row per token — rather than being rejected.
+    device_id: str | None = None
+
+
 
 
 @router.post("/device-token", status_code=204)
 def register_device_token(body: DeviceToken, user_id: str = Depends(current_user_id)):
     db = get_db()
+    # Keyed on the device, so a new token from a known install REPLACES its
+    # row instead of adding another. Keying on the token is what let a phone
+    # accumulate one row per app update and receive every reminder that many
+    # times over.
+    device_id = body.device_id or body.token
     db.table("device_tokens").upsert(
-        {"user_id": user_id, "token": body.token, "platform": body.platform},
-        on_conflict="token").execute()
+        {"user_id": user_id, "device_id": device_id,
+         "token": body.token, "platform": body.platform,
+         "updated_at": datetime.now(timezone.utc).isoformat()},
+        on_conflict="user_id,device_id").execute()
+
+    # A device that re-registers with a new token leaves its old token behind
+    # under the same device_id — the upsert overwrote it — but a token that
+    # moved to a DIFFERENT device_id (an install this client used to call
+    # something else) would linger. Clear any other row of this user's holding
+    # the same token, since a token belongs to exactly one device.
+    db.table("device_tokens").delete().eq("user_id", user_id) \
+        .eq("token", body.token).neq("device_id", device_id).execute()
