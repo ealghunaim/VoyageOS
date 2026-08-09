@@ -5,6 +5,7 @@ from api.core.db import get_db
 from api.subscriptions import service as subscriptions
 from api.subscriptions.tiers import limit_for
 from api.trips.models import TripPatch, ActivityCreate, DestinationCreate, TripCreate
+from api.core.trips import owned_trip
 
 router = APIRouter(prefix="/v1/trips", tags=["trips"])
 
@@ -13,12 +14,6 @@ def _ensure_profile(db, user_id: str) -> None:
     """profiles.id must exist before anything references it (FK to auth.users)."""
     db.table("profiles").upsert({"id": user_id}).execute()
 
-
-def _owned_trip_or_404(db, trip_id: str, user_id: str) -> dict:
-    res = db.table("trips").select("*").eq("id", trip_id).eq("owner_id", user_id).execute()
-    if not res.data:
-        raise HTTPException(404, "Trip not found")
-    return res.data[0]
 
 
 @router.post("", status_code=201)
@@ -94,7 +89,7 @@ def list_trips(user_id: str = Depends(current_user_id)):
 @router.get("/{trip_id}")
 def get_trip(trip_id: str, user_id: str = Depends(current_user_id)):
     db = get_db()
-    trip = _owned_trip_or_404(db, trip_id, user_id)
+    trip = owned_trip(db, trip_id, user_id)
     trip["destinations"] = (
         db.table("destinations").select("*").eq("trip_id", trip_id).order("seq").execute()
     ).data
@@ -107,7 +102,7 @@ def get_trip(trip_id: str, user_id: str = Depends(current_user_id)):
 @router.post("/{trip_id}/destinations", status_code=201)
 def add_destination(trip_id: str, body: DestinationCreate, user_id: str = Depends(current_user_id)):
     db = get_db()
-    _owned_trip_or_404(db, trip_id, user_id)
+    owned_trip(db, trip_id, user_id)
     row = {
         "trip_id": trip_id,
         "place_name": (body.place_name or "").strip()[:120] or "Trip",
@@ -165,7 +160,7 @@ def add_destination(trip_id: str, body: DestinationCreate, user_id: str = Depend
 @router.post("/{trip_id}/activities", status_code=201)
 def add_activity(trip_id: str, body: ActivityCreate, user_id: str = Depends(current_user_id)):
     db = get_db()
-    _owned_trip_or_404(db, trip_id, user_id)
+    owned_trip(db, trip_id, user_id)
     return (
         db.table("activities").insert({"trip_id": trip_id, **body.model_dump()}).execute()
     ).data[0]
@@ -174,9 +169,7 @@ def add_activity(trip_id: str, body: ActivityCreate, user_id: str = Depends(curr
 @router.patch("/{trip_id}")
 def patch_trip(trip_id: str, body: TripPatch, user_id: str = Depends(current_user_id)):
     db = get_db()
-    rows = db.table("trips").select("*").eq("id", trip_id).eq("owner_id", user_id).execute().data
-    if not rows:
-        raise HTTPException(404, "Trip not found")
+    rows = [owned_trip(db, trip_id, user_id, writing=True)]
     changes = body.model_dump(mode="json", exclude_none=True)
     if not changes:
         return rows[0]
@@ -196,8 +189,7 @@ def patch_trip(trip_id: str, body: TripPatch, user_id: str = Depends(current_use
 @router.delete("/{trip_id}", status_code=204)
 def delete_trip(trip_id: str, user_id: str = Depends(current_user_id)):
     db = get_db()
-    if not db.table("trips").select("id").eq("id", trip_id).eq("owner_id", user_id).execute().data:
-        raise HTTPException(404, "Trip not found")
+    owned_trip(db, trip_id, user_id, writing=True)
     # notification_log has no trip_id — it reaches a trip only via schedule_id,
     # so collect those ids BEFORE the schedules they point at are deleted.
     sched_ids = [r["id"] for r in db.table("notification_schedule").select("id")

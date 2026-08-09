@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from api.ai_gateway import gateway
 from api.core.auth import current_user_id
 from api.core.db import get_db
+from api.core.trips import owned_trip
 
 router = APIRouter(prefix="/v1/trips", tags=["packing"])
 
@@ -42,8 +43,7 @@ def clamp_items(raw) -> list[dict]:
 @router.post("/{trip_id}/items/quick-add")
 def quick_add(trip_id: str, body: QuickAdd, user_id: str = Depends(current_user_id)):
     db = get_db()
-    if not db.table("trips").select("id").eq("id", trip_id).eq("owner_id", user_id).execute().data:
-        raise HTTPException(404, "Trip not found")
+    owned_trip(db, trip_id, user_id, writing=True)
     lists = db.table("packing_lists").select("id").eq("trip_id", trip_id) \
         .order("generated_at", desc=True).limit(1).execute().data
     if not lists:

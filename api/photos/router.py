@@ -21,6 +21,7 @@ from api.core.auth import current_user_id
 from api.core.config import settings
 from api.core.db import get_db
 from api.photos import wikimedia
+from api.core.trips import owned_trip_via_destination
 
 router = APIRouter(prefix="/v1/photos", tags=["photos"])
 
@@ -75,16 +76,7 @@ def place_photos(body: PlacePhotoRequest, user_id: str = Depends(current_user_id
     placeholder would only invite a caption over the wrong picture.
     """
     db = get_db()
-    rows = db.table("destinations").select("id,place_name,lat,lng,trip_id") \
-        .eq("id", str(body.destination_id)).limit(1).execute().data
-    if not rows:
-        raise HTTPException(404, "Destination not found")
-    dest = rows[0]
-
-    owned = db.table("trips").select("id").eq("id", dest["trip_id"]) \
-        .eq("owner_id", user_id).limit(1).execute().data
-    if not owned:
-        raise HTTPException(404, "Destination not found")
+    dest, _trip = owned_trip_via_destination(db, str(body.destination_id), user_id)
 
     if dest.get("lat") is None or dest.get("lng") is None:
         # Without coordinates the distance gate cannot run, and the remaining

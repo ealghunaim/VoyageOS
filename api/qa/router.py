@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from api.ai_gateway import gateway
 from api.core.auth import current_user_id
 from api.core.db import get_db
+from api.core.trips import owned_trip
 
 router = APIRouter(prefix="/v1/trips", tags=["qa"])
 
@@ -25,10 +26,7 @@ class Ask(BaseModel):
 @router.post("/{trip_id}/ask")
 def ask(trip_id: str, body: Ask, user_id: str = Depends(current_user_id)):
     db = get_db()
-    trips = db.table("trips").select("*").eq("id", trip_id).eq("owner_id", user_id).execute().data
-    if not trips:
-        raise HTTPException(404, "Trip not found")
-    trip = trips[0]
+    trip = owned_trip(db, trip_id, user_id)
     dests = db.table("destinations").select("place_name,country_code") \
         .eq("trip_id", trip_id).order("seq").limit(1).execute().data
     wx = db.table("weather_snapshots").select("forecast_date,temp_min,temp_max,precip_prob,provider") \

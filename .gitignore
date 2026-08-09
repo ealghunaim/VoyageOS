@@ -7,3 +7,7 @@ node_modules/
 .DS_Store
 .env*
 *.save
+
+# Behavioural snapshots from scripts/ownership_snapshot.py — run artefacts,
+# regenerated on demand and meaningless outside the run that produced them.
+.ownership-snapshot-*.json

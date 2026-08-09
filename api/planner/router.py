@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 from api.core.auth import current_user_id
 from api.core.db import get_db
+from api.core.trips import owned_trip
 
 router = APIRouter(prefix="/v1/trips", tags=["planner"])
 
@@ -26,15 +27,11 @@ class PlanItemPatch(BaseModel):
     seq: int | None = None
 
 
-def _own(db, trip_id, user_id):
-    if not db.table("trips").select("id").eq("id", trip_id).eq("owner_id", user_id).execute().data:
-        raise HTTPException(404, "Trip not found")
-
 
 @router.get("/{trip_id}/plan")
 def list_plan(trip_id: str, user_id: str = Depends(current_user_id)):
     db = get_db()
-    _own(db, trip_id, user_id)
+    owned_trip(db, trip_id, user_id)
     return db.table("trip_plan_items").select("*").eq("trip_id", trip_id) \
         .order("day").order("seq").order("created_at").execute().data
 
@@ -42,7 +39,7 @@ def list_plan(trip_id: str, user_id: str = Depends(current_user_id)):
 @router.post("/{trip_id}/plan", status_code=201)
 def add_plan_item(trip_id: str, body: PlanItemCreate, user_id: str = Depends(current_user_id)):
     db = get_db()
-    _own(db, trip_id, user_id)
+    owned_trip(db, trip_id, user_id)
     row = {"trip_id": trip_id, "day": body.day, "time": (body.time or None),
            "title": body.title.strip()[:140], "note": (body.note or None), "seq": body.seq}
     return db.table("trip_plan_items").insert(row).execute().data[0]
@@ -52,7 +49,7 @@ def add_plan_item(trip_id: str, body: PlanItemCreate, user_id: str = Depends(cur
 def patch_plan_item(trip_id: str, item_id: str, body: PlanItemPatch,
                     user_id: str = Depends(current_user_id)):
     db = get_db()
-    _own(db, trip_id, user_id)
+    owned_trip(db, trip_id, user_id)
     patch = body.model_dump(exclude_none=True)
     if not patch:
         raise HTTPException(400, "Nothing to update")
@@ -68,6 +65,6 @@ def patch_plan_item(trip_id: str, item_id: str, body: PlanItemPatch,
 @router.delete("/{trip_id}/plan/{item_id}", status_code=204)
 def delete_plan_item(trip_id: str, item_id: str, user_id: str = Depends(current_user_id)):
     db = get_db()
-    _own(db, trip_id, user_id)
+    owned_trip(db, trip_id, user_id)
     db.table("trip_plan_items").delete().eq("id", item_id).eq("trip_id", trip_id).execute()
     return None

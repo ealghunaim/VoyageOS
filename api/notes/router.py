@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from api.core.auth import current_user_id
 from api.core.db import get_db
 from api.core import photo_urls
+from api.core.trips import owned_trip
 
 router = APIRouter(prefix="/v1/trips", tags=["journal"])
 
@@ -21,15 +22,11 @@ class NoteCreate(BaseModel):
     photos: list[NotePhoto] = Field(default_factory=list, max_length=2)
 
 
-def _own(db, trip_id, user_id):
-    if not db.table("trips").select("id").eq("id", trip_id).eq("owner_id", user_id).execute().data:
-        raise HTTPException(404, "Trip not found")
-
 
 @router.get("/{trip_id}/notes")
 def list_notes(trip_id: str, user_id: str = Depends(current_user_id)):
     db = get_db()
-    _own(db, trip_id, user_id)
+    owned_trip(db, trip_id, user_id)
     rows = db.table("trip_notes").select("*").eq("trip_id", trip_id) \
         .order("created_at", desc=True).execute().data
     for r in rows:
@@ -40,7 +37,7 @@ def list_notes(trip_id: str, user_id: str = Depends(current_user_id)):
 @router.post("/{trip_id}/notes", status_code=201)
 def add_note(trip_id: str, body: NoteCreate, user_id: str = Depends(current_user_id)):
     db = get_db()
-    _own(db, trip_id, user_id)
+    owned_trip(db, trip_id, user_id)
     keys = []
     for p in body.photos[:2]:
         try:

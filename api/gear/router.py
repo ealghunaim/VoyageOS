@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from api.core.auth import current_user_id
 from api.core.db import get_db
+from api.core.trips import owned_trip
 
 router = APIRouter(prefix="/v1/gear-profiles", tags=["gear"])
 
@@ -88,9 +89,7 @@ def apply_to_trip(profile_id: str, trip_id: str, user_id: str = Depends(current_
     """Merge the kit into the trip's list — dedupe by name, precedence to what exists."""
     db = get_db()
     p = _owned(db, profile_id, user_id)
-    trips = db.table("trips").select("id").eq("id", trip_id).eq("owner_id", user_id).execute().data
-    if not trips:
-        raise HTTPException(404, "Trip not found")
+    owned_trip(db, trip_id, user_id, writing=True)
 
     lists = db.table("packing_lists").select("id").eq("trip_id", trip_id) \
         .order("generated_at", desc=True).limit(1).execute().data

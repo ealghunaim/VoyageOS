@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from api.core.auth import current_user_id
 from api.core.db import get_db
 from api.history.service import submit_debrief
+from api.core.trips import owned_trip
 
 router = APIRouter(prefix="/v1", tags=["history"])
 
@@ -16,9 +17,7 @@ class DebriefBody(BaseModel):
 @router.post("/trips/{trip_id}/debrief", status_code=201)
 def debrief(trip_id: str, body: DebriefBody, user_id: str = Depends(current_user_id)):
     db = get_db()
-    rows = db.table("trips").select("*").eq("id", trip_id).eq("owner_id", user_id).execute().data
-    if not rows:
-        raise HTTPException(404, "Trip not found")
+    rows = [owned_trip(db, trip_id, user_id)]
     return submit_debrief(db, rows[0], user_id, body.forgot, body.unused)
 
 
