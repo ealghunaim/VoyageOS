@@ -10,7 +10,10 @@ def test_sanitize_clips_and_whitelists():
     assert len(out["etiquette"]) == 6
     assert len(out["eat"]) == 1
     assert out["eat"][0]["name"] == "Machboos" and out["eat"][0]["note"] == "x" * 140
-    assert set(out["eat"][0]) == {"name", "note", "area", "price"}
+    # cuisine joined the shape when Eat gained its filter row. The whitelist
+    # is asserted exactly on purpose — a key appearing here means a key
+    # reaching the client, so it should have to be written down.
+    assert set(out["eat"][0]) == {"name", "note", "area", "price", "cuisine"}
     assert "evil_key" not in out
     assert len(out["go"]["from_airport"]) == 4
 

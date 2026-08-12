@@ -3,6 +3,7 @@ import {
   ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Image as RNImage,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { indexTips, normName } from '../tipMatch';
 import { getFamilyPlay, FamilyActivity, addFoodTip, deleteFoodTip, dishPhoto, FoodTip, getGuidePart, getProfile, getTrip, Guide as GuideT, listFoodTips, patchTrip, placePhotos, PlacePhoto, TipCategory, Trip, TripDetail } from '../api';
 import { transitFor } from '../airlines';
 import JourneyLoader from '../components/JourneyLoader';
@@ -53,6 +54,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
   const [nat, setNat] = useState<string | null>(null);
   const [destinations, setDestinations] = useState<TripDetail['destinations']>([]);
   const [destId, setDestId] = useState<string | undefined>(undefined);
+  const [cuisine, setCuisine] = useState<string | null>(null);   // Eat filter
 
   // Which stop is showing. destId stays undefined until the user actually
   // switches, so the very first load matches the old single-destination
@@ -182,6 +184,10 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
       </Pressable>
     </View>
   );
+
+  /** name → the newest traveller tip for that exact restaurant. The matching
+   *  rule lives in tipMatch.ts, where it is directly exercised. */
+  const tipByName = React.useMemo(() => indexTips(tips.eat ?? []), [tips.eat]);
 
   const Findings = ({ category }: { category: TipCategory }) => {
     const copy = FIND_COPY[category];
@@ -530,7 +536,26 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
           <>
             {(() => {
               const dishes = g2.dishes ?? [];
-              const restaurants = (g2.restaurants && g2.restaurants.length ? g2.restaurants : g2.eat) ?? [];
+              const all = (g2.restaurants && g2.restaurants.length ? g2.restaurants : g2.eat) ?? [];
+
+              // Cuisines, most-common first. Chips rather than section
+              // headings: a real generation for Kyoto came back 9 Japanese
+              // and 1 café, which as headings is one long section and one
+              // orphan. As a filter the same data reads fine, and Kuwait's
+              // four-way split reads fine too. Guides written before the tag
+              // existed carry no cuisine — the row hides itself rather than
+              // showing a lone "All".
+              const counts = new Map<string, number>();
+              for (const r of all) {
+                const c = ((r as any).cuisine ?? '').trim();
+                if (c) counts.set(c, (counts.get(c) ?? 0) + 1);
+              }
+              const cuisines = [...counts.entries()]
+                .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+                .map(([c]) => c);
+              const restaurants = cuisine
+                ? all.filter(r => ((r as any).cuisine ?? '').trim() === cuisine)
+                : all;
               return (
                 <>
                   {dishes.length === 0 && restaurants.length === 0 &&
@@ -549,7 +574,23 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                       ))}
                     </Card>
                   )}
-                  {restaurants.length > 0 && <Text style={sx.tipHead}>RESTAURANTS</Text>}
+                  {all.length > 0 && <Text style={sx.tipHead}>RESTAURANTS</Text>}
+                  {cuisines.length > 1 && (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                      style={{ marginBottom: S[3] }} contentContainerStyle={{ paddingRight: S[4] }}>
+                      {[null, ...cuisines].map(c => {
+                        const on = cuisine === c;
+                        return (
+                          <Pressable key={c ?? '__all'} onPress={() => setCuisine(c)}
+                            style={[sx.cuisineChip, on && { backgroundColor: accent, borderColor: accent }]}>
+                            <Text style={[sx.cuisineChipText, on && { color: P.card, fontFamily: F.med }]}>
+                              {c ?? 'All'}{c ? ` ${counts.get(c)}` : ''}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                  )}
                   {restaurants.map((r, i) => (
                     <Card key={`r${i}`}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -558,6 +599,25 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                       </View>
                       {!!r.area && <Text style={[s.sub, { fontFamily: F.med }]}>{r.area}</Text>}
                       {!!r.note && <Text style={s.sub}>{r.note}</Text>}
+                      {(() => {
+                        // What to order and when to go come from a traveller
+                        // who posted about this exact restaurant, or they do
+                        // not appear at all. The model is never asked to guess
+                        // them: an invented dish is a specific, checkable
+                        // falsehood, and the line is only worth anything
+                        // because a person actually stood there.
+                        const t = tipByName.get(normName(r.name));
+                        if (!t) return null;
+                        return (
+                          <View style={sx.travellerNote}>
+                            <Text style={sx.travellerHead}>
+                              {t.is_mine ? 'You’ve been' : 'A traveller who’s been'}
+                            </Text>
+                            {!!t.order_rec && <Text style={s.bullet}>·  {t.order_rec}</Text>}
+                            {!!t.when_rec && <Text style={s.bullet}>·  {t.when_rec}</Text>}
+                          </View>
+                        );
+                      })()}
                       <View style={{ flexDirection: 'row', marginTop: 6 }}>
                         <Pressable onPress={() => open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.name + ' ' + place)}`)}>
                           <Text style={[s.link, { color: accent, marginRight: 22 }]}>Map ›</Text>
@@ -693,6 +753,11 @@ const sx = StyleSheet.create({
            marginRight: S[2], marginBottom: S[2] },
   vChipText: { ...T.caption, color: P.textPri },
   tipHead: { ...T.label, color: P.textMuted, marginTop: S[2], marginBottom: S[3] },
+  cuisineChip: { paddingHorizontal: S[3], paddingVertical: 6, borderRadius: 999, borderWidth: 1,
+                 borderColor: P.hairline, marginRight: S[2] },
+  cuisineChipText: { ...T.caption, color: P.textSec },
+  travellerNote: { marginTop: S[2], paddingLeft: S[3], borderLeftWidth: 2, borderLeftColor: P.hairline },
+  travellerHead: { ...T.label, color: P.textMuted, marginBottom: 2 },
   tipImg: { width: 110, height: 110, borderRadius: RA.md, marginRight: S[2] },
   tipThumb: { width: 50, height: 50, borderRadius: RA.sm, marginRight: S[2] },
   tipAdd: { width: 50, height: 50, borderRadius: RA.sm, backgroundColor: P.card,

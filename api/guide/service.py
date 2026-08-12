@@ -9,6 +9,12 @@ from fastapi import HTTPException
 from api.ai_gateway import gateway
 from api.guide.prompts import GUIDE_PROMPT_VERSION, GUIDE_SYSTEM_PROMPT
 
+#: Twelve is a ceiling the prompt is told not to treat as a target. Six was
+#: the old cap; grouping by cuisine needs enough places that a section is not
+#: one entry, without asking for a quota per cuisine — a quota is what makes a
+#: model invent restaurants to fill it.
+_RESTAURANT_CAP = 12
+
 _LIST_CAPS = {"etiquette": 6, "customs_flags": 5, "eat": 6, "play": 6,
               "visit": 6, "task_suggestions": 4, "health": 5}
 
@@ -33,15 +39,19 @@ def sanitize(raw: dict, travel_mode: str | None = None) -> dict:
             dishes.append({"name": _s(item.get("name"), 60), "note": _s(item.get("note"))})
     out["dishes"] = dishes
     restaurants = []
-    for item in (raw.get("restaurants") or raw.get("eat") or [])[:6]:
+    for item in (raw.get("restaurants") or raw.get("eat") or [])[:_RESTAURANT_CAP]:
         if isinstance(item, dict) and item.get("name"):
             rawp = item.get("price")
             try:
                 price = int(rawp) if rawp is not None else 2
             except (TypeError, ValueError):
                 price = 2
+            # cuisine is None rather than "" when absent, so a guide generated
+            # before this field existed reads as ungrouped instead of grouping
+            # everything under a blank heading.
             restaurants.append({"name": _s(item.get("name"), 60), "note": _s(item.get("note")),
-                                "area": _s(item.get("area"), 50), "price": max(1, min(4, price))})
+                                "area": _s(item.get("area"), 50), "price": max(1, min(4, price)),
+                                "cuisine": _s(item.get("cuisine"), 24) or None})
     out["restaurants"] = restaurants
     out["eat"] = restaurants  # back-compat for older readers
     play_rows = []
@@ -127,15 +137,19 @@ def sanitize_a(raw: dict) -> dict:
             dishes.append({"name": _s(item.get("name"), 60), "note": _s(item.get("note"))})
     out["dishes"] = dishes
     restaurants = []
-    for item in (raw.get("restaurants") or raw.get("eat") or [])[:6]:
+    for item in (raw.get("restaurants") or raw.get("eat") or [])[:_RESTAURANT_CAP]:
         if isinstance(item, dict) and item.get("name"):
             rawp = item.get("price")
             try:
                 price = int(rawp) if rawp is not None else 2
             except (TypeError, ValueError):
                 price = 2
+            # cuisine is None rather than "" when absent, so a guide generated
+            # before this field existed reads as ungrouped instead of grouping
+            # everything under a blank heading.
             restaurants.append({"name": _s(item.get("name"), 60), "note": _s(item.get("note")),
-                                "area": _s(item.get("area"), 50), "price": max(1, min(4, price))})
+                                "area": _s(item.get("area"), 50), "price": max(1, min(4, price)),
+                                "cuisine": _s(item.get("cuisine"), 24) or None})
     out["restaurants"] = restaurants
     out["eat"] = restaurants
     vh = raw.get("visa_hint") or {}

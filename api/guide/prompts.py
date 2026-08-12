@@ -21,8 +21,14 @@ SCHEMA
  "customs_flags":["..."],        // 3-5 advisory sensitivities, verify-locally tone
  "dishes":[{"name":"...","note":"what it is, one line"}],
    // 4-6 iconic local/national dishes — the food the place is known for
- "restaurants":[{"name":"...","note":"...","area":"neighborhood","price":2}],
-   // 5-6 real places worth a detour, RANKED BEST FIRST. price: 1=cheap .. 4=expensive.
+ "restaurants":[{"name":"...","note":"...","area":"neighborhood","price":2,"cuisine":"Japanese"}],
+   // Up to 12 real places worth a detour, RANKED BEST FIRST. price: 1=cheap .. 4=expensive.
+   // cuisine: the BROAD kitchen a traveller would filter by — "Japanese",
+   // "Lebanese", "Italian", "Seafood", "Café". NOT the dish type: soba, udon,
+   // ramen and sushi are all "Japanese". Grouping is the point, so a city
+   // where everything is one cuisine should say so rather than inventing
+   // nine categories of one.
+   // LIST ONLY WHAT YOU KNOW. Fewer is correct; do not pad a cuisine to fill it out.
    // Name real places; no addresses, phones, or URLs. Impressions, not live data.
  "play":[{"name":"...","note":"..."}],   // 4-6: experiences, activities
  \"visit\":[{\"name\":\"...\",\"note\":\"...\",\"rating\":4.3,\"fee\":\"free|low|mid|high\",\"access\":\"one-line step-free / steps / wheelchair note\"}],
@@ -72,7 +78,7 @@ SCHEMA
  "etiquette":["..."],
  "customs_flags":["..."],
  "dishes":[{"name":"...","note":"what it is, one line"}],
- "restaurants":[{"name":"...","note":"...","area":"neighborhood","price":2}],
+ "restaurants":[{"name":"...","note":"...","area":"neighborhood","price":2,"cuisine":"Japanese"}],
  "health":["..."],
  "visa_hint":{"status":"none|evisa|arrival|required|unknown","note":"<=120 chars"},
  "souvenirs":[{"name":"...","note":"what it is / where to get it","price_band":"rough local range e.g. 8-15"}],
@@ -80,7 +86,10 @@ SCHEMA
 
 NOTES
 - etiquette 4-6, customs_flags 3-5 (advisory, verify-locally tone), health 3-5 packing tips.
-- dishes: 4-6 iconic local/national dishes. restaurants: 5-6 real places RANKED BEST FIRST, price 1=cheap..4=expensive, no addresses/phones/URLs, impressions not live data.
+- dishes: 4-6 iconic local/national dishes.
+- restaurants: UP TO 12 real places RANKED BEST FIRST, price 1=cheap..4=expensive, no addresses/phones/URLs, impressions not live data.
+  cuisine: the BROAD kitchen a traveller would filter by — "Japanese", "Lebanese", "Italian", "Seafood", "Café". NOT the dish type: soba, udon, ramen and sushi are all "Japanese". These are used as section headings, so prefer few broad groups over many narrow ones.
+  Twelve is a ceiling, not a target. A city with six restaurants worth naming gets six. Never invent a place to round out a cuisine.
 - visa_hint status only when nationality is given AND widely known & stable; else "unknown". note must say rules change, confirm with official sources.
 - souvenirs: 3-5 things worth bringing home; price_band is a ROUGH typical range for orientation, NEVER a quote.
 - task_suggestions: e.g. "Check entry requirements for your nationality"."""

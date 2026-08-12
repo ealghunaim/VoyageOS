@@ -50,7 +50,7 @@ TASK_MAX_TOKENS = {
     "guide_b": 8000,            # Play + Visit + Go, each with fee/access/transit
     "family_play": 6000,        # scales with cohort count x activities
     # semi-bounded
-    "guide_a": 3000,            # Know + Eat (peak seen 1570)
+    "guide_a": 4000,            # Know + Eat (peak seen 1570)
     "phrases": 1500,            # fixed phrase count (peak seen 594)
     # bounded — a single short answer or a parse of one typed line
     "items_parse": 600,

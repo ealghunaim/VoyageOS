@@ -40,6 +40,36 @@ def test_eat_split_dishes_restaurants_and_price_clamp():
     assert out["restaurants"][0]["price"] == 4 and out["restaurants"][1]["price"] == 1
 
 
+def test_cuisine_survives_both_sanitizers():
+    """The tag the Eat filter groups on. Both the legacy sanitize() and the
+    phase-a sanitize_a() have to emit it — a guide written through whichever
+    one lacks it would show an empty filter row."""
+    from api.guide.service import sanitize_a
+    raw = {"restaurants": [{"name": "A", "note": "n", "price": 2, "cuisine": "Japanese"}]}
+    for fn in (sanitize, sanitize_a):
+        assert fn(raw)["restaurants"][0]["cuisine"] == "Japanese", fn.__name__
+
+
+def test_missing_cuisine_is_none_not_empty_string():
+    """Guides generated before the tag existed must read as untagged, not as a
+    restaurant whose cuisine is "". The client hides the filter row when no
+    entry carries one, and "" would count as one."""
+    from api.guide.service import sanitize_a
+    for fn in (sanitize, sanitize_a):
+        out = fn({"restaurants": [{"name": "A", "note": "n", "price": 2}]})
+        assert out["restaurants"][0]["cuisine"] is None, fn.__name__
+
+
+def test_restaurant_cap_is_twelve():
+    """Raised from 8 so a cuisine split has something to split. It is a
+    ceiling, not a quota — the prompt is explicit that a city with six worth
+    naming gets six."""
+    from api.guide.service import sanitize_a
+    raw = {"restaurants": [{"name": f"R{i}", "note": "n", "price": 2} for i in range(20)]}
+    for fn in (sanitize, sanitize_a):
+        assert len(fn(raw)["restaurants"]) == 12, fn.__name__
+
+
 def test_family_play_bands_and_price_clamp():
     from api.guide.family import sanitize_family_play
     out = sanitize_family_play({"activities": [
