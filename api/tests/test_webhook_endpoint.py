@@ -204,6 +204,62 @@ def test_a_stale_retry_cannot_revoke_a_paying_customer(db, client):
     assert db.sub()["tier"] == "voyager", "a stale event must not downgrade"
 
 
+def test_a_ledger_failure_is_not_mistaken_for_a_duplicate(db, client, monkeypatch):
+    """The bug a probe run caught, pinned.
+
+    The first version treated every insert exception as a duplicate. With 0028
+    unapplied the insert failed "table not found", the handler answered 200
+    "duplicate", and RevenueCat stopped retrying an event that had never been
+    applied — a paid subscription lost silently, with a 200 in the access log.
+
+    A ledger that is unreachable must produce a 5xx so the retry does its job.
+    """
+    import api.subscriptions.webhook_router as wr
+
+    class Broken(FakeTable):
+        def insert(self, row):
+            raise RuntimeError(
+                "{'message': \"Could not find the table 'public.webhook_events' "
+                "in the schema cache\", 'code': 'PGRST205'}")
+
+    broken = FakeDB(profiles=[USER])
+    monkeypatch.setattr(broken, "table",
+                        lambda name: Broken(broken, name) if name == "webhook_events"
+                        else FakeTable(broken, name))
+    monkeypatch.setattr(wr, "get_db", lambda: broken)
+
+    with pytest.raises(Exception):
+        # TestClient re-raises server exceptions; in production this is a 500.
+        post(client, ev())
+    assert broken.sub() is None, "nothing may be applied when the ledger is down"
+
+
+def test_a_real_duplicate_is_still_treated_as_one(db, client):
+    """The other side of the same coin — the fix must not turn ordinary
+    duplicates into 500s, which would make RevenueCat retry them five times."""
+    post(client, ev())
+    r = post(client, ev())
+    assert r.status_code == 200 and r.json()["outcome"] == "duplicate"
+
+
+def test_duplicate_detection_matches_the_right_errors():
+    from api.subscriptions.webhook_router import is_duplicate_error
+    assert is_duplicate_error(RuntimeError(
+        'duplicate key value violates unique constraint "webhook_events_pkey"'))
+
+    # postgrest-py raises APIError carrying a dict, so the SQLSTATE arrives
+    # either as an attribute or inside args[0]. Both shapes must be read.
+    with_attr = type("E", (Exception,), {"code": "23505"})()
+    assert is_duplicate_error(with_attr)
+    assert is_duplicate_error(Exception({"code": "23505", "message": "dup"}))
+    assert not is_duplicate_error(Exception({"code": "PGRST205",
+                                             "message": "Could not find the table"}))
+
+    assert not is_duplicate_error(RuntimeError("Could not find the table"))
+    assert not is_duplicate_error(RuntimeError("connection refused"))
+    assert not is_duplicate_error(RuntimeError("JWT expired"))
+
+
 def test_an_unhandled_event_type_is_200_not_an_error(db, client):
     r = post(client, ev(type="SOMETHING_NEW"))
     assert r.status_code == 200 and r.json()["outcome"] == "unhandled"

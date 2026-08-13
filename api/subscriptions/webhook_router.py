@@ -35,6 +35,35 @@ router = APIRouter(prefix="/v1/webhooks", tags=["webhooks"])
 PATH = "/v1/webhooks/revenuecat"
 
 
+def is_duplicate_error(e: Exception) -> bool:
+    """Whether this insert failed because the event id was already there.
+
+    THE DISTINCTION IS THE WHOLE POINT.
+
+    Treating every exception as a duplicate is what the first version did, and
+    a probe run caught it immediately: 0028 had not been applied, so the insert
+    failed with "table not found", the handler called it a duplicate, answered
+    200 — and RevenueCat stopped retrying an event that had never been applied.
+    A paid subscription silently lost, with a 200 in the access log and a
+    cheerful "duplicate" in ours.
+
+    So only a genuine uniqueness violation may be swallowed. Everything else —
+    a missing table, a dropped connection, an expired key — must raise, so the
+    endpoint answers 5xx and RevenueCat's retry does the job it exists for.
+
+    Matched on SQLSTATE 23505 where available and on the message otherwise,
+    because postgrest-py surfaces errors as a dict on APIError rather than a
+    typed exception per class.
+    """
+    code = getattr(e, "code", None)
+    if code is None and e.args and isinstance(e.args[0], dict):
+        code = e.args[0].get("code")
+    if str(code) == "23505":
+        return True
+    text = str(e).lower()
+    return "duplicate key" in text or "already exists" in text
+
+
 def _record(db, event: dict, outcome: str, resolved: str | None = None) -> None:
     """Write the ledger row. Never raises — a failure to record must not turn
     a handled event into a retry."""
@@ -102,11 +131,18 @@ async def revenuecat(request: Request, response: Response):
             "event_timestamp_ms": event.get("event_timestamp_ms"),
             "outcome": "unhandled",
         }).execute()
-    except Exception:                                        # noqa: BLE001
-        # Almost certainly the PK conflict, which is the normal duplicate
-        # path. 200 so RevenueCat stops retrying something already done.
-        print(f"[revenuecat] duplicate {etype} {event_id}")
-        return {"ok": True, "outcome": "duplicate"}
+    except Exception as e:                                   # noqa: BLE001
+        if is_duplicate_error(e):
+            # The normal duplicate path. 200 so RevenueCat stops retrying
+            # something already done.
+            print(f"[revenuecat] duplicate {etype} {event_id}")
+            return {"ok": True, "outcome": "duplicate"}
+        # Anything else is our problem, not a duplicate. Raising gives a 5xx
+        # and RevenueCat retries — which is exactly what should happen when
+        # the ledger is unreachable. Answering 200 here loses the event.
+        print(f"[revenuecat] ledger insert failed for {event_id}: "
+              f"{type(e).__name__}: {e}")
+        raise
 
     # ── which user ──────────────────────────────────────────────────────────
     user_id = webhook.resolve_user(db, event)
