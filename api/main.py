@@ -29,6 +29,8 @@ from api.flights.routes import router as flight_routes_router
 from api.photos.router import router as photos_router
 from api.notifications.worker import run_due
 from api.subscriptions.router import router as subscription_router
+from api.subscriptions.webhook_router import PATH as WEBHOOK_PATH
+from api.subscriptions.webhook_router import router as webhook_router
 from api.weather.job import run_weather_tick
 
 
@@ -50,10 +52,20 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="VoyageOS API", version="0.6.0", lifespan=lifespan)
 
 
+#: Paths that do not carry x-voyageos-key.
+#:
+#: The RevenueCat webhook is here because RevenueCat cannot send our header —
+#: not because it is public. It verifies an HMAC-SHA256 signature and a static
+#: Authorization header of its own, and it is the ONE exempt path that changes
+#: state, so that verification is load-bearing in a way the others are not.
+#: See api/subscriptions/webhook_auth.py.
+OPEN_PATHS = ("/health", "/docs", "/openapi.json", WEBHOOK_PATH)
+
+
 @app.middleware("http")
 async def shared_secret_guard(request: Request, call_next):
     secret = settings.app_shared_secret
-    if secret and request.url.path not in ("/health", "/docs", "/openapi.json"):
+    if secret and request.url.path not in OPEN_PATHS:
         if request.headers.get("x-voyageos-key") != secret:
             return JSONResponse({"detail": "unauthorized"}, status_code=401)
     return await call_next(request)
@@ -61,7 +73,7 @@ async def shared_secret_guard(request: Request, call_next):
 
 for r in (trips_router, packing_router, packing_items_router, timeline_router,
           notifications_router, history_router, gear_router, documents_router,
-          weather_router, subscription_router, places_router, guide_router, me_router, notes_router, tips_router, quick_router, qa_router, flights_router, photos_router, planner_router, flight_routes_router):
+          weather_router, subscription_router, webhook_router, places_router, guide_router, me_router, notes_router, tips_router, quick_router, qa_router, flights_router, photos_router, planner_router, flight_routes_router):
     app.include_router(r)
 
 

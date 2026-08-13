@@ -33,6 +33,13 @@ class Settings(BaseSettings):
     # --- notifications ---
     default_daily_cap: int = 3               # decision register #7
     app_shared_secret: str = ""              # set on cloud deploys; guard middleware reads this
+    # --- RevenueCat (1b) ---
+    # The webhook path is exempt from shared_secret_guard — RevenueCat cannot
+    # send x-voyageos-key — so these two are the ONLY thing standing between a
+    # stranger and granting themselves Voyager. Both are verified; see
+    # api/subscriptions/webhook_auth.py for why neither alone is enough.
+    revenuecat_webhook_secret: str = ""      # HMAC-SHA256 signing secret
+    revenuecat_webhook_auth: str = ""        # static Authorization header value
 
     class Config:
         env_file = ".env"
