@@ -56,6 +56,18 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
   const [destId, setDestId] = useState<string | undefined>(undefined);
   const [cuisine, setCuisine] = useState<string | null>(null);   // Eat filter
 
+  /** name → the newest traveller tip for that exact restaurant. The matching
+   *  rule lives in tipMatch.ts, where it is directly exercised.
+   *
+   *  Up here with the other hooks on purpose. This component returns early
+   *  while the guide is still loading (`if (!g2)` below), so a useMemo placed
+   *  after that point runs on some renders and not others — React counts a
+   *  different number of hooks once the guide arrives and throws "Rendered
+   *  more hooks than during the previous render". That is where it was first
+   *  written, and it crashed the Guide screen on open.
+   */
+  const tipByName = React.useMemo(() => indexTips(tips.eat ?? []), [tips.eat]);
+
   // Which stop is showing. destId stays undefined until the user actually
   // switches, so the very first load matches the old single-destination
   // behavior exactly (backend defaults to the first stop by seq).
@@ -184,10 +196,6 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
       </Pressable>
     </View>
   );
-
-  /** name → the newest traveller tip for that exact restaurant. The matching
-   *  rule lives in tipMatch.ts, where it is directly exercised. */
-  const tipByName = React.useMemo(() => indexTips(tips.eat ?? []), [tips.eat]);
 
   const Findings = ({ category }: { category: TipCategory }) => {
     const copy = FIND_COPY[category];
