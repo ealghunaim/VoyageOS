@@ -34,10 +34,71 @@ def get(db, user_id: str) -> dict | None:
 
 
 def tier_for(db, user_id: str, sub: dict | None = None) -> str:
-    """The single accessor. Pass `sub` when the row is already in hand so a
-    caller that needs both does not read twice."""
+    """The tier this user may actually use right now.
+
+    STATUS IS PART OF THE ANSWER, NOT DECORATION.
+
+    Only 'lapsed' revokes. The other statuses all describe someone who has
+    paid for the current period and has not reached the end of it:
+
+      active     paid and renewing
+      cancelled  will not renew, but the period bought is not over. Revoking
+                 here would take away time they paid for.
+      grace      a charge failed and is being retried. Dropping a user
+                 because their card needed a second attempt is the worst
+                 possible moment to do it — they are still a paying customer.
+
+    EXPIRATION is the only RevenueCat event that ends access, and 'lapsed' is
+    the only status it writes.
+
+    This used to return row["tier"] alone, which was harmless only because
+    nothing wrote status. Once the RevenueCat webhook does, a row reading
+    tier='voyager', status='lapsed' would have kept serving Voyager forever —
+    expiry that does not expire. The bug would have been invisible: no error,
+    no failed request, just a user who stopped paying and kept everything.
+
+    Unknown statuses are treated as entitled rather than revoked. A status
+    this build has not heard of can only come from a newer deploy or a
+    hand-edited row, and wrongly billing someone for access they have is
+    recoverable while wrongly cutting off a paying customer is a refund and a
+    review. The CHECK constraint on the column is the real guard.
+    """
     row = sub if sub is not None else get(db, user_id)
-    return (row or {}).get("tier") or DEFAULT_TIER
+    if not row:
+        return DEFAULT_TIER
+
+    status = row.get("status") or "active"
+    if status == "lapsed":
+        return DEFAULT_TIER
+
+    # Safety net for an EXPIRATION that never arrived. 'cancelled' means "will
+    # not renew", so once renews_at is in the past the period genuinely ended
+    # and there is nothing more to honour. Deliberately NOT applied to
+    # 'active' or 'grace': for those, a past renews_at means our copy is
+    # stale, not that the subscription is over, and revoking on stale data
+    # cuts off someone who is still paying.
+    if status == "cancelled" and _period_over(row.get("renews_at")):
+        return DEFAULT_TIER
+
+    return row.get("tier") or DEFAULT_TIER
+
+
+def _period_over(renews_at) -> bool:
+    """True only when renews_at is present, parseable, and in the past.
+
+    Every uncertain case answers False — a missing, malformed or unreadable
+    date must never be the reason someone loses access they paid for.
+    """
+    if not renews_at:
+        return False
+    try:
+        if isinstance(renews_at, str):
+            renews_at = datetime.fromisoformat(renews_at.replace("Z", "+00:00"))
+        if renews_at.tzinfo is None:
+            renews_at = renews_at.replace(tzinfo=timezone.utc)
+        return renews_at < datetime.now(timezone.utc)
+    except (ValueError, TypeError, AttributeError):
+        return False
 
 
 def trip_count(db, user_id: str) -> int:
