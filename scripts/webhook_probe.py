@@ -12,19 +12,33 @@ ever misconfigured — an unset secret, a typo'd env var name — the endpoint
 silently becomes a way for anyone to grant themselves any tier, and nothing
 about it looks broken from the outside.
 
-    # local, against a server started with the same secret
-    RC_WEBHOOK_SECRET=... RC_WEBHOOK_AUTH=... \
-      .venv/bin/python3 scripts/webhook_probe.py http://localhost:8010
+THE SECRET COMES FROM THE ENVIRONMENT AND NOWHERE ELSE
 
-    # deployed — safe to run, it only sends events for a user id you pass
-    RC_WEBHOOK_SECRET=... RC_WEBHOOK_AUTH=... \
-      .venv/bin/python3 scripts/webhook_probe.py https://api.example.com --negative-only
+Not a file, not an argument. A file is the more dangerous of the two — it
+outlives the run, survives into backups and Spotlight, and is the reason this
+note exists. An argument is worse in a different way: argv is visible to any
+process on the machine via ps, and lands in shell history verbatim.
+
+Read it into the environment without it touching either. `read -rs` keeps it
+off the terminal and out of history, and the leading space (with zsh's
+HIST_IGNORE_SPACE, on by default here) keeps the export line out too:
+
+     read -rs "RC_WEBHOOK_SECRET?signing secret: " && export RC_WEBHOOK_SECRET
+     read -rs "RC_WEBHOOK_AUTH?authorization header: " && export RC_WEBHOOK_AUTH
+
+Then:
+
+    .venv/bin/python3 scripts/webhook_probe.py http://localhost:8010
+    .venv/bin/python3 scripts/webhook_probe.py https://api.example.com --negative-only
+
+Unset them when you are done:  unset RC_WEBHOOK_SECRET RC_WEBHOOK_AUTH
+
+This script never writes the secret anywhere — not to a log, not to a temp
+file, not to stdout — and refuses to accept one as an argument.
 
 --negative-only sends ONLY the forgery attempts, which write nothing. Use it
 against production: a passing run proves forgeries are refused without
 touching anyone's subscription.
-
-The secret is read from the environment and never printed.
 """
 from __future__ import annotations
 
@@ -71,11 +85,28 @@ def main() -> int:
         return 2
     base = sys.argv[1]
     negative_only = "--negative-only" in sys.argv
+
+    # Refuse a secret passed as an argument. argv is world-readable through ps
+    # for the life of the process and is written to shell history verbatim, so
+    # accepting one here would quietly undo the point of reading from the
+    # environment. Rejecting is better than silently ignoring: someone who
+    # typed it needs to know it is now in their history and should be rotated.
+    for arg in sys.argv[2:]:
+        if arg == "--negative-only":
+            continue
+        if arg.startswith("--secret") or arg.startswith("--auth") or len(arg) > 24:
+            print("  refusing an argument that looks like a credential.\n"
+                  "  Secrets are read from RC_WEBHOOK_SECRET / RC_WEBHOOK_AUTH only —\n"
+                  "  see the module docstring. If you just typed one, it is in your\n"
+                  "  shell history and should be rotated.")
+            return 2
     secret = os.environ.get("RC_WEBHOOK_SECRET", "")
     auth = os.environ.get("RC_WEBHOOK_AUTH", "")
     user = os.environ.get("RC_TEST_USER_ID", str(uuid.uuid4()))
     if not secret:
-        print("  RC_WEBHOOK_SECRET is not set — cannot sign anything")
+        print("  RC_WEBHOOK_SECRET is not set — cannot sign anything.\n"
+              "  See the module docstring for how to export it without it\n"
+              "  reaching a file or your shell history.")
         return 2
 
     def ev(**kw):
