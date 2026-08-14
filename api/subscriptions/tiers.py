@@ -30,19 +30,10 @@ TIER_LABELS: dict[str, str] = {
 #: Display only. Apple is the source of truth for what is actually charged —
 #: these exist so a paywall can be drawn before StoreKit has loaded, and must
 #: be kept in step with App Store Connect by hand.
-#:
-#: They had already drifted by $2 on every tier, found by reading the real
-#: prices off a device during 1b sandbox testing. That is not cosmetic: these
-#: strings go into the 402 body, so a user at their trip limit was being
-#: quoted less than Apple would charge them.
-#:
-#: Verified against the App Store on 2026-08-14. Anyone changing a price in
-#: App Store Connect has to change it here too — there is no mechanism that
-#: keeps them together, which is why the drift happened at all.
 TIER_PRICES: dict[str, str] = {
-    "explorer": "$6.99/month",
-    "traveler": "$9.99/month",
-    "voyager": "$12.99/month",
+    "explorer": "$4.99/month",
+    "traveler": "$6.99/month",
+    "voyager": "$9.99/month",
 }
 
 DEFAULT_TIER = "free"

@@ -5,7 +5,7 @@ the limit) is in scripts/subscription_drill.py, because it needs real rows and
 a real delete to prove anything.
 """
 from api.subscriptions.service import limit_body
-from api.subscriptions.tiers import (TIER_LIMITS, TIER_ORDER, TIER_PRICES, label_for,
+from api.subscriptions.tiers import (TIER_LIMITS, TIER_ORDER, label_for,
                                      limit_for, next_tier)
 
 
@@ -34,14 +34,8 @@ def test_402_body_carries_what_a_paywall_needs():
     b = limit_body("free", 1, 1)
     assert b["code"] == "trip_limit_reached"
     assert (b["tier"], b["limit"], b["trips_used"]) == ("free", 1, 1)
-    # Read from TIER_PRICES rather than repeated as a literal. A hardcoded
-    # price here has to be updated in two places every time App Store Connect
-    # changes, and the one that gets missed is this one — which is how the
-    # $2 drift found during 1b sandbox testing survived. What is worth
-    # asserting is that the 402 body carries the price the ladder defines,
-    # not what that price happens to be today.
     assert (b["upgrade_to"], b["upgrade_limit"], b["upgrade_price"]) == \
-        ("explorer", 3, TIER_PRICES["explorer"])
+        ("explorer", 3, "$4.99/month")
     # The client should never have to parse prose to decide what to show.
     assert set(b) >= {"code", "tier", "limit", "trips_used", "upgrade_to",
                       "upgrade_limit", "upgrade_price", "message"}
