@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Companion, Doc, getProfile, HomeOrigin, listDocuments, PlaceHit, putProfile, searchPlaces } from '../api';
 import { getEmail, signOut } from '../auth';
+import { SHOW_PURCHASE_HARNESS } from '../config';
 import { Btn, Card, Chip, Field } from '../components/ui';
 import PurchaseHarness from '../components/PurchaseHarness';
 import { FAB_CLEARANCE } from '../components/TopBar';
@@ -224,10 +225,12 @@ export default function Profile({ onSignedOut, onDocuments }: {
         <Text style={s.hint}>Appears as one-tap call on every trip's SOS page.</Text>
       </Card>
 
-      {/* Dev-only, and gated at the render site rather than inside the
-          component so a release build never even reaches its imports.
+      {/* Gated on a config flag, not __DEV__: sandbox purchases need a real
+          device, and an installed build has __DEV__ false. Set
+          extra.showPurchaseHarness to false in app.json to hide it — and it
+          must be false before any App Store submission.
           Delete this block and the file when phase 3 lands. */}
-      {__DEV__ && <PurchaseHarness />}
+      {SHOW_PURCHASE_HARNESS && <PurchaseHarness />}
 
       <Btn label={saving ? 'Saving…' : 'Save profile'} disabled={saving} onPress={save} />
       <Pressable onPress={async () => { await signOut(); onSignedOut(); }}>
