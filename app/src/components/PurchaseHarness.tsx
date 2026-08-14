@@ -53,8 +53,13 @@ export default function PurchaseHarness() {
     } else {
       setPackages(offering.availablePackages);
       say(`offering "${offering.identifier}": ${offering.availablePackages.length} package(s)`);
+      // The product identifier, not just the package label. A package is a
+      // slot and its identifier is cosmetic — repurposed template slots can
+      // read "$rc_annual" while holding a monthly product. What decides which
+      // tier you actually buy is the attached product and the entitlement it
+      // unlocks, so that is what gets printed.
       offering.availablePackages.forEach(p =>
-        say(`  ${p.identifier} — ${p.product.priceString}`));
+        say(`  ${p.identifier} → ${p.product.identifier} (${p.product.priceString})`));
     }
     setBusy(false);
   };
@@ -118,7 +123,10 @@ export default function PurchaseHarness() {
           style={{ paddingVertical: 10, borderTopWidth: 1, borderTopColor: P.hairline,
                    opacity: busy ? 0.4 : 1 }}>
           <Text style={{ ...T.body, color: P.brand, fontFamily: F.med }}>
-            Buy {p.identifier} — {p.product.priceString}
+            Buy {p.product.identifier} — {p.product.priceString}
+          </Text>
+          <Text style={{ ...T.caption, color: P.textMuted }}>
+            package {p.identifier} · {p.product.title}
           </Text>
         </Pressable>
       ))}
