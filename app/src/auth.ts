@@ -4,6 +4,7 @@
 import * as SecureStore from 'expo-secure-store';
 import * as CFG from './config';
 import { userIdFromToken } from './jwt';
+import { signOutOfPurchases } from './purchases';
 
 const SB_URL: string = (CFG as any).SUPABASE_URL ?? '';
 const SB_KEY: string = (CFG as any).SUPABASE_ANON_KEY ?? '';
@@ -111,6 +112,13 @@ export function getEmail(): string { return email; }
 export function getUserId(): string { return userId; }
 
 export async function signOut(): Promise<void> {
+  // Here rather than at the call sites. signOut() is reached three ways —
+  // Profile, App's sign-out button, and refreshSession() when a refresh fails
+  // — and RevenueCat must be detached on all of them. Leaving a customer
+  // attached on a shared device hands the next account the previous person's
+  // entitlements: a tier they never bought, with nothing to explain it.
+  // It never throws, so signing out cannot be blocked by the store.
+  await signOutOfPurchases();
   access = ''; refreshTok = ''; expiresAt = 0; email = ''; userId = '';
   await SecureStore.deleteItemAsync(K.a);
   await SecureStore.deleteItemAsync(K.r);

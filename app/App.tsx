@@ -2,7 +2,8 @@ import { useFonts } from 'expo-font';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Dimensions, Image, SafeAreaView, StatusBar, Text, TextInput, View } from 'react-native';
 import { setAuthFailHandler, Trip } from './src/api';
-import { hasAuthKeys, loadSession, signOut } from './src/auth';
+import { getUserId, hasAuthKeys, loadSession, signOut } from './src/auth';
+import { configurePurchases } from './src/purchases';
 import { registerForPush } from './src/push';
 import Debrief from './src/screens/Debrief';
 import Documents from './src/screens/Documents';
@@ -80,7 +81,13 @@ export default function App() {
     (async () => {
       const s = await loadSession();
       setAuthed(s === 'authed');
-      if (s === 'authed') registerForPush();
+      if (s === 'authed') {
+        registerForPush();
+        // Configured WITH the user id, never anonymously — see purchases.ts.
+        // Deliberately not awaited: a slow or unreachable store must not hold
+        // up the first render, and nothing on screen depends on it yet.
+        configurePurchases(getUserId());
+      }
       if (s === 'anon') setRoute({ name: 'login' });
       setBooting(false);
     })();
@@ -129,7 +136,15 @@ export default function App() {
       {showTopBar && <TopBar />}
       <View style={{ flex: 1 }}>
       {route.name === 'login' && (
-        <Login onDone={() => { setAuthed(true); goHome(); }} />
+        <Login onDone={() => {
+          setAuthed(true);
+          // The mount effect above only runs once, so a sign-in during
+          // this app session reaches here instead. Without it, someone
+          // who signs in without relaunching has no RevenueCat identity
+          // and their purchase would be filed against nobody.
+          configurePurchases(getUserId());
+          goHome();
+        }} />
       )}
       {route.name === 'home' && (
         <Home
