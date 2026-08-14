@@ -133,6 +133,17 @@ def main() -> int:
 
     failures = 0
     print(f"\n  target: {base}{PATH}")
+    # Lengths, never values. A probe run that fails only on the genuine event
+    # is almost always a credential that never arrived: `read` inside a pasted
+    # multi-line block takes the NEXT PASTED LINE as its input, so the secret
+    # silently becomes command text — non-empty, so nothing complains, and the
+    # signature is nonsense. Showing the lengths makes that visible in one
+    # glance instead of a log hunt.
+    print(f"  credentials: secret={len(secret)} chars, "
+          f"auth={len(auth)} chars{' (none set)' if not auth else ''}")
+    if secret and any(c in secret for c in ' \t\n'):
+        print("  ⚠ the secret contains whitespace — likely a paste artefact; "
+              "compare_digest is exact")
     print(f"  {'negative checks only (writes nothing)' if negative_only else 'full probe'}\n")
 
     print("  ── forgeries, all of which must be refused ──")
