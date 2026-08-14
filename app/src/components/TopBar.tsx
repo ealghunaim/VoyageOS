@@ -2,6 +2,8 @@ import React from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { E, P, S } from '../theme';
+import { useSubscription } from '../subscription';
+import TierBadge from './TierBadge';
 
 /**
  * Identity banner: the wordmark, left, on nothing.
@@ -22,7 +24,11 @@ import { E, P, S } from '../theme';
 const WORDMARK_ASPECT = 4.0025;
 const WORDMARK_H = 28;
 
-export default function TopBar() {
+export default function TopBar({ onTierPress }: { onTierPress?: () => void } = {}) {
+  // Cached app-wide, so this does not fetch per screen. Null while the first
+  // read is in flight — the badge simply is not there yet, which is quieter
+  // than a placeholder that pops.
+  const sub = useSubscription();
   return (
     <View style={s.wrap}>
       {/* @ts-ignore — image module typing lives in the Expo project */}
@@ -33,6 +39,10 @@ export default function TopBar() {
         accessibilityRole="image"
         accessibilityLabel="VoyageOS"
       />
+      {/* Pushed right, so the wordmark keeps the left edge it was tuned for
+          and the badge never crowds it on a narrow screen. */}
+      <View style={{ flex: 1 }} />
+      {!!sub && <TierBadge tier={sub.tier as any} onPress={onTierPress} />}
     </View>
   );
 }

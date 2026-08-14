@@ -30,6 +30,7 @@ import { getSubscription, Subscription } from '../api';
 import { getUserId } from '../auth';
 import { getOfferings, isReady, purchase, restore } from '../purchases';
 import { Card } from './ui';
+import { TierBadgePreview } from './TierBadge';
 import { F, P, S, T } from '../theme';
 
 export default function PurchaseHarness() {
@@ -111,6 +112,12 @@ export default function PurchaseHarness() {
       <Text style={{ ...T.caption, color: P.textMuted, marginBottom: S[3] }}>
         Not the paywall. Deleted before phase 3.
       </Text>
+
+      {/* Temporary: all four badge states at once. Goes with the harness. */}
+      <Text style={{ ...T.caption, color: P.textMuted, marginBottom: S[2] }}>
+        tier badge — all states
+      </Text>
+      <TierBadgePreview />
 
       <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
         {btn('Load offerings', loadOfferings)}
