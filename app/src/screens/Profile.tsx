@@ -6,6 +6,7 @@ import {
 import { Companion, Doc, getProfile, HomeOrigin, listDocuments, PlaceHit, putProfile, searchPlaces } from '../api';
 import { getEmail, signOut } from '../auth';
 import { Btn, Card, Chip, Field } from '../components/ui';
+import PurchaseHarness from '../components/PurchaseHarness';
 import { FAB_CLEARANCE } from '../components/TopBar';
 import { COUNTRIES, countryName, flagOf } from '../countries';
 import { F, P, RA, S, T } from '../theme';
@@ -222,6 +223,11 @@ export default function Profile({ onSignedOut, onDocuments }: {
         <Field label="PHONE" value={ecPhone} onChange={setEcPhone} placeholder="+965…" />
         <Text style={s.hint}>Appears as one-tap call on every trip's SOS page.</Text>
       </Card>
+
+      {/* Dev-only, and gated at the render site rather than inside the
+          component so a release build never even reaches its imports.
+          Delete this block and the file when phase 3 lands. */}
+      {__DEV__ && <PurchaseHarness />}
 
       <Btn label={saving ? 'Saving…' : 'Save profile'} disabled={saving} onPress={save} />
       <Pressable onPress={async () => { await signOut(); onSignedOut(); }}>

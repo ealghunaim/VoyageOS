@@ -150,6 +150,25 @@ export const deleteDocumentPhoto = (id: string) =>
  * forwardable credential, which is the thing the design avoids. The bytes are
  * read here and turned into a data URI that lives only in memory.
  */
+/** What the SERVER believes this user's tier is.
+ *
+ *  The authority, deliberately — not RevenueCat's CustomerInfo. The tier is
+ *  written by the webhook, which can land after a purchase call resolves on
+ *  the device, so the client asking the store "what did I just buy" and the
+ *  API asking the database "what may this user do" are answering different
+ *  questions. Only this one gates anything.
+ */
+export type Subscription = {
+  tier: string; tier_label: string; limit: number; trips_used: number;
+  premium_trip_used: boolean; premium_trip_id: string | null;
+  status: string; renews_at: string | null;
+  next_tier: { tier: string; label: string; limit: number; price: string } | null;
+};
+
+export async function getSubscription(): Promise<Subscription> {
+  return req('/v1/subscription');
+}
+
 export async function getDocumentPhoto(id: string): Promise<string> {
   const token = getToken();
   const res = await fetch(`${API_URL}/v1/documents/${id}/photo`, {
