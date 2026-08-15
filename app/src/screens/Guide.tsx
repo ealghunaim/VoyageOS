@@ -186,6 +186,22 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
   }
 
 
+  // v1.1: restore with report/block/moderation per guideline 1.2.
+  //
+  // Apple requires apps carrying user-generated content to offer a way to
+  // report offensive content, a way to block abusive users, and a published
+  // contact route. None of the three exists: the tips router has only GET,
+  // POST and an owner-only DELETE, and a tip's author is shown as
+  // "Traveler " + four characters of a uuid, so there is nobody to block even
+  // if there were a control.
+  //
+  // Hiding rather than deleting. The read path, the table, RLS and the
+  // owner-only delete are all untouched, so nothing is lost and restoring
+  // this is flipping one constant once the moderation surface exists. With
+  // posting hidden the table stops growing, and it is empty today, so no
+  // section has anything to render anyway.
+  const UGC_ENABLED = false;
+
   /** What a find is called in each section, so the form never says
    *  "Restaurant name" under Visit. */
   const FIND_COPY: Record<TipCategory, { head: string; name: string; a: string; b: string }> = {
@@ -209,6 +225,10 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
   );
 
   const Findings = ({ category }: { category: TipCategory }) => {
+    // Hides both halves at once — the traveller-tips list AND the "Share a
+    // find" form live in here, and both are UGC. Returning null before either
+    // renders means no heading, no posted finds, no compose box, on any tab.
+    if (!UGC_ENABLED) return null;
     const copy = FIND_COPY[category];
     const rows = tips[category] ?? [];
     return (
