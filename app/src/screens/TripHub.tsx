@@ -11,13 +11,17 @@ import FlagField from '../components/FlagField';
 import { accentForTrip, onColor, tint, titleize, P, S, RA, E, T, FOLD } from '../theme';
 import { FAB_CLEARANCE } from '../components/TopBar';
 
+// Ordered by when a traveller reaches for them: pack and plan before leaving,
+// then the things you use while you are there, then Know and Go, which are
+// looked up rather than browsed. Know sat second — high billing for a
+// reference page nobody opens twice.
 const TILES: { key: string; label: string; sub: string }[] = [
   { key: 'pack', label: 'Pack', sub: 'With reasons' },
-  { key: 'know', label: 'Know', sub: 'Entry & plugs' },
   { key: 'plan', label: 'Plan', sub: 'Day by day' },
   { key: 'eat', label: 'Eat', sub: 'Dishes worth it' },
   { key: 'play', label: 'Play', sub: 'Experiences' },
   { key: 'visit', label: 'Visit', sub: 'Sights & districts' },
+  { key: 'know', label: 'Know', sub: 'Entry & plugs' },
   { key: 'go', label: 'Go', sub: 'Airport & around' },
   { key: 'journal', label: 'Journal', sub: 'Travel log' },
 ];

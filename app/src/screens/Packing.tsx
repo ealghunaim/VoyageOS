@@ -254,7 +254,7 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
                   Alert.alert('Move to', it.name, [
                     { text: 'Set weight (g)', onPress: () => {
                       if (Platform.OS === 'ios' && (Alert as any).prompt) {
-                        (Alert as any).prompt('Weight in grams', it.name, async (v: string) => {
+                        (Alert as any).prompt('Weight', `${it.name} · grams`, async (v: string) => {
                           const g = parseInt(v, 10);
                           if (g >= 1 && g <= 50000) {
                             try { await updateItem(it.id, { weight_g: g }); await load(); } catch {}
