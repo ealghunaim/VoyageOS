@@ -4,6 +4,8 @@ import { ActivityIndicator, Dimensions, Image, SafeAreaView, StatusBar, Text, Te
 import { setAuthFailHandler, Trip } from './src/api';
 import { getUserId, hasAuthKeys, loadSession, signOut } from './src/auth';
 import { configurePurchases } from './src/purchases';
+import Paywall from './src/screens/Paywall';
+import { currentSubscription } from './src/subscription';
 import { registerForPush } from './src/push';
 import Debrief from './src/screens/Debrief';
 import Documents from './src/screens/Documents';
@@ -73,6 +75,7 @@ export default function App() {
     'Satoshi-Bold': require('./assets/fonts/Satoshi-Bold.otf'),
   });
   const [authed, setAuthed] = useState(false);
+  const [plansOpen, setPlansOpen] = useState(false);
 
   const goHome = () => { setHomeKey(k => k + 1); setRoute({ name: 'home' }); };
 
@@ -133,7 +136,20 @@ export default function App() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: P.pageBg }}>
       <StatusBar barStyle="dark-content" />
-      {showTopBar && <TopBar />}
+      {showTopBar && (
+        <TopBar
+          onTierPress={() => {
+            // Tier-dependent, deliberately. A free user is being invited to
+            // buy, so the badge opens the paywall. A paying one already owns
+            // it — selling them the same thing again is wrong; what they want
+            // is renewal date, restore and cancel, which live in Profile.
+            const tier = currentSubscription()?.tier ?? 'free';
+            if (tier === 'free') setPlansOpen(true);
+            else setRoute({ name: 'profile' });
+          }}
+        />
+      )}
+      <Paywall visible={plansOpen} onClose={() => setPlansOpen(false)} />
       <View style={{ flex: 1 }}>
       {route.name === 'login' && (
         <Login onDone={() => {

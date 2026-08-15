@@ -28,6 +28,50 @@ export type PackItem = {
   reason?: string | null; source: string;
 };
 
+/** The structured body a 402 carries. Mirrors limit_body() on the server. */
+export type LimitInfo = {
+  code: string;
+  tier: string; limit: number; trips_used: number;
+  upgrade_to: string | null; upgrade_limit: number | null;
+  upgrade_price: string | null;
+  message: string;
+};
+
+/** Hitting a paid limit — thrown instead of a plain Error so a caller can
+ *  open the paywall rather than show a dialog.
+ *
+ *  The body was being destroyed before anyone could use it: req() did
+ *  `detail = j.detail || detail`, and limit_body() returns an object, so
+ *  `new Error(object)` stringified to "[object Object]" — which is what a
+ *  user at their trip limit actually saw. The message below is the server's
+ *  own sentence, so even a caller that only shows e.message improves.
+ */
+export class PaywallError extends Error {
+  info: LimitInfo;
+  constructor(info: LimitInfo) {
+    super(info.message || 'You have reached your plan limit.');
+    this.name = 'PaywallError';
+    this.info = info;
+  }
+}
+
+/** Turn whatever `detail` holds into something a human can read.
+ *
+ *  FastAPI's detail is a string for most errors and an object for the
+ *  structured ones. Only the string case was handled; every object arrived as
+ *  "[object Object]". Ordered from most to least specific, and never returns
+ *  a stringified object.
+ */
+function readableDetail(detail: unknown, status: number): string {
+  if (typeof detail === 'string' && detail) return detail;
+  if (detail && typeof detail === 'object') {
+    const m = (detail as any).message;
+    if (typeof m === 'string' && m) return m;
+    try { return JSON.stringify(detail); } catch { /* fall through */ }
+  }
+  return `HTTP ${status}`;
+}
+
 export async function req(path: string, options: RequestInit = {}, _retried = false): Promise<any> {
   const token = getToken();
   let res: Response;
@@ -53,9 +97,17 @@ export async function req(path: string, options: RequestInit = {}, _retried = fa
     throw new Error('Session expired — sign in again.');
   }
   if (!res.ok) {
-    let detail = `HTTP ${res.status}`;
-    try { const j = await res.json(); detail = j.detail || detail; } catch {}
-    throw new Error(detail);
+    let body: any = null;
+    try { body = await res.json(); } catch { /* not every error has a body */ }
+    const detail = body?.detail;
+
+    // 402 is the paywall, and only the paywall: the API uses it for "you have
+    // reached a paid limit" and nothing else. Deliberately not 429 — see
+    // trips/router.py.
+    if (res.status === 402 && detail && typeof detail === 'object') {
+      throw new PaywallError(detail as LimitInfo);
+    }
+    throw new Error(readableDetail(detail, res.status));
   }
   return res.json();
 }

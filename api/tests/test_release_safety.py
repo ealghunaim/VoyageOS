@@ -10,8 +10,11 @@ JSON invariant would be a worse trade than reading the file here.
 """
 import json
 import pathlib
+import re
 
-EAS = pathlib.Path(__file__).resolve().parents[2] / "app" / "eas.json"
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+EAS = ROOT / "app" / "eas.json"
+LEGAL = ROOT / "app" / "src" / "legal.ts"
 
 #: Any of these reaching a production build ships a debug affordance to paying
 #: customers. Add to this list rather than inventing a second mechanism.
@@ -20,6 +23,11 @@ DEV_ONLY_ENV = ("EXPO_PUBLIC_PURCHASE_HARNESS",)
 
 def profiles() -> dict:
     return json.loads(EAS.read_text())["build"]
+
+
+def urls() -> list[tuple[str, str]]:
+    """Every *_URL constant in legal.ts, as (name, value)."""
+    return re.findall(r"export const (\w+_URL) =\s*'([^']+)'", LEGAL.read_text())
 
 
 def test_production_defines_no_dev_only_env():
@@ -58,3 +66,33 @@ def test_every_profile_that_enables_it_is_internal_only():
                 f"profile {name!r} enables the harness but distributes as "
                 f"{dist!r}; it must be internal."
             )
+
+
+# ── legal links on the paywall ──────────────────────────────────────────────
+#
+# Apple requires Terms and a Privacy Policy reachable from the screen where a
+# purchase happens. Both are hardcoded in a COMMITTED file precisely so this
+# check can exist — the same reasoning that moved the harness gate out of
+# app.json, which git never shows.
+
+
+def test_legal_urls_are_not_placeholders():
+    """Fails until the real privacy policy URL is in place.
+
+    A dead link on a paywall is worse than a missing feature: it is a
+    submission rejection at best, and at worst a real user tapping through to
+    nothing at the moment they are deciding whether to trust us with money.
+    """
+    for name, url in urls():
+        assert not url.startswith("PLACEHOLDER"), (
+            f"{name} in app/src/legal.ts is still a placeholder. Set it to the "
+            f"real URL before shipping a paywall."
+        )
+
+
+def test_legal_urls_are_https():
+    """http would be blocked by ATS on device and would silently open nothing."""
+    for name, url in urls():
+        if url.startswith("PLACEHOLDER_"):
+            continue                       # covered by the test above
+        assert url.startswith("https://"), f"{name} is not https: {url}"

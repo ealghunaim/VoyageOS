@@ -4,10 +4,11 @@ import {
   Alert, Animated, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import {
-  addActivity, addDestination, createTrip, generateList, getProfile, patchTrip,
+  addActivity, addDestination, createTrip, generateList, getProfile, patchTrip, PaywallError,
   PlaceHit, searchPlaces, Segment, Trip,
 } from '../api';
 import { Btn, Card, Chip, Field } from '../components/ui';
+import Paywall from './Paywall';
 import JourneyEditor from './JourneyEditor';
 import JourneyLoader from '../components/JourneyLoader';
 import TripArt from '../components/TripArt';
@@ -74,6 +75,8 @@ export default function Wizard({ onDone, onCancel }: {
   const [end, setEnd] = useState(plusDays(defStart, 6));
   const [acts, setActs] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState('');
+  // Which tier to highlight when the paywall opens; null = closed.
+  const [paywallFor, setPaywallFor] = useState<string | null | undefined>(undefined);
   const [picking, setPicking] = useState<'start' | 'end' | null>(null);
   // Travelling-from: prefilled from the profile home, overridable per trip.
   const [origin, setOrigin] = useState('');
@@ -222,6 +225,12 @@ export default function Wizard({ onDone, onCancel }: {
       onDone({ ...trip, segments });
     } catch (e: any) {
       setBusy('');
+      // Hitting the trip limit is not an error to apologise for — it is the
+      // moment the paywall exists for. Everything else stays a dialog.
+      if (e instanceof PaywallError) {
+        setPaywallFor(e.info.upgrade_to ?? null);
+        return;
+      }
       Alert.alert('Could not build the trip', e.message);
     }
   }
@@ -235,6 +244,14 @@ export default function Wizard({ onDone, onCancel }: {
   }
 
   return (
+    <>
+    {/* Over the wizard, not instead of it: they were mid-task, and closing the
+        paywall should return them to exactly what they had typed. */}
+    <Paywall
+      visible={paywallFor !== undefined}
+      initialTier={paywallFor ?? null}
+      onClose={() => setPaywallFor(undefined)}
+    />
     <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={s.wrap}
       keyboardShouldPersistTaps="handled">
       {/* The living card — paints itself as you type */}
@@ -383,6 +400,7 @@ export default function Wizard({ onDone, onCancel }: {
           onClose={() => setJourneyOpen(false)} />
       )}
     </ScrollView>
+    </>
   );
 }
 

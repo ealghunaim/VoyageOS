@@ -8,6 +8,8 @@ import { getEmail, signOut } from '../auth';
 import { SHOW_PURCHASE_HARNESS } from '../config';
 import { Btn, Card, Chip, Field } from '../components/ui';
 import PurchaseHarness from '../components/PurchaseHarness';
+import SubscriptionCard from '../components/SubscriptionCard';
+import Paywall from './Paywall';
 import { FAB_CLEARANCE } from '../components/TopBar';
 import { COUNTRIES, countryName, flagOf } from '../countries';
 import { F, P, RA, S, T } from '../theme';
@@ -18,6 +20,7 @@ export default function Profile({ onSignedOut, onDocuments }: {
   onSignedOut: () => void; onDocuments: () => void;
 }) {
   const [loaded, setLoaded] = useState(false);
+  const [plansOpen, setPlansOpen] = useState(false);
   const [docs, setDocs] = useState<Doc[]>([]);
   const [dob, setDob] = useState<string | null>(null);
   const [gender, setGender] = useState<string | null>(null);
@@ -224,6 +227,9 @@ export default function Profile({ onSignedOut, onDocuments }: {
         <Field label="PHONE" value={ecPhone} onChange={setEcPhone} placeholder="+965…" />
         <Text style={s.hint}>Appears as one-tap call on every trip's SOS page.</Text>
       </Card>
+
+      <SubscriptionCard onUpgrade={() => setPlansOpen(true)} />
+      <Paywall visible={plansOpen} onClose={() => setPlansOpen(false)} />
 
       {/* Gated on a config flag, not __DEV__: sandbox purchases need a real
           device, and an installed build has __DEV__ false. Set

@@ -100,6 +100,17 @@ export async function signUp(email: string, password: string): Promise<'authed' 
   return 'confirm'; // email confirmation is enabled — check the inbox
 }
 
+/** Run something on every sign-out, from any path.
+ *
+ *  A registry rather than a direct call because the things that need to react
+ *  — the subscription cache, for one — import api.ts, which imports this
+ *  file. Importing them back would be a cycle in the modules the app cannot
+ *  start without. Callers register; auth stays dependency-free.
+ */
+type SignOutHook = () => void;
+const signOutHooks: SignOutHook[] = [];
+export function onSignOut(fn: SignOutHook): void { signOutHooks.push(fn); }
+
 export function getEmail(): string { return email; }
 
 /** Our Supabase user id, or '' when signed out.
@@ -119,6 +130,11 @@ export async function signOut(): Promise<void> {
   // entitlements: a tier they never bought, with nothing to explain it.
   // It never throws, so signing out cannot be blocked by the store.
   await signOutOfPurchases();
+  // Everything else that caches per-user state. Failures here must not block
+  // signing out, so each hook is isolated.
+  for (const fn of signOutHooks) {
+    try { fn(); } catch { /* a broken hook cannot trap someone in an account */ }
+  }
   access = ''; refreshTok = ''; expiresAt = 0; email = ''; userId = '';
   await SecureStore.deleteItemAsync(K.a);
   await SecureStore.deleteItemAsync(K.r);

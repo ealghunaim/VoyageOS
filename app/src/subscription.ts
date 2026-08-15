@@ -13,6 +13,7 @@
 import { useEffect, useState } from 'react';
 
 import { getSubscription, Subscription } from './api';
+import { onSignOut } from './auth';
 
 let current: Subscription | null = null;
 let inFlight: Promise<void> | null = null;
@@ -38,6 +39,17 @@ export function clearSubscription(): void {
   current = null;
   publish();
 }
+
+/** The cached row without subscribing. For the post-purchase poll, which
+ *  needs to read the value it just refreshed rather than wait for a render. */
+export function currentSubscription(): Subscription | null {
+  return current;
+}
+
+// Registered once, at import. Without it the cache outlives the session and
+// the next account to sign in on this device sees the previous person's tier
+// in the top bar until something happens to refetch.
+onSignOut(clearSubscription);
 
 export function useSubscription(): Subscription | null {
   const [sub, setSub] = useState<Subscription | null>(current);
