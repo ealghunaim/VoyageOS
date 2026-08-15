@@ -43,6 +43,7 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
   const [tab, setTab] = useState(section);
   const [familyPlay, setFamilyPlay] = useState<{ activities: FamilyActivity[] } | null>(null);
   const [familyBusy, setFamilyBusy] = useState(false);
+  const [familyErr, setFamilyErr] = useState<string | null>(null);
   const [dishPhotos, setDishPhotos] = useState<Record<string, string>>({});
   // Landmark photos for Visit and Play. null is cached deliberately: about a
   // third of items have no publishable photo, and without keeping the misses
@@ -113,8 +114,18 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
   }, [tab, hasParty, trip.id, familyPlay]);
 
   const redoFamily = () => {
+    // Guarded: each tap is a model call, and the button gave no sign it was
+    // working, so it invited repeat taps that each cost money.
+    if (familyBusy) return;
     setFamilyBusy(true);
-    getFamilyPlay(trip.id, true).then(setFamilyPlay).catch(() => {}).finally(() => setFamilyBusy(false));
+    setFamilyErr(null);
+    getFamilyPlay(trip.id, true)
+      .then(setFamilyPlay)
+      // Was `.catch(() => {})`. A budget cap, a dropped connection or a 500
+      // all landed here and the screen simply never changed — indistinguishable
+      // from a dead button, which is exactly how it was reported.
+      .catch((e: any) => setFamilyErr(e?.message ?? 'Could not redo the picks. Please try again.'))
+      .finally(() => setFamilyBusy(false));
   };
   const COHORT_LABEL: Record<string, string> = {
     toddlers: '0–3', young: '4–7', older: '8–12', teens: 'Teens',
@@ -674,7 +685,22 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                   {!!a.verdict && <Text style={{ marginTop: 8, color: P.textPri, fontFamily: F.med, lineHeight: 20 }}>💬 {a.verdict}</Text>}
                 </Card>
               ))}
-              <Pressable onPress={redoFamily}><Text style={[s.link, { color: accent, marginBottom: S[2] }]}>↻ Redo picks ›</Text></Pressable>
+              {/* The loader above only renders when there is nothing to show
+                  yet (`familyBusy && !familyPlay`), which is never true here —
+                  the link only exists once picks are loaded. So a redo left the
+                  screen frozen for the several seconds the model takes. The
+                  feedback belongs on the control itself. */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: S[2] }}>
+                <Pressable onPress={redoFamily} disabled={familyBusy}>
+                  <Text style={[s.link, { color: accent, opacity: familyBusy ? 0.5 : 1 }]}>
+                    {familyBusy ? '↻ Rewriting picks…' : '↻ Redo picks ›'}
+                  </Text>
+                </Pressable>
+                {familyBusy && <ActivityIndicator size="small" color={accent} style={{ marginLeft: S[2] }} />}
+              </View>
+              {!!familyErr && (
+                <Text style={[s.sub, { color: P.danger, marginBottom: S[2] }]}>{familyErr}</Text>
+              )}
               <Text style={[s.disclaimer, { marginTop: 0 }]}>Fit & prices are impressions — confirm before you go.</Text>
               <Findings category="play" />
             </>
