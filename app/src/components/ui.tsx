@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { F, P, S, RA, E, T } from '../theme';
 
@@ -48,20 +48,53 @@ export function Chip({ label, selected, onPress, color }: {
   );
 }
 
-export function Field({ label, value, onChange, placeholder }: {
+export function Field({ label, value, onChange, placeholder, secure, keyboardType,
+                        textContentType, autoComplete }: {
   label: string; value: string; onChange: (t: string) => void; placeholder?: string;
+  /** Masks the value and adds a reveal toggle. Off by default: only the
+   *  caller knows whether a field is a secret. */
+  secure?: boolean;
+  keyboardType?: 'default' | 'email-address';
+  textContentType?: 'emailAddress' | 'password' | 'newPassword' | 'none';
+  autoComplete?: 'email' | 'password' | 'password-new' | 'off';
 }) {
+  // Hidden by default, revealable on request. A password typed in the clear on
+  // a phone is readable by anyone beside you, and this screen is the one place
+  // people type a password in public — on a plane, in a queue. The toggle
+  // exists because masking without one makes a typo on a phone keyboard
+  // unfixable except by retyping the whole thing.
+  const [reveal, setReveal] = useState(false);
+  const masked = !!secure && !reveal;
+
   return (
     <View style={{ marginBottom: 14 }}>
       <Text style={s.fieldLabel}>{label}</Text>
-      <TextInput
-        style={s.input}
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor={P.textMuted}
-        autoCapitalize="none"
-      />
+      <View style={{ position: 'relative', justifyContent: 'center' }}>
+        <TextInput
+          style={[s.input, secure && { paddingRight: 52 }]}
+          value={value}
+          onChangeText={onChange}
+          placeholder={placeholder}
+          placeholderTextColor={P.textMuted}
+          autoCapitalize="none"
+          autoCorrect={false}
+          spellCheck={false}
+          secureTextEntry={masked}
+          keyboardType={keyboardType}
+          textContentType={textContentType}
+          autoComplete={autoComplete}
+        />
+        {secure && (
+          <Pressable
+            onPress={() => setReveal(r => !r)}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={masked ? 'Show password' : 'Hide password'}
+            style={{ position: 'absolute', right: 14 }}>
+            <Text style={{ fontSize: 16 }}>{masked ? '👁' : '🙈'}</Text>
+          </Pressable>
+        )}
+      </View>
     </View>
   );
 }
