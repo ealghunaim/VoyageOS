@@ -12,4 +12,4 @@ export const TERMS_URL =
 
 /** Ours, and it has to be ours — Apple has no standard privacy policy to
  *  borrow, because the policy describes what WE collect. */
-export const PRIVACY_URL = 'PLACEHOLDER_PRIVACY_URL';
+export const PRIVACY_URL = 'https://ealghunaim.github.io/voyageos-legal/';
