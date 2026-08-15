@@ -122,6 +122,32 @@ export function getEmail(): string { return email; }
  */
 export function getUserId(): string { return userId; }
 
+/** Confirm the current user's password, for a destructive action.
+ *
+ *  Checked against Supabase DIRECTLY, exactly as sign-in does. The password
+ *  never reaches the VoyageOS API — deleting an account is an ordinary
+ *  authenticated call, and adding a route that accepts a plaintext password
+ *  would create a credential path where none needs to exist.
+ *
+ *  Answers true/false rather than throwing: the caller shows "that password
+ *  is not right", and a network failure is indistinguishable from a wrong
+ *  password from the user's point of view — both mean "we could not confirm
+ *  it, nothing has happened".
+ */
+export async function verifyPassword(password: string): Promise<boolean> {
+  if (!email || !password) return false;
+  try {
+    const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST', headers: headers(),
+      body: JSON.stringify({ email, password }),
+    });
+    const json = await res.json();
+    return !!(res.ok && json.access_token);
+  } catch {
+    return false;
+  }
+}
+
 export async function signOut(): Promise<void> {
   // Here rather than at the call sites. signOut() is reached three ways —
   // Profile, App's sign-out button, and refreshSession() when a refresh fails

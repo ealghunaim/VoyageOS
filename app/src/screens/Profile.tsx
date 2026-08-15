@@ -8,6 +8,7 @@ import { getEmail, signOut } from '../auth';
 import { SHOW_PURCHASE_HARNESS } from '../config';
 import { Btn, Card, Chip, Field } from '../components/ui';
 import PurchaseHarness from '../components/PurchaseHarness';
+import DeleteAccount from '../components/DeleteAccount';
 import SubscriptionCard from '../components/SubscriptionCard';
 import Paywall from './Paywall';
 import { FAB_CLEARANCE } from '../components/TopBar';
@@ -242,6 +243,10 @@ export default function Profile({ onSignedOut, onDocuments }: {
       <Pressable onPress={async () => { await signOut(); onSignedOut(); }}>
         <Text style={s.signout}>Sign out</Text>
       </Pressable>
+
+      {/* Last thing on the screen, below Sign out. Destructive, so nobody
+          should arrive at it while reaching for something else. */}
+      <DeleteAccount onDeleted={async () => { await signOut(); onSignedOut(); }} />
     </ScrollView>
   );
 }

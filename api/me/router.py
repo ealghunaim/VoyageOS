@@ -6,9 +6,10 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from typing import Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from api.account import deletion
 from api.core.auth import current_user_id
 from api.core.db import get_db
 
@@ -111,3 +112,26 @@ def register_device_token(body: DeviceToken, user_id: str = Depends(current_user
     # the same token, since a token belongs to exactly one device.
     db.table("device_tokens").delete().eq("user_id", user_id) \
         .eq("token", body.token).neq("device_id", device_id).execute()
+
+
+@router.delete("", status_code=200)
+def delete_me(user_id: str = Depends(current_user_id)):
+    """Delete this account and everything belonging to it.
+
+    Required by App Review 5.1.1(v). The caller has already re-entered their
+    password against Supabase directly — the password never reaches this API,
+    so this stays an ordinary authenticated route.
+
+    NOT reversible, and not transactional. api/account/deletion.py orders the
+    work so the only reachable partial state is "nothing happened yet": if the
+    storage purge cannot finish, we answer 503 and the account is untouched,
+    still usable, and the call can simply be retried.
+    """
+    db = get_db()
+    try:
+        return deletion.delete_account(db, user_id)
+    except deletion.StoragePurgeFailed as e:
+        # 503, not 500: this is retryable and nothing was lost. The account is
+        # exactly as it was.
+        print(f"[delete] storage purge incomplete for {user_id}: {e}")
+        raise HTTPException(503, "Could not remove your files. Nothing was deleted — please try again.")

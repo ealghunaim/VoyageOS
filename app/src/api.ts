@@ -112,6 +112,14 @@ export async function req(path: string, options: RequestInit = {}, _retried = fa
   return res.json();
 }
 
+/** Delete this account and everything belonging to it. Irreversible.
+ *
+ *  The caller must have re-confirmed the password with auth.verifyPassword()
+ *  first — this request carries only the session token, by design.
+ */
+export const deleteAccount = (): Promise<{ storage_objects_deleted: number }> =>
+  req('/v1/me', { method: 'DELETE' });
+
 export const listTrips = (): Promise<Trip[]> => req('/v1/trips');
 export const createTrip = (b: object): Promise<Trip> =>
   req('/v1/trips', { method: 'POST', body: JSON.stringify(b) });
