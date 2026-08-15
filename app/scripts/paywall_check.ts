@@ -7,7 +7,9 @@
  *  The cases that matter are the negative ones: an unmappable product must
  *  never resolve to a tier, and a timeout must never read as failure.
  */
-import { pollDecision, POLL_COPY, tierForProduct, TIER_RANK } from '../src/paywallLogic';
+import {
+  BUY_COPY, buyState, isBuyable, pollDecision, POLL_COPY, tierForProduct, TIER_RANK,
+} from '../src/paywallLogic';
 
 let bad = 0;
 const check = (label: string, got: unknown, want: unknown) => {
@@ -75,6 +77,30 @@ const leaked = forbidden.filter(w => copy.includes(w));
 check('no outcome copy says failure', leaked, []);
 check('pending copy confirms the payment',
   /payment received/i.test(POLL_COPY.pending), true);
+
+
+
+console.log('\n── row state vs the plan you are on ──');
+const cases: [string, string, string][] = [
+  ['free',     'explorer', 'subscribe'],
+  ['free',     'voyager',  'subscribe'],
+  ['explorer', 'explorer', 'current'],
+  ['explorer', 'traveler', 'upgrade'],
+  ['explorer', 'voyager',  'upgrade'],
+  ['traveler', 'explorer', 'downgrade'],
+  ['voyager',  'voyager',  'current'],
+  ['voyager',  'explorer', 'downgrade'],
+  ['voyager',  'traveler', 'downgrade'],
+];
+for (const [now, row, want] of cases) {
+  check(`on ${now}, row ${row}`, buyState(now, row as any), want);
+}
+check('only the current plan is unbuyable',
+  ['subscribe', 'upgrade', 'current', 'downgrade'].filter(x => !isBuyable(x as any)),
+  ['current']);
+check('the current plan reads "Current plan"', BUY_COPY.current, 'Current plan');
+check('no copy says "Downgrade"',
+  Object.values(BUY_COPY).some((v: any) => /downgrade/i.test(v)), false);
 
 console.log(bad === 0 ? '\n  ✓ all cases behave\n' : `\n  ✗ ${bad} wrong\n`);
 process.exit(bad === 0 ? 0 : 1);

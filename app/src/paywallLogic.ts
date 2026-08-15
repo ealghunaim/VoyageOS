@@ -95,3 +95,44 @@ export const POLL_COPY = {
   active: 'Your plan is active.',
   pending: 'Payment received. Your plan will activate shortly.',
 } as const;
+
+// ── what does this row mean for THIS user? ─────────────────────────────────
+//
+// Showing "Subscribe" on the plan someone already owns sends them to Apple,
+// which answers "You're currently subscribed to this." — an error message for
+// something that was never an error, produced by us not reading our own state.
+//
+// The other two cases matter for honesty rather than errors. A row above the
+// current plan is an upgrade and applies immediately; a row below is a
+// downgrade and does not take effect until the period they already paid for
+// runs out. Calling both "Subscribe" would imply the downgrade is instant,
+// which it is not — the server deliberately holds it to period end.
+
+export type BuyState = 'subscribe' | 'upgrade' | 'current' | 'downgrade';
+
+/** Rank including free, which is not a Tier but is a position on the ladder. */
+function rank(tier: string): number {
+  return (TIER_RANK as Record<string, number>)[tier] ?? 0;
+}
+
+export function buyState(currentTier: string, rowTier: Tier): BuyState {
+  if (currentTier === rowTier) return 'current';
+  const now = rank(currentTier);
+  const row = rank(rowTier);
+  if (now === 0) return 'subscribe';
+  return row > now ? 'upgrade' : 'downgrade';
+}
+
+export const BUY_COPY: Record<BuyState, string> = {
+  subscribe: 'Subscribe',
+  upgrade: 'Upgrade',
+  current: 'Current plan',
+  downgrade: 'Switch',            // not "Downgrade" — accurate, but a slur to
+                                  // read on a plan you are choosing
+};
+
+/** Only the current plan is unbuyable. A downgrade is a legitimate choice and
+ *  disabling it would be us deciding what someone may spend. */
+export function isBuyable(state: BuyState): boolean {
+  return state !== 'current';
+}

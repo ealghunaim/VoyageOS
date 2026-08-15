@@ -25,11 +25,12 @@ import {
 } from 'react-native';
 import type { PurchasesPackage } from 'react-native-purchases';
 
-import { Subscription } from '../api';
 import { PRIVACY_URL, TERMS_URL } from '../legal';
-import { POLL_COPY, pollDecision, Tier, TIER_RANK, tierForProduct } from '../paywallLogic';
+import {
+  BUY_COPY, buyState, isBuyable, POLL_COPY, pollDecision, Tier, TIER_RANK, tierForProduct,
+} from '../paywallLogic';
 import { getOfferings, purchase, restore } from '../purchases';
-import { currentSubscription, refreshSubscription } from '../subscription';
+import { currentSubscription, refreshSubscription, useSubscription } from '../subscription';
 import { E, F, P, S, T } from '../theme';
 
 /** How long to wait for our own webhook before saying "activating shortly".
@@ -58,6 +59,8 @@ export default function Paywall({ visible, initialTier, onClose }: {
   const [phase, setPhase] = useState<Phase>('browsing');
   const [note, setNote] = useState<string | null>(null);
   const [busyTier, setBusyTier] = useState<Tier | null>(null);
+  const sub = useSubscription();
+  const currentTier = sub?.tier ?? 'free';
 
   useEffect(() => {
     if (!visible) return;
@@ -154,7 +157,12 @@ export default function Paywall({ visible, initialTier, onClose }: {
           )}
 
           {rows?.map(row => {
-            const recommended = row.tier === initialTier;
+            const state = buyState(currentTier, row.tier);
+            const owned = state === 'current';
+            // Never recommend what they already have — the 402 names an
+            // upgrade target, but a stale badge or a race could still point
+            // at the current plan.
+            const recommended = row.tier === initialTier && !owned;
             return (
               <View key={row.tier}
                 style={[s.card, recommended && s.cardRecommended, recommended && E.mid]}>
@@ -170,16 +178,29 @@ export default function Paywall({ visible, initialTier, onClose }: {
                 <Text style={s.trips}>{TRIPS[row.tier]} trips</Text>
                 <Pressable
                   onPress={() => buy(row)}
-                  disabled={phase !== 'browsing'}
+                  disabled={!isBuyable(state) || phase !== 'browsing'}
+                  accessibilityState={{ disabled: owned }}
                   style={({ pressed }) => [
-                    s.buy, recommended && s.buyPrimary,
-                    (phase !== 'browsing' || pressed) && { opacity: 0.7 },
+                    s.buy,
+                    recommended && s.buyPrimary,
+                    owned && s.buyOwned,
+                    !owned && (phase !== 'browsing' || pressed) && { opacity: 0.7 },
                   ]}>
                   {busyTier === row.tier && phase !== 'browsing'
                     ? <ActivityIndicator color={recommended ? P.card : P.brand} />
-                    : <Text style={[s.buyText, recommended && { color: P.card }]}>
-                        Subscribe — {row.price}/month
-                      </Text>}
+                    : (
+                      <Text style={[
+                        s.buyText,
+                        recommended && { color: P.card },
+                        owned && s.buyOwnedText,
+                      ]}>
+                        {/* The plan you are on is stated, not sold. Offering
+                            "Subscribe" here sends you to Apple for the reply
+                            "You're currently subscribed to this." */}
+                        {owned ? BUY_COPY.current
+                               : `${BUY_COPY[state]} — ${row.price}/month`}
+                      </Text>
+                    )}
                 </Pressable>
               </View>
             );
@@ -240,6 +261,8 @@ const s = StyleSheet.create({
          borderWidth: 1, borderColor: P.brand },
   buyPrimary: { backgroundColor: P.brand, borderColor: P.brand },
   buyText: { ...T.title, color: P.brand },
+  buyOwned: { backgroundColor: 'transparent', borderColor: P.hairline },
+  buyOwnedText: { color: P.textMuted },
   status: { ...T.body, color: P.textSec, textAlign: 'center', marginTop: S[3] },
   restore: { alignItems: 'center', paddingVertical: S[4] },
   restoreText: { ...T.body, color: P.brand, fontFamily: F.med },
