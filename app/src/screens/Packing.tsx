@@ -7,6 +7,7 @@ import { addKitItem, applyKit, confirmAddItems, createKit, ParsedItem, quickAddI
 import { deviceTz, permissionStatus, requestPermission, syncReminders, testPing } from '../notifications';
 import { Btn, Card, Progress } from '../components/ui';
 import JourneyLoader from '../components/JourneyLoader';
+import WeightSheet from '../components/WeightSheet';
 import { F, P, RA, S, T, tint } from '../theme';
 import { FAB_CLEARANCE } from '../components/TopBar';
 
@@ -26,6 +27,7 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
   const [wx, setWx] = useState<WxDay[]>([]);
   const [wxPlace, setWxPlace] = useState<string | null>(null);
   const [quick, setQuick] = useState('');
+  const [weightFor, setWeightFor] = useState<PackItem | null>(null);
   const [quickBusy, setQuickBusy] = useState(false);
 
   const loadTimeline = useCallback(async () => {
@@ -136,6 +138,22 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
 
   return (
     <View style={{ flex: 1, backgroundColor: P.pageBg }}>
+      {/* Remounts per item so the field seeds from that item's weight — the
+          sheet reads `grams` on mount, and a single instance reused across
+          rows would show the previous item's number. */}
+      <WeightSheet
+        key={weightFor?.id ?? 'none'}
+        visible={weightFor !== null}
+        itemName={weightFor?.name ?? ''}
+        grams={weightFor?.weight_g ?? null}
+        onSave={async (g) => {
+          const target = weightFor;
+          if (!target) return;
+          try { await updateItem(target.id, { weight_g: g }); await load(); }
+          catch (e: any) { Alert.alert('Weight', e.message); }
+        }}
+        onClose={() => setWeightFor(null)}
+      />
       <View style={{ padding: S[4], paddingTop: S[6], paddingBottom: S[2] }}>
         <Header
           title={tripTitle}
@@ -279,18 +297,12 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
                 </View>
                 <Pressable hitSlop={10} style={{ marginRight: S[3] }} onPress={() => {
                   const opts = [['underwear','Underwear'],['casual','Casual'],['smart_casual','Smart casual'],['formal','Formal'],['traditional','Traditional'],['outerwear','Outerwear'],['athleisure','Active'],['footwear','Shoes']] as const;
-                  Alert.alert('Move to', it.name, [
-                    { text: 'Set weight (g)', onPress: () => {
-                      if (Platform.OS === 'ios' && (Alert as any).prompt) {
-                        (Alert as any).prompt('Weight', `${it.name} · grams`, async (v: string) => {
-                          const g = parseInt(v, 10);
-                          if (g >= 1 && g <= 50000) {
-                            try { await updateItem(it.id, { weight_g: g }); await load(); } catch {}
-                          }
-                        }, 'plain-text', it.weight_g ? String(it.weight_g) : '');
-                      }
-                    } },
-                    ...opts.map(([v, l]) => ({ text: l, onPress: async () => {
+                  Alert.alert('Item', it.name, [
+                    // Weight opens a real sheet rather than Alert.prompt: that
+                    // API has no placeholder for the unit and does not exist on
+                    // Android, where this row previously did nothing at all.
+                    { text: it.weight_g ? `Weight · ${it.weight_g}g` : 'Set weight', onPress: () => setWeightFor(it) },
+                    ...opts.map(([v, l]) => ({ text: `Move to ${l}`, onPress: async () => {
                       try { await updateItem(it.id, { style_tag: v }); await load(); } catch {}
                     } })),
                     { text: 'Cancel', style: 'cancel' as const },
