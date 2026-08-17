@@ -6,6 +6,7 @@ import json
 from datetime import date
 
 from api.history.service import history_flags
+from api.packing.profiles import party_block
 from api.weather.service import load_snapshots
 
 
@@ -15,9 +16,10 @@ def build_context(db, trip: dict, user_id: str) -> dict:
         .eq("trip_id", trip_id).order("seq").execute().data
     acts = db.table("activities").select("type,title").eq("trip_id", trip_id).execute().data
 
-    prefs = db.table("user_preferences").select("packing_style") \
+    prefs = db.table("user_preferences").select("packing_style,extras") \
         .eq("user_id", user_id).execute().data
     style = prefs[0]["packing_style"] if prefs else "standard"
+    extras = (prefs[0].get("extras") if prefs else {}) or {}
 
     start = date.fromisoformat(trip["start_date"])
     end = date.fromisoformat(trip["end_date"])
@@ -39,6 +41,12 @@ def build_context(db, trip: dict, user_id: str) -> dict:
         "laundry_available": False,  # v0.5: no accommodation data yet
         "note": "No weather data available in this version.",
     }
+    # Who is coming, and which garment categories apply to each of them. Only
+    # present when there is something to say — a lone traveller with no profile
+    # produces [], which keeps the context (and its hash) exactly as it was.
+    party = party_block(extras)
+    if party:
+        ctx["party"] = party
     if history["previously_forgot"] or history["often_unused"]:
         ctx["item_history"] = history
     _, wx_days = load_snapshots(db, trip)

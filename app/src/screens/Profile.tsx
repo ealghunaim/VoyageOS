@@ -9,6 +9,7 @@ import { SHOW_PURCHASE_HARNESS } from '../config';
 import { Btn, Card, Chip, Field } from '../components/ui';
 import PurchaseHarness from '../components/PurchaseHarness';
 import DeleteAccount from '../components/DeleteAccount';
+import WardrobeSheet, { PackingProfile } from '../components/WardrobeSheet';
 import SubscriptionCard from '../components/SubscriptionCard';
 import Paywall from './Paywall';
 import { FAB_CLEARANCE } from '../components/TopBar';
@@ -16,6 +17,15 @@ import { COUNTRIES, countryName, flagOf } from '../countries';
 import { F, P, RA, S, T } from '../theme';
 
 const RELATIONS: Companion['relation'][] = ['partner', 'child', 'parent', 'friend'];
+
+/** What a traveller's row shows about their profile. Deliberately terse: the
+ *  row is a signpost, and "no profile" is a legitimate state rather than an
+ *  omission to nag about. */
+function summarise(p: PackingProfile | null): string {
+  if (!p || !p.wardrobe?.length) return 'no packing profile';
+  const n = p.wardrobe.length;
+  return `${n} clothing categor${n === 1 ? 'y' : 'ies'}`;
+}
 
 export default function Profile({ onSignedOut, onDocuments }: {
   onSignedOut: () => void; onDocuments: () => void;
@@ -28,6 +38,9 @@ export default function Profile({ onSignedOut, onDocuments }: {
   const [nat, setNat] = useState<string | null>(null);
   const [natQ, setNatQ] = useState('');
   const [members, setMembers] = useState<Companion[]>([]);
+  const [packing, setPacking] = useState<PackingProfile | null>(null);
+  // null = closed; 'me' = the owner; a number = that member's index.
+  const [wardrobeFor, setWardrobeFor] = useState<'me' | number | null>(null);
   const [mName, setMName] = useState('');
   const [mRel, setMRel] = useState<Companion['relation']>('partner');
   const [ecName, setEcName] = useState('');
@@ -47,6 +60,7 @@ export default function Profile({ onSignedOut, onDocuments }: {
     getProfile().then(p => {
       setDob(p.dob); setGender(p.gender); setNat(p.nationality);
       setMembers(p.members ?? []);
+      setPacking((p as any).packing ?? null);
       setEcName(p.emergency_contact?.name ?? ''); setEcPhone(p.emergency_contact?.phone ?? '');
       if (p.home_origin?.name) {
         setHome(p.home_origin.name);
@@ -87,7 +101,7 @@ export default function Profile({ onSignedOut, onDocuments }: {
         ? { name: home.trim(), country: homeCountry ? homeCountry.toUpperCase().slice(0, 2) : null,
             lat: homeCoords?.lat ?? null, lng: homeCoords?.lng ?? null }
         : undefined;
-      await putProfile({ dob, gender: gender as any, nationality: nat, members,
+      await putProfile({ dob, gender: gender as any, nationality: nat, members, packing,
         emergency_contact: ecName.trim() && ecPhone.trim() ? { name: ecName.trim(), phone: ecPhone.trim() } : undefined,
         home_origin });
       Alert.alert('Saved', 'Your profile now personalizes visa links and family packing to come.');
@@ -185,11 +199,23 @@ export default function Profile({ onSignedOut, onDocuments }: {
 
       <Card>
         <Text style={s.section}>TRAVEL COMPANIONS</Text>
+        {/* The owner's own profile sits with the companions, because it is the
+            same question asked of the same kind of person. */}
+        <Pressable onPress={() => setWardrobeFor('me')} style={s.member}>
+          <Text style={s.memberName}>
+            You <Text style={s.memberRel}>· {summarise(packing)}</Text>
+          </Text>
+          <Text style={[s.memberRel, { color: P.brand }]}>Edit ›</Text>
+        </Pressable>
         {members.map((m, i) => (
           <View key={i} style={s.member}>
-            <Text style={s.memberName}>
-              {m.name} <Text style={s.memberRel}>· {m.relation}</Text>
-            </Text>
+            <Pressable style={{ flex: 1 }} onPress={() => setWardrobeFor(i)}>
+              <Text style={s.memberName}>
+                {m.name} <Text style={s.memberRel}>
+                  · {m.relation} · {summarise((m as any).packing ?? null)}
+                </Text>
+              </Text>
+            </Pressable>
             <Pressable hitSlop={10} onPress={() => setMembers(members.filter((_, j) => j !== i))}>
               <Text style={s.memberX}>✕</Text>
             </Pressable>
@@ -228,6 +254,23 @@ export default function Profile({ onSignedOut, onDocuments }: {
         <Field label="PHONE" value={ecPhone} onChange={setEcPhone} placeholder="+965…" />
         <Text style={s.hint}>Appears as one-tap call on every trip's SOS page.</Text>
       </Card>
+
+      <WardrobeSheet
+        /* Remount per traveller. The sheet seeds its checkboxes from `value`
+           on mount, so without this, opening You and then a companion would
+           show You's selections against their name. */
+        key={String(wardrobeFor)}
+        visible={wardrobeFor !== null}
+        who={wardrobeFor === 'me' ? 'You' : (members[wardrobeFor as number]?.name ?? '')}
+        value={wardrobeFor === 'me' ? packing
+                                    : ((members[wardrobeFor as number] as any)?.packing ?? null)}
+        onSave={(p) => {
+          if (wardrobeFor === 'me') setPacking(p);
+          else setMembers(ms => ms.map((m, j) =>
+            j === wardrobeFor ? ({ ...m, packing: p } as any) : m));
+        }}
+        onClose={() => setWardrobeFor(null)}
+      />
 
       <SubscriptionCard onUpgrade={() => setPlansOpen(true)} />
       <Paywall visible={plansOpen} onClose={() => setPlansOpen(false)} />

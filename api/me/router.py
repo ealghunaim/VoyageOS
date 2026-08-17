@@ -12,16 +12,30 @@ from pydantic import BaseModel, Field
 from api.account import deletion
 from api.core.auth import current_user_id
 from api.core.db import get_db
+from api.packing.profiles import MAX_NOTE, WARDROBE
 
 router = APIRouter(prefix="/v1/me", tags=["me"])
 
-PROFILE_KEYS = ("dob", "gender", "nationality", "members", "emergency_contact", "home_origin")
+PROFILE_KEYS = ("dob", "gender", "nationality", "members", "emergency_contact",
+                "home_origin", "packing")
+
+
+class PackingProfile(BaseModel):
+    """Which garment categories apply to a traveller.
+
+    No style field: packing style stays a single account-level setting, so it
+    does not live in two places. An old payload carrying one is accepted and
+    ignored rather than rejected — see api/packing/profiles.py.
+    """
+    wardrobe: list[str] = Field(default_factory=list, max_length=len(WARDROBE))
+    notes: str | None = Field(default=None, max_length=MAX_NOTE)
 
 
 class Member(BaseModel):
     name: str = Field(min_length=1, max_length=60)
     relation: Literal["partner", "child", "parent", "friend", "other"] = "other"
     dob: date | None = None
+    packing: PackingProfile | None = None
 
 
 class EmergencyContact(BaseModel):
@@ -44,6 +58,8 @@ class ProfileBody(BaseModel):
     members: list[Member] | None = Field(default=None, max_length=8)
     emergency_contact: EmergencyContact | None = None
     home_origin: HomeOrigin | None = None
+    #: The owner's own wardrobe profile. Members carry theirs inside `members`.
+    packing: PackingProfile | None = None
 
 
 def merge(old: dict, incoming: dict) -> dict:

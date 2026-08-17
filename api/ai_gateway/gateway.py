@@ -44,7 +44,12 @@ TASK_ROUTE = {  # Part 1 §6 routing table
 # explicitly to override.
 TASK_MAX_TOKENS = {
     # unbounded payloads — grow with trip length, activities or destinations
-    "packing_generate": 8000,   # 13-36 items x 8 fields (peak seen 3904)
+    # A ceiling, not a spend. Raised 8000 -> 10000 so a party of four or five
+    # cannot hit the truncation retry, which asks for 18 items and would hand a
+    # family a shorter list than a solo traveller gets. Costs nothing for small
+    # parties: billing follows tokens produced, not the cap.
+    # Measured: solo 3903, four-person 7110.
+    "packing_generate": 10000,
     "packing_generate_complex": 8000,
     "guide_generate": 8000,     # whole guide in one call (peak seen 4308)
     "guide_b": 8000,            # Play + Visit + Go, each with fee/access/transit

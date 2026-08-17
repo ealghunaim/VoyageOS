@@ -60,14 +60,30 @@ def test_missing_cuisine_is_none_not_empty_string():
         assert out["restaurants"][0]["cuisine"] is None, fn.__name__
 
 
-def test_restaurant_cap_is_twelve():
-    """Raised from 8 so a cuisine split has something to split. It is a
-    ceiling, not a quota — the prompt is explicit that a city with six worth
-    naming gets six."""
-    from api.guide.service import sanitize_a
-    raw = {"restaurants": [{"name": f"R{i}", "note": "n", "price": 2} for i in range(20)]}
+def test_restaurant_cap():
+    """8 → 12 when cuisine grouping arrived, 12 → 16 for content depth. Still a
+    ceiling and never a quota: the prompt says a city with six worth naming
+    gets six, and forbids inventing a place to reach a number."""
+    from api.guide.service import _RESTAURANT_CAP, sanitize_a
+    raw = {"restaurants": [{"name": f"R{i}", "note": "n", "price": 2} for i in range(30)]}
     for fn in (sanitize, sanitize_a):
-        assert len(fn(raw)["restaurants"]) == 12, fn.__name__
+        assert len(fn(raw)["restaurants"]) == _RESTAURANT_CAP == 16, fn.__name__
+
+
+def test_dish_cap():
+    """Raised 6 → 10 alongside the restaurants, on measured headroom: guide_a
+    ran a 1524 median against a 4000 ceiling."""
+    from api.guide.service import _DISH_CAP, sanitize_a
+    raw = {"dishes": [{"name": f"D{i}", "note": "n"} for i in range(20)]}
+    for fn in (sanitize, sanitize_a):
+        assert len(fn(raw)["dishes"]) == _DISH_CAP == 10, fn.__name__
+
+
+def test_guide_prompt_version_bumped():
+    """generation records carry it; a stale version makes old and new guides
+    indistinguishable in the record."""
+    from api.guide.prompts import GUIDE_PROMPT_VERSION
+    assert GUIDE_PROMPT_VERSION != "guide-v11"
 
 
 def test_family_play_bands_and_price_clamp():

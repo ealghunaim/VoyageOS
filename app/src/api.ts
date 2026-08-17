@@ -295,13 +295,27 @@ export const getGuidePart = (tripId: string, phase: 'a' | 'b', destinationId?: s
   req(`/v1/trips/${tripId}/guide/part/${phase}?regenerate=${regenerate}` +
     (destinationId ? `&destination_id=${destinationId}` : ''));
 
-export type Companion = { name: string; relation: 'partner' | 'child' | 'parent' | 'friend' | 'other'; dob?: string | null };
+/** Which garment categories apply to one traveller. Absent means the packing
+ *  generator behaves exactly as it did before profiles existed — see
+ *  api/packing/profiles.py. There is deliberately no packing-style field: style
+ *  stays a single account-level setting. */
+export type PackingProfile = { wardrobe: string[]; notes?: string | null };
+
+export type Companion = {
+  name: string;
+  relation: 'partner' | 'child' | 'parent' | 'friend' | 'other';
+  dob?: string | null;
+  packing?: PackingProfile | null;
+};
 export type HomeOrigin = { name: string; country?: string | null; lat?: number | null; lng?: number | null };
 export type Profile = {
   dob: string | null; gender: string | null; nationality: string | null;
   members: Companion[] | null;
   emergency_contact?: { name: string; phone: string } | null;
   home_origin?: HomeOrigin | null;
+  /** The account owner's own wardrobe profile; companions carry theirs in
+   *  `members`. */
+  packing?: PackingProfile | null;
 };
 export const getProfile = (): Promise<Profile> => req('/v1/me/profile');
 export const putProfile = (b: Partial<Profile>): Promise<Profile> =>

@@ -13,7 +13,11 @@ from api.guide.prompts import GUIDE_PROMPT_VERSION, GUIDE_SYSTEM_PROMPT
 #: the old cap; grouping by cuisine needs enough places that a section is not
 #: one entry, without asking for a quota per cuisine — a quota is what makes a
 #: model invent restaurants to fill it.
-_RESTAURANT_CAP = 12
+#: Raised from 6 with the restaurant cap, on measured headroom rather than
+#: hope: guide_a ran a 1524 median against a 4000 ceiling, so ~280 extra
+#: tokens of content lands near 1800. Still a ceiling, never a target.
+_DISH_CAP = 10
+_RESTAURANT_CAP = 16
 
 _LIST_CAPS = {"etiquette": 6, "customs_flags": 5, "eat": 6, "play": 6,
               "visit": 6, "task_suggestions": 4, "health": 5}
@@ -34,7 +38,7 @@ def sanitize(raw: dict, travel_mode: str | None = None) -> dict:
     for key in ("etiquette", "customs_flags", "task_suggestions", "health"):
         out[key] = [_s(x) for x in (raw.get(key) or [])[:_LIST_CAPS[key]] if _s(x)]
     dishes = []
-    for item in (raw.get("dishes") or [])[:6]:
+    for item in (raw.get("dishes") or [])[:_DISH_CAP]:
         if isinstance(item, dict) and item.get("name"):
             dishes.append({"name": _s(item.get("name"), 60), "note": _s(item.get("note"))})
     out["dishes"] = dishes
@@ -132,7 +136,7 @@ def sanitize_a(raw: dict) -> dict:
     for key in ("etiquette", "customs_flags", "task_suggestions", "health"):
         out[key] = [_s(x) for x in (raw.get(key) or [])[:_LIST_CAPS[key]] if _s(x)]
     dishes = []
-    for item in (raw.get("dishes") or [])[:6]:
+    for item in (raw.get("dishes") or [])[:_DISH_CAP]:
         if isinstance(item, dict) and item.get("name"):
             dishes.append({"name": _s(item.get("name"), 60), "note": _s(item.get("note"))})
     out["dishes"] = dishes
