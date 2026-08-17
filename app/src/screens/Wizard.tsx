@@ -1,7 +1,8 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert, Animated, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
+  Alert, Animated, BackHandler, Platform, Pressable, ScrollView, StyleSheet, Text,
+  TextInput, View,
 } from 'react-native';
 import {
   addActivity, addDestination, createTrip, generateList, getProfile, patchTrip, PaywallError,
@@ -88,6 +89,47 @@ export default function Wizard({ onDone, onCancel }: {
 
   const hasDest = chosen || place.trim().length >= 2;
   const accent = hasDest ? accentForTrip(country, place) : P.brand;
+
+  // Has anything actually been entered? Dates, mode and cabin arrive with
+  // defaults, so they say nothing about whether the traveller has invested
+  // anything in this form — only what they typed or picked counts.
+  const started = !!(place.trim() || stops.length || stay.trim() || segments.length
+                     || origin.trim() || party.size || acts.size);
+
+  /** Leave the wizard, asking first if there is anything to lose.
+   *
+   *  The form is long — destination, stops, dates, party, activities, flights,
+   *  where you are staying — and until now its only exit was a Cancel button
+   *  underneath all of it. Putting an exit at the top where every other screen
+   *  has one also puts it within reach of a mis-tap, so the confirmation is
+   *  what makes the convenient exit safe rather than expensive.
+   */
+  const leave = useCallback(() => {
+    if (!started) { onCancel(); return; }
+    Alert.alert('Discard this trip?', 'What you have entered will not be saved.', [
+      { text: 'Keep editing', style: 'cancel' },
+      { text: 'Discard', style: 'destructive', onPress: onCancel },
+    ]);
+  }, [started, onCancel]);
+
+  // Android's hardware back is the back button on Android, and nothing in the
+  // app listened for it — so it closed the whole app and took a half-filled
+  // form with it. Handled here for the wizard, where there is unsaved work;
+  // the rest of the app still needs this and it belongs with the Phase 3 nav
+  // work rather than bolted on screen by screen.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      // Innermost thing first. Back with the paywall or the journey editor
+      // open means "close this", not "throw away the trip underneath it" —
+      // and offering to discard a half-filled form because someone dismissed
+      // a price sheet would be startling.
+      if (journeyOpen) { setJourneyOpen(false); return true; }
+      if (paywallFor !== undefined) { setPaywallFor(undefined); return true; }
+      leave();
+      return true;
+    });
+    return () => sub.remove();
+  }, [leave, journeyOpen, paywallFor]);
   const heroOp = useRef(new Animated.Value(0.5)).current;
   useEffect(() => {
     Animated.timing(heroOp, { toValue: hasDest ? 1 : 0.5, duration: 500, useNativeDriver: true }).start();
@@ -254,6 +296,13 @@ export default function Wizard({ onDone, onCancel }: {
     />
     <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={s.wrap}
       keyboardShouldPersistTaps="handled">
+      {/* Every other screen puts its way out here. This one had none, so
+          leaving meant scrolling past destination, stops, dates, party,
+          activities and flights to reach a Cancel button at the bottom. */}
+      <Pressable onPress={leave} hitSlop={10} style={{ marginBottom: S[3] }}>
+        <Text style={[T.title, { color: accent }]}>‹ Trips</Text>
+      </Pressable>
+
       {/* The living card — paints itself as you type */}
       <Animated.View style={[s.hero, { opacity: heroOp }]}>
         <TripArt seed={place || 'trip'} accent={accent} height={150} />
@@ -389,7 +438,10 @@ export default function Wizard({ onDone, onCancel }: {
         <View style={{ height: 8 }} />
         <Btn label="Create my trip" color={accent} disabled={!canBuild} onPress={build} />
         <View style={{ height: 8 }} />
-        <Btn label="Cancel" kind="ghost" onPress={onCancel} />
+        {/* Kept: someone who has just decided against the whole thing is at
+            the bottom of the form, not the top. It goes through the same
+            guard, so both exits behave the same way. */}
+        <Btn label="Cancel" kind="ghost" onPress={leave} />
       </Card>
 
       {journeyOpen && (
