@@ -41,6 +41,23 @@ None is a server secret; none grants data access on its own.
 Server secrets — `SUPABASE_SERVICE_KEY`, `MASTER_KEK_*`, `REVENUECAT_WEBHOOK_SECRET`,
 Resend's API key — live only in `.env` and the deploy environment, never here.
 
+## Changing `scheme` requires a prebuild
+
+`scheme` reaches the app through `Info.plist`, which is written by
+**prebuild** — not by `expo run:ios`. `ios/` is generated once and reused, so
+adding a scheme and rebuilding produces a build that **succeeds and installs
+an app silently missing it**. Deep links then do nothing, with no error.
+
+    npx expo prebuild --platform ios
+    npx expo run:ios
+
+Verify against the installed artifact rather than the build log:
+
+    APP=$(xcrun simctl get_app_container <SIM_UDID> com.ealghunaim.voyageos)
+    plutil -extract CFBundleURLTypes json -o - "$APP/Info.plist"
+
+`voyageos` must appear alongside `com.ealghunaim.voyageos` and `exp+voyageos`.
+
 ## Pre-submission checklist
 
 - [ ] `app.json` flipped to **prod** values (three fields above)
