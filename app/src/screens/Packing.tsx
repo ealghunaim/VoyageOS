@@ -3,7 +3,7 @@ import {
   ActivityIndicator, Alert, Pressable, RefreshControl,
   ScrollView, StyleSheet, Text, TextInput, View, Platform,
 } from 'react-native';
-import { addKitItem, applyKit, createKit, quickAddItems, generateList, getPackingList, getTimeline, getTripWeather, getWeight, Kit, listKits, PackItem, refreshTripWeather, setBagLimit, Task, updateItem, WeightInfo, WxDay } from '../api';
+import { addKitItem, applyKit, confirmAddItems, createKit, ParsedItem, quickAddItems, generateList, getPackingList, getTimeline, getTripWeather, getWeight, Kit, listKits, PackItem, refreshTripWeather, setBagLimit, Task, updateItem, WeightInfo, WxDay } from '../api';
 import { deviceTz, permissionStatus, requestPermission, syncReminders, testPing } from '../notifications';
 import { Btn, Card, Progress } from '../components/ui';
 import JourneyLoader from '../components/JourneyLoader';
@@ -219,10 +219,38 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
           <Pressable disabled={quickBusy || quick.trim().length < 2} onPress={async () => {
             setQuickBusy(true);
             try {
-              const added = await quickAddItems(tripId, quick.trim());
+              const r = await quickAddItems(tripId, quick.trim());
               setQuick('');
+
+              if (r.status === 'needs_decision') {
+                // Nothing was added. The parsed items came back with the
+                // response, so neither choice re-runs the model.
+                const d = r.duplicates;
+                const lines = d.map(x =>
+                  `${x.existing_name} ×${x.existing_qty} already on the list`).join('\n');
+                const rest = r.items.length - d.length;
+                Alert.alert(
+                  d.length === 1 ? 'Already on the list' : 'Already on the list',
+                  rest > 0
+                    ? `${lines}\n\nThe other ${rest} item${rest > 1 ? 's' : ''} will be added either way.`
+                    : lines,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Add anyway', onPress: async () => {
+                      try { await confirmAddItems(tripId, r.items as ParsedItem[], 'add'); await load(); }
+                      catch (e: any) { Alert.alert('Add items', e.message); }
+                    } },
+                    { text: 'Merge', onPress: async () => {
+                      try { await confirmAddItems(tripId, r.items as ParsedItem[], 'merge'); await load(); }
+                      catch (e: any) { Alert.alert('Add items', e.message); }
+                    } },
+                  ],
+                );
+                return;
+              }
+
               await load();
-              Alert.alert('Added', added.map(i => `- ${i.name}${i.qty > 1 ? ` x${i.qty}` : ''}`).join('\n'));
+              Alert.alert('Added', r.items.map(i => `- ${i.name}${i.qty > 1 ? ` x${i.qty}` : ''}`).join('\n'));
             } catch (e: any) { Alert.alert('Add items', e.message); }
             finally { setQuickBusy(false); }
           }}>

@@ -341,7 +341,33 @@ export const patchPlanItem = (tripId: string, itemId: string, b: { title?: strin
 export const deletePlanItem = (tripId: string, itemId: string): Promise<void> =>
   req(`/v1/trips/${tripId}/plan/${itemId}`, { method: 'DELETE' });
 
-export const quickAddItems = (tripId: string, text: string): Promise<PackItem[]> =>
+/** One item the parser understood, before it is committed to the list. */
+export type ParsedItem = {
+  name: string; category: string; qty: number; style_tag: string | null;
+};
+
+/** Something already on the list that a new item collides with. */
+export type DuplicateHit = {
+  name: string; qty: number;
+  existing_id: string; existing_name: string; existing_qty: number;
+};
+
+export type QuickAddResult =
+  | { status: 'added'; items: PackItem[] }
+  /** Nothing was inserted — the traveller decides. `items` comes back so
+   *  confirming costs no second model call. */
+  | { status: 'needs_decision'; items: ParsedItem[]; duplicates: DuplicateHit[] };
+
+/** Finish an add that hit a duplicate. No parsing happens here. */
+export const confirmAddItems = (
+  tripId: string, items: ParsedItem[], onDuplicate: 'merge' | 'add',
+): Promise<{ status: string; items: PackItem[]; merged?: { name: string; qty: number }[] }> =>
+  req(`/v1/trips/${tripId}/items/confirm-add`, {
+    method: 'POST',
+    body: JSON.stringify({ items, on_duplicate: onDuplicate }),
+  });
+
+export const quickAddItems = (tripId: string, text: string): Promise<QuickAddResult> =>
   req(`/v1/trips/${tripId}/items/quick-add`, { method: 'POST', body: JSON.stringify({ text }) });
 
 export const askTrip = (tripId: string, question: string): Promise<{ answer: string }> =>
