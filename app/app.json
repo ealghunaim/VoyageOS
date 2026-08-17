@@ -27,16 +27,20 @@
       }
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-font"
     ],
+    "_LOCAL_DEV_OVERRIDE": "CURRENTLY POINTED AT DEV (localhost:8000 + phrimm\u2026 supabase). skip-worktree, so `git checkout app/app.json` does NOTHING \u2014 flip by hand. Change ONLY apiUrl/supabaseUrl/supabaseAnonKey; revenueCatIosKey, appKey, scheme and eas must survive. Both value sets live in ~/.config/voyageos/app-extra-record.json.",
     "extra": {
-      "apiUrl": "https://voyageos-0k6u.onrender.com",
+      "apiUrl": "http://localhost:8000",
       "appKey": "700ea172a90b6a95d63786a803c7b420",
-      "supabaseUrl": "https://njvpjzojnzbynwlqsdbw.supabase.co",
-      "supabaseAnonKey": "sb_publishable_tBcNLlKZ3p9-Ue5wpuJ-Ww_zXuvJn-c",
+      "supabaseUrl": "https://phrimmlidteokdybnbuc.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBocmltbWxpZHRlb2tkeWJuYnVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MDkwNjIsImV4cCI6MjEwMTA4NTA2Mn0.XPq_ikW2DsKJKrf_uj4Dha12POWbh03tDGABrLkEr-8",
       "eas": {
         "projectId": "06a65f98-0b5e-4af2-bd15-5e61247a5bc9"
-      }
-    }
+      },
+      "revenueCatIosKey": "appl_ZJAuUBBasKyIxxnkiBTTmsIVMts"
+    },
+    "scheme": "voyageos"
   }
 }
