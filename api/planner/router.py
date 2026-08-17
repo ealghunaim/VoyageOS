@@ -28,6 +28,20 @@ class PlanItemPatch(BaseModel):
 
 
 
+def clean_time(value):
+    """One spelling of "no time".
+
+    The column is free text and holds whatever the old planner input accepted,
+    including "morning" and "after lunch" — those are the traveller's own words
+    and are kept. What is not kept is blankness with two spellings: a cleared
+    time arrives as "" (PlanItemPatch excludes None, so null cannot survive the
+    round trip) and would otherwise sit alongside the NULLs that create writes.
+    """
+    if value is None:
+        return None
+    return value.strip() or None
+
+
 @router.get("/{trip_id}/plan")
 def list_plan(trip_id: str, user_id: str = Depends(current_user_id)):
     db = get_db()
@@ -40,7 +54,7 @@ def list_plan(trip_id: str, user_id: str = Depends(current_user_id)):
 def add_plan_item(trip_id: str, body: PlanItemCreate, user_id: str = Depends(current_user_id)):
     db = get_db()
     owned_trip(db, trip_id, user_id)
-    row = {"trip_id": trip_id, "day": body.day, "time": (body.time or None),
+    row = {"trip_id": trip_id, "day": body.day, "time": clean_time(body.time),
            "title": body.title.strip()[:140], "note": (body.note or None), "seq": body.seq}
     return db.table("trip_plan_items").insert(row).execute().data[0]
 
@@ -55,6 +69,8 @@ def patch_plan_item(trip_id: str, item_id: str, body: PlanItemPatch,
         raise HTTPException(400, "Nothing to update")
     if "title" in patch:
         patch["title"] = patch["title"].strip()[:140]
+    if "time" in patch:
+        patch["time"] = clean_time(patch["time"])
     rows = db.table("trip_plan_items").update(patch) \
         .eq("id", item_id).eq("trip_id", trip_id).execute().data
     if not rows:
