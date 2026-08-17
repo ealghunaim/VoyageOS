@@ -6,6 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { indexTips, normName } from '../tipMatch';
 import { getFamilyPlay, FamilyActivity, addFoodTip, deleteFoodTip, dishPhoto, FoodTip, getGuidePart, getProfile, getTrip, Guide as GuideT, listFoodTips, patchTrip, placePhotos, PlacePhoto, TipCategory, Trip, TripDetail } from '../api';
 import { transitFor } from '../airlines';
+import DishRail from '../components/DishRail';
 import JourneyLoader from '../components/JourneyLoader';
 import PlugArt from '../components/PlugArt';
 import { countryName, flagOf } from '../countries';
@@ -599,20 +600,13 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                 <>
                   {dishes.length === 0 && restaurants.length === 0 &&
                     <Card><Text style={s.sub}>Nothing yet — tap ↻ to write the food guide.</Text></Card>}
-                  {dishes.length > 0 && <Text style={sx.tipHead}>LOCAL FOOD · {place.toUpperCase()}</Text>}
                   {dishes.length > 0 && (
-                    <Card>
-                      {dishes.map((d, i) => (
-                        <View key={`d${i}`} style={[{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11 }, i > 0 && { borderTopWidth: 1, borderTopColor: P.hairline }]}>
-                          {!!dishPhotos[d.name] && <RNImage source={{ uri: dishPhotos[d.name] }} style={s.dishThumb} />}
-                          <View style={{ flex: 1 }}>
-                            <Text style={s.h}>{d.name}</Text>
-                            {!!d.note && <Text style={[s.sub, { marginTop: 2 }]}>{d.note}</Text>}
-                          </View>
-                        </View>
-                      ))}
-                    </Card>
+                    <Text style={sx.tipHead}>
+                      LOCAL FOOD · {place.toUpperCase()}
+                      <Text style={sx.tipHeadCount}>   {dishes.length}</Text>
+                    </Text>
                   )}
+                  <DishRail dishes={dishes} photos={dishPhotos} accent={accent} />
                   {all.length > 0 && <Text style={sx.tipHead}>RESTAURANTS</Text>}
                   {cuisines.length > 1 && (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}
@@ -781,7 +775,8 @@ const s = StyleSheet.create({
   // P.warningInk, not P.warning: a star rating is type, and P.warning reaches
   // only 2.1:1 on white. The darker amber is the readable one.
   rating: { ...T.caption, fontFamily: F.bold, color: P.warningInk },
-  dishThumb: { width: 58, height: 58, borderRadius: RA.sm, marginRight: S[3] },
+  // dishThumb is gone with the vertical dish list — the rail owns its own
+  // geometry in DishRail.tsx, where the card and the photo have to agree.
   coins: { ...T.body },
   coinsSm: { ...T.caption },
   band: { borderRadius: RA.sm, paddingHorizontal: 9, paddingVertical: 5, marginRight: S[1] + 2, marginBottom: S[1] + 2 },
@@ -807,6 +802,9 @@ const sx = StyleSheet.create({
            marginRight: S[2], marginBottom: S[2] },
   vChipText: { ...T.caption, color: P.textPri },
   tipHead: { ...T.label, color: P.textMuted, marginTop: S[2], marginBottom: S[3] },
+  // The count is the only thing telling you the rail runs past the edge, now
+  // that a vertical list no longer shows its own length.
+  tipHeadCount: { ...T.label, color: P.textSec },
   cuisineChip: { paddingHorizontal: S[3], paddingVertical: 6, borderRadius: 999, borderWidth: 1,
                  borderColor: P.hairline, marginRight: S[2] },
   cuisineChipText: { ...T.caption, color: P.textSec },
