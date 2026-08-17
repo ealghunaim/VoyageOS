@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
@@ -6,20 +6,23 @@ import { getTripWeather, listTrips, Trip, WxDay } from '../api';
 import FlagField from '../components/FlagField';
 import { Btn, Card } from '../components/ui';
 import { FAB_CLEARANCE } from '../components/TopBar';
+import { classify, needsDebrief, sortForTab, whenLabel } from '../tripStatus';
 import { accentForTrip, F, P, RA, S, T, titleize } from '../theme';
 
-function daysUntil(dateStr: string) {
-  const d = new Date(dateStr + 'T00:00:00');
-  return Math.ceil((d.getTime() - Date.now()) / 86400000);
-}
+type Tab = 'all' | 'upcoming' | 'finished';
+const TABS: { key: Tab; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'upcoming', label: 'Upcoming' },
+  { key: 'finished', label: 'Finished' },
+];
 
-export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, onArchive, authed, onSignOut }: {
+export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, authed, onSignOut }: {
   onNewTrip: () => void; onOpenTrip: (t: Trip) => void;
-  onKits: () => void; onDocuments: () => void; onArchive: (past: Trip[]) => void;
+  onKits: () => void; onDocuments: () => void;
   authed?: boolean; onSignOut?: () => void;
 }) {
-  const [trips, setTrips] = useState<Trip[] | null>(null);
-  const [past, setPast] = useState<Trip[]>([]);
+  const [all, setAll] = useState<Trip[] | null>(null);
+  const [tab, setTab] = useState<Tab>('upcoming');
   const [wx, setWx] = useState<Record<string, WxDay[]>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -28,22 +31,37 @@ export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, onArc
     try {
       setError('');
       const raw = await listTrips();
-      const now = Date.now();
-      const upcoming = raw.filter(t => new Date(t.end_date + 'T23:59:59').getTime() >= now && t.status !== 'completed')
-        .sort((a, b) => a.start_date.localeCompare(b.start_date));
-      const done = raw.filter(t => !(new Date(t.end_date + 'T23:59:59').getTime() >= now && t.status !== 'completed'))
-        .sort((a, b) => b.start_date.localeCompare(a.start_date));
-      setTrips(upcoming);
-      setPast(done);
-      Promise.all(upcoming.map(t => getTripWeather(t.id).then(w => [t.id, w.days] as const).catch(() => [t.id, []] as const)))
+      setAll(raw);
+      // Weather is only worth fetching for trips that have not happened — a
+      // forecast for last month is noise, and it was a request per trip.
+      const ahead = raw.filter(t => classify(t) !== 'finished');
+      Promise.all(ahead.map(t => getTripWeather(t.id).then(w => [t.id, w.days] as const).catch(() => [t.id, []] as const)))
         .then(entries => setWx(Object.fromEntries(entries)));
     }
-    catch (e: any) { setError(e.message); setTrips([]); }
+    catch (e: any) { setError(e.message); setAll([]); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  if (trips === null) {
+  const { shown, upcomingCount, finishedCount, debriefCount } = useMemo(() => {
+    const raw = all ?? [];
+    const inTab = raw.filter(t => {
+      const where = classify(t);
+      if (tab === 'all') return true;
+      // In-progress trips belong under Upcoming: the tab answers "what am I
+      // travelling for", and a trip you are on is the most current answer of
+      // all. Filing it under Finished is the bug this feature exists to fix.
+      return tab === 'finished' ? where === 'finished' : where !== 'finished';
+    });
+    return {
+      shown: sortForTab(inTab, tab),
+      upcomingCount: raw.filter(t => classify(t) !== 'finished').length,
+      finishedCount: raw.filter(t => classify(t) === 'finished').length,
+      debriefCount: raw.filter(t => needsDebrief(t)).length,
+    };
+  }, [all, tab]);
+
+  if (all === null) {
     return (
       <View style={s.center}>
         <ActivityIndicator size="large" color={P.brand} />
@@ -67,22 +85,69 @@ export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, onArc
         <Card><Text style={s.error}>{error}</Text></Card>
       )}
 
-      {trips.length === 0 && !error && (
+      {/* The tabs only earn their space once there is something to sort. With
+          one trip they are three controls that all show the same card. */}
+      {(all.length > 1 || finishedCount > 0) && (
+        <View style={s.tabs}>
+          {TABS.map(x => {
+            const on = tab === x.key;
+            const count = x.key === 'upcoming' ? upcomingCount
+              : x.key === 'finished' ? finishedCount : all.length;
+            return (
+              <Pressable key={x.key} onPress={() => setTab(x.key)}
+                style={[s.tab, on && s.tabOn]}>
+                <Text style={[s.tabText, on && s.tabTextOn]}>
+                  {x.label}{count > 0 ? ` ${count}` : ''}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
+      {tab === 'finished' && debriefCount > 0 && (
+        // The nudge lives here rather than on every tab because this is where
+        // acting on it is one tap away — the trips are right underneath.
         <Card>
-          <Text style={s.h2}>No trips yet</Text>
-          <Text style={s.sub}>Create your first — the AI packs it with a reason on every item.</Text>
-          <View style={{ height: 14 }} />
-          <Btn label="+ New Trip" onPress={onNewTrip} />
+          <Text style={s.h2}>
+            {debriefCount} {debriefCount === 1 ? 'trip' : 'trips'} awaiting debrief
+          </Text>
+          <Text style={s.sub}>
+            Sixty seconds each. What you over-packed teaches the next list.
+          </Text>
         </Card>
       )}
 
-      {trips.map(t => {
-        const n = daysUntil(t.start_date);
-        const past = n < 0;
-        const when = n > 1 ? `in ${n} days` : n === 1 ? 'tomorrow' : n === 0 ? 'today' : 'past';
+      {shown.length === 0 && !error && (
+        <Card>
+          <Text style={s.h2}>
+            {all.length === 0 ? 'No trips yet'
+              : tab === 'finished' ? 'Nothing finished yet'
+              : 'Nothing coming up'}
+          </Text>
+          <Text style={s.sub}>
+            {all.length === 0
+              ? 'Create your first — the AI packs it with a reason on every item.'
+              : tab === 'finished'
+              ? 'Trips move here the day after they end.'
+              : 'Every trip you have is behind Finished.'}
+          </Text>
+          {tab !== 'finished' && (
+            <>
+              <View style={{ height: 14 }} />
+              <Btn label="+ New Trip" onPress={onNewTrip} />
+            </>
+          )}
+        </Card>
+      )}
+
+      {shown.map(t => {
+        const where = classify(t);
+        const when = whenLabel(t);
         const accent = accentForTrip(t.country_code, t.title);
-        const hrsToGo = (new Date(t.start_date + 'T00:00:00').getTime() - Date.now()) / 3600000;
-        const imminent = hrsToGo <= 24 && hrsToGo > -48;
+        // The trip you are actually on outranks everything else on the screen,
+        // for its whole length — not just the 48 hours the old rule allowed.
+        const imminent = where === 'in_progress' || when === 'tomorrow';
         const done = t.status === 'completed';
         return (
           <Pressable key={t.id} onPress={() => onOpenTrip(t)}>
@@ -119,7 +184,7 @@ export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, onArc
                   );
                 })()}
                 <Text style={[s.open, { color: accent }]}>
-                  {past && !done ? '60-second debrief ›' : 'Open trip ›'}
+                  {where === 'finished' && !done ? '60-second debrief ›' : 'Open trip ›'}
                 </Text>
               </View>
             </Card>
@@ -127,20 +192,17 @@ export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, onArc
         );
       })}
 
-      {trips.length > 0 && (
+      {shown.length > 0 && (
         <>
           <View style={{ height: 4 }} />
           <Btn label="+ New Trip" onPress={onNewTrip} />
         </>
       )}
 
+      {/* The "Past trips ›" link used to sit here. The Finished tab is the same
+          list with better cards, and two doors into one room is a choice the
+          reader has to make for no reason. */}
       <View style={s.links}>
-        {past.length > 0 && (
-          <>
-            <Pressable onPress={() => onArchive(past)}><Text style={s.link}>Past trips ({past.length}) ›</Text></Pressable>
-            <Text style={s.linkSep}>{'    ·    '}</Text>
-          </>
-        )}
         <Pressable onPress={onKits}><Text style={s.link}>My kits ›</Text></Pressable>
         <Text style={s.linkSep}>{'    ·    '}</Text>
         <Pressable onPress={onDocuments}><Text style={s.link}>Documents ›</Text></Pressable>
@@ -175,6 +237,14 @@ const s = StyleSheet.create({
   dates: { ...T.body, color: P.textSec, marginTop: 3, marginBottom: S[1] },
   wxLine: { ...T.caption, fontFamily: F.bold, marginBottom: S[2] },
   open: { ...T.body, fontFamily: F.bold },
+  tabs: {
+    flexDirection: 'row', backgroundColor: P.sunken, borderRadius: RA.pill,
+    padding: 3, marginBottom: S[4],
+  },
+  tab: { flex: 1, alignItems: 'center', paddingVertical: 7, borderRadius: RA.pill },
+  tabOn: { backgroundColor: P.card },
+  tabText: { ...T.caption, fontFamily: F.bold, color: P.textSec },
+  tabTextOn: { color: P.textPri },
   links: { flexDirection: 'row', justifyContent: 'center', marginTop: S[4] + 2 },
   link: { ...T.body, fontFamily: F.bold, color: P.brand },
   linkSep: { ...T.body, color: P.textSec },

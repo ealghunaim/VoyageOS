@@ -25,7 +25,6 @@ import Planner from './src/screens/Planner';
 import SOS from './src/screens/SOS';
 import TripHub from './src/screens/TripHub';
 import Wizard from './src/screens/Wizard';
-import Archive from './src/screens/Archive';
 import { accentForTrip, F, P, S, titleize } from './src/theme';
 
 /**
@@ -64,7 +63,6 @@ type Route =
   | { name: 'kits' }
   | { name: 'documents'; from?: 'profile' }  // remembers where to go back to
   | { name: 'profile' }
-  | { name: 'archive'; trips: Trip[] }
   | { name: 'forgot'; email?: string }
   | { name: 'reset' };
 
@@ -223,7 +221,6 @@ export default function App() {
           onDocuments={() => setRoute({ name: 'documents' })}
           onNewTrip={() => setRoute({ name: 'wizard' })}
           onOpenTrip={(t: Trip) => setRoute({ name: 'hub', trip: t })}
-          onArchive={(past) => setRoute({ name: 'archive', trips: past })}
         />
       )}
       {route.name === 'wizard' && (
@@ -241,10 +238,6 @@ export default function App() {
           onSOS={() => setRoute({ name: 'sos', trip: route.trip })}
           onDebrief={() => setRoute({ name: 'debrief', trip: route.trip })}
           onTripChanged={(t) => (t ? setRoute({ name: 'hub', trip: t }) : goHome())} />
-      )}
-      {route.name === 'archive' && (
-        <Archive trips={route.trips} onBack={goHome}
-          onOpen={(t) => setRoute({ name: 'hub', trip: t })} />
       )}
       {route.name === 'packing' && (
         <Packing tripId={route.trip.id} tripTitle={titleize(route.trip.title)}
