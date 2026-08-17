@@ -46,6 +46,40 @@ export function daysUntilDay(iso: string, now: Date = new Date()): number {
   return Math.round((target - todayLocal(now)) / 86400000);
 }
 
+/** A Date as YYYY-MM-DD in local time — the inverse of localDay(). */
+export function isoDay(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** A day pinned inside the trip.
+ *
+ *  Mirrors entry_date_for() in api/notes/router.py. Both ends clamp rather
+ *  than reject: at either edge the intent is obvious, and the server clamps
+ *  anyway — doing it here too means the screen shows what will actually be
+ *  stored instead of briefly showing something else.
+ */
+export function clampDay(iso: string, start?: string | null, end?: string | null): string {
+  if (start && iso < start) return start;
+  if (end && iso > end) return end;
+  return iso;
+}
+
+/** How a day is written above a journal entry. */
+export function dayLabel(iso: string, now: Date = new Date()): string {
+  // Parseability is checked FIRST. daysUntilDay() answers 0 for anything it
+  // cannot read, so asking it before this would label a broken date "Today" —
+  // a wrong date stated confidently, which is worse than an ugly one.
+  const d = localDay(iso);
+  if (isNaN(d)) return iso;
+  const n = daysUntilDay(iso, now);
+  if (n === 0) return 'Today';
+  if (n === -1) return 'Yesterday';
+  if (n === 1) return 'Tomorrow';
+  return new Date(d).toLocaleDateString(undefined, {
+    weekday: 'short', month: 'short', day: 'numeric',
+  });
+}
+
 export function classify(trip: TripLike, now: Date = new Date()): TripWhen {
   // An explicit completion wins over the calendar: someone who has debriefed a
   // trip has told us it is over, whatever the dates say.

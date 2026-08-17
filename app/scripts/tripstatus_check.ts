@@ -8,7 +8,9 @@
  *  finished` — the old badge computed past-ness from the start date, so a trip
  *  you were physically on read "past".
  */
-import { classify, daysUntilDay, needsDebrief, sortForTab, whenLabel } from '../src/tripStatus';
+import {
+  clampDay, classify, dayLabel, daysUntilDay, isoDay, needsDebrief, sortForTab, whenLabel,
+} from '../src/tripStatus';
 
 let bad = 0;
 const check = (label: string, got: unknown, want: unknown) => {
@@ -71,6 +73,25 @@ check('Finished: most recent first',
     .map(t => t.start_date),
   ['2026-08-12', '2026-08-01']);
 check('sorting does not mutate the input', many[0].start_date, '2026-09-20');
+
+console.log('\n  ── journal days ──');
+check('a Date becomes a local ISO day', isoDay(NOW), '2026-08-17');
+check('single digits pad', isoDay(new Date(2026, 0, 5, 23, 59)), '2026-01-05');
+check('late evening does not roll forward', isoDay(new Date(2026, 7, 17, 23, 59)), '2026-08-17');
+
+check('a day inside the trip is kept', clampDay('2026-08-14', '2026-08-10', '2026-08-20'), '2026-08-14');
+check('the first day is inside', clampDay('2026-08-10', '2026-08-10', '2026-08-20'), '2026-08-10');
+check('the last day is inside', clampDay('2026-08-20', '2026-08-10', '2026-08-20'), '2026-08-20');
+check('before clamps up', clampDay('1998-03-02', '2026-08-10', '2026-08-20'), '2026-08-10');
+check('after clamps down', clampDay('2026-09-01', '2026-08-10', '2026-08-20'), '2026-08-20');
+check('a trip with no dates does not clamp', clampDay('2026-09-01', null, null), '2026-09-01');
+
+check('today', dayLabel('2026-08-17', NOW), 'Today');
+check('yesterday', dayLabel('2026-08-16', NOW), 'Yesterday');
+check('tomorrow', dayLabel('2026-08-18', NOW), 'Tomorrow');
+check('an ordinary day gets a real date', /\d/.test(dayLabel('2026-08-12', NOW)), true);
+check('an ordinary day is not "Today"', dayLabel('2026-08-12', NOW) === 'Today', false);
+check('garbage is echoed, not blanked', dayLabel('not-a-day', NOW), 'not-a-day');
 
 console.log(bad === 0 ? '\n  ✓ all cases behave\n' : `\n  ✗ ${bad} wrong\n`);
 process.exit(bad === 0 ? 0 : 1);

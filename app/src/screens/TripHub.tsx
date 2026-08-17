@@ -8,6 +8,7 @@ import DepartureCard from './DepartureCard';
 import JourneyEditor from './JourneyEditor';
 import TripExtras from './TripExtras';
 import FlagField from '../components/FlagField';
+import { classify } from '../tripStatus';
 import { accentForTrip, onColor, tint, titleize, P, S, RA, E, T, FOLD } from '../theme';
 import { FAB_CLEARANCE } from '../components/TopBar';
 
@@ -101,7 +102,10 @@ export default function TripHub({ trip, accent, onBack, onPack, onPlan, onGuide,
   const [journeyOpen, setJourneyOpen] = useState(false);
   const [wx, setWx] = useState<WxDay[]>([]);
   const [heroW, setHeroW] = useState(0);
-  const past = new Date(trip.start_date + 'T00:00:00').getTime() < Date.now();
+  // Was `start_date < now`, which offered to close out a trip on its first
+  // morning — the same start-date-means-past bug fixed on Home in 2b. A trip
+  // is not finished because it has begun.
+  const past = classify(trip) === 'finished';
 
   const loadWx = useCallback(async () => {
     try { setWx((await getTripWeather(trip.id)).days); } catch {}

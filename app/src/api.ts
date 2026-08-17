@@ -323,10 +323,23 @@ export const putProfile = (b: Partial<Profile>): Promise<Profile> =>
 
 export type TripDetail = Trip & { destinations: TripStop[] };
 export const getTrip = (id: string): Promise<TripDetail> => req(`/v1/trips/${id}`);
-export type Note = { id: string; body: string; created_at: string; photos?: string[] };
+// entry_date is the day the entry is ABOUT; created_at is when it was typed.
+// They differ whenever somebody writes up a day after the fact — which is most
+// of the time. Optional on the type because rows written before 0029 and
+// servers that predate it will not carry it.
+export type Note = {
+  id: string; body: string; created_at: string; entry_date?: string; photos?: string[];
+};
 export const listNotes = (tripId: string): Promise<Note[]> => req(`/v1/trips/${tripId}/notes`);
-export const addNote = (tripId: string, body: string, photos: { b64: string; mime: string }[] = []): Promise<Note> =>
-  req(`/v1/trips/${tripId}/notes`, { method: 'POST', body: JSON.stringify({ body, photos }) });
+export const addNote = (tripId: string, body: string, photos: { b64: string; mime: string }[] = [],
+                        entryDate?: string): Promise<Note> =>
+  req(`/v1/trips/${tripId}/notes`, {
+    method: 'POST', body: JSON.stringify({ body, photos, entry_date: entryDate }),
+  });
+export const patchNote = (tripId: string, noteId: string, entryDate: string): Promise<Note> =>
+  req(`/v1/trips/${tripId}/notes/${noteId}`, {
+    method: 'PATCH', body: JSON.stringify({ entry_date: entryDate }),
+  });
 
 export const patchTrip = (id: string, b: { title?: string; start_date?: string; end_date?: string; airline?: string; visa_status?: string; cabin_class?: string; depart_time?: string; segments?: Segment[]; with_kids?: boolean; traveler_types?: string[]; origin?: string; origin_country?: string; origin_lat?: number; origin_lng?: number }): Promise<Trip> =>
   req(`/v1/trips/${id}`, { method: 'PATCH', body: JSON.stringify(b) });

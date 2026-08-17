@@ -256,6 +256,8 @@ export default function App() {
       {route.name === 'journal' && (
         <Journal tripId={route.trip.id} tripTitle={titleize(route.trip.title)}
           accent={screenAccent(route.trip)}
+          startDate={route.trip.start_date} endDate={route.trip.end_date}
+          status={route.trip.status}
           onBack={() => setRoute({ name: 'hub', trip: route.trip })} />
       )}
       {route.name === 'plan' && (
