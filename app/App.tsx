@@ -1,14 +1,17 @@
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { SafeAreaProvider, SafeAreaView as SafeArea } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Dimensions, Image, Linking, SafeAreaView, StatusBar, Text, TextInput, View } from 'react-native';
 import { setAuthFailHandler, Trip } from './src/api';
-import { getUserId, hasAuthKeys, loadSession, signOut } from './src/auth';
 import { configurePurchases } from './src/purchases';
 import ForgotPassword from './src/screens/ForgotPassword';
 import Paywall from './src/screens/Paywall';
 import ResetPassword from './src/screens/ResetPassword';
 import { parseAuthLink } from './src/deepLink';
-import { adoptRecoverySession } from './src/auth';
+import { adoptRecoverySession, getUserId, loadSession } from './src/auth';
 import { currentSubscription } from './src/subscription';
 import { registerForPush } from './src/push';
 import Debrief from './src/screens/Debrief';
@@ -16,7 +19,7 @@ import Documents from './src/screens/Documents';
 import Home from './src/screens/Home';
 import Kits from './src/screens/Kits';
 import Login from './src/screens/Login';
-import TopBar, { FloatingAdd, FloatingHome, FloatingProfile } from './src/components/TopBar';
+import TopBar, { FloatingAdd, TabIcon } from './src/components/TopBar';
 import Guide from './src/screens/Guide';
 import Packing from './src/screens/Packing';
 import Profile from './src/screens/Profile';
@@ -25,7 +28,7 @@ import Planner from './src/screens/Planner';
 import SOS from './src/screens/SOS';
 import TripHub from './src/screens/TripHub';
 import Wizard from './src/screens/Wizard';
-import { accentForTrip, F, P, S, titleize } from './src/theme';
+import { accentForTrip, F, P, S, T, titleize } from './src/theme';
 
 /**
  * Satoshi as the app-wide default.
@@ -49,29 +52,139 @@ function defaultToSatoshi() {
 }
 defaultToSatoshi();
 
-type Route =
-  | { name: 'home' }
-  | { name: 'login' }
-  | { name: 'wizard' }
-  | { name: 'hub'; trip: Trip }
-  | { name: 'packing'; trip: Trip }
-  | { name: 'guide'; trip: Trip; section: string }
-  | { name: 'journal'; trip: Trip }
-  | { name: 'plan'; trip: Trip }
-  | { name: 'sos'; trip: Trip }
-  | { name: 'debrief'; trip: Trip }
-  | { name: 'kits' }
-  | { name: 'documents'; from?: 'profile' }  // remembers where to go back to
-  | { name: 'profile' }
-  | { name: 'forgot'; email?: string }
-  | { name: 'reset' };
+/**
+ * WHY A NAVIGATOR
+ *
+ * This was a `useState<Route>` switch with fifteen shapes, and three separate
+ * things had grown to compensate for its lack of a stack:
+ *
+ *   - `{ name: 'documents'; from?: 'profile' }` — Documents is reachable from
+ *     two places, and with no history the route had to carry its own return
+ *     address.
+ *   - `homeKey`, bumped to force Home to remount, because "go back to Home"
+ *     could not mean "pop to what was already there".
+ *   - Nothing listened for Android's hardware back, so it closed the app from
+ *     every screen. 2f patched the wizard by hand; every other screen still
+ *     had the bug, and fixing it screen-by-screen was eight more listeners.
+ *
+ * A stack answers all three at once, and none of them are navigator features —
+ * they are just what having a history means.
+ *
+ * SHAPE
+ *
+ *   Root (stack)
+ *     ├─ Login / Forgot / Reset      — when signed out, or mid password reset
+ *     ├─ Tabs                        — Trips · Kits · Docs
+ *     ├─ Wizard
+ *     ├─ Profile
+ *     └─ Hub · Packing · Guide · Journal · Plan · SOS · Debrief
+ *
+ * Trip screens push on the ROOT stack rather than inside the Trips tab, so the
+ * tab bar is not present inside a trip. A trip wears its destination's colour
+ * and every one of its screens already has a `‹ Trip name` back link; leaving
+ * a tab bar underneath would put a second, contradictory way out on screen and
+ * dilute the accent that makes a trip feel like its own place.
+ */
+const Root = createNativeStackNavigator();
+const Tabs = createBottomTabNavigator();
+
+/** Params carried by the trip screens. Trip objects are passed whole, as they
+ *  were before — every screen wants several fields off them. */
+type TripParams = { trip: Trip };
+
+/** Opening the paywall, without routing.
+ *
+ *  It is a modal over whatever is on screen, not a destination, so it is not a
+ *  route. Passing the opener through navigation params would put a function
+ *  into navigation state — which React Navigation warns about, because state
+ *  is meant to be serialisable for persistence and deep links.
+ */
+const PlansContext = React.createContext<() => void>(() => {});
+
+const screenAccent = (t: Trip) => accentForTrip(t.country_code, t.title);
+const tripPlace = (t: Trip) => t.place ?? t.title.replace(/ trip$/i, '');
+
+// ── the tab shell ───────────────────────────────────────────────────────────
+
+/** Chrome shared by the three tab screens.
+ *
+ *  The identity bar is here rather than in each screen because on these three
+ *  it means the same thing. It is deliberately NOT on trip screens: a fixed
+ *  logo bar cannot express "back one level", and stacking it over a `‹` link
+ *  would be two navigation systems again, which is the thing being removed.
+ */
+function TabShell({ children, onProfile }: {
+  children: React.ReactNode; onProfile: () => void;
+}) {
+  const openPlans = React.useContext(PlansContext);
+  return (
+    <View style={{ flex: 1, backgroundColor: P.pageBg }}>
+      <TopBar
+        onProfile={onProfile}
+        onTierPress={() => {
+          // Tier-dependent, deliberately. A free user is being invited to
+          // buy, so the badge opens the paywall. A paying one already owns
+          // it — selling them the same thing again is wrong; what they want
+          // is renewal date, restore and cancel, which live in Profile.
+          const tier = currentSubscription()?.tier ?? 'free';
+          if (tier === 'free') openPlans(); else onProfile();
+        }}
+      />
+      <View style={{ flex: 1 }}>{children}</View>
+    </View>
+  );
+}
+
+function TabsScreen({ navigation }: any) {
+  const onProfile = () => navigation.navigate('Profile');
+  return (
+    <Tabs.Navigator
+      screenOptions={({ route: r }) => ({
+        headerShown: false,
+        tabBarActiveTintColor: P.brand,
+        tabBarInactiveTintColor: P.textMuted,
+        tabBarStyle: { backgroundColor: P.card, borderTopColor: P.hairline },
+        tabBarLabelStyle: { ...T.caption, fontFamily: F.med },
+        tabBarIcon: ({ color }) => (
+          <TabIcon color={color}
+            kind={r.name === 'Trips' ? 'trips' : r.name === 'Kits' ? 'kits' : 'docs'} />
+        ),
+      })}>
+      <Tabs.Screen name="Trips">
+        {() => (
+          <TabShell onProfile={onProfile}>
+            <Home
+              onNewTrip={() => navigation.navigate('Wizard')}
+              onOpenTrip={(t: Trip) => navigation.navigate('Hub', { trip: t })}
+            />
+            {/* The + stays a floating control on Trips only. It is the one
+                primary action in the app, and a fourth tab for "create" would
+                rank it alongside the places you go rather than above them. */}
+            <FloatingAdd onPress={() => navigation.navigate('Wizard')} />
+          </TabShell>
+        )}
+      </Tabs.Screen>
+      <Tabs.Screen name="Kits">
+        {() => (
+          <TabShell onProfile={onProfile}>
+            <Kits />
+          </TabShell>
+        )}
+      </Tabs.Screen>
+      <Tabs.Screen name="Docs" options={{ title: 'Documents' }}>
+        {() => (
+          <TabShell onProfile={onProfile}>
+            <Documents />
+          </TabShell>
+        )}
+      </Tabs.Screen>
+    </Tabs.Navigator>
+  );
+}
+
+// ── the app ─────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [route, setRoute] = useState<Route>({ name: 'home' });
-  const [homeKey, setHomeKey] = useState(0);
-  // In-trip screens wear the destination's colour. The FAB and bottom bar stay
-  // brand blue in every trip — they are global chrome, not trip surface.
-  const screenAccent = (t: Trip) => accentForTrip(t.country_code, t.title);
   const [booting, setBooting] = useState(true);
   const [fontsLoaded] = useFonts({
     Satoshi: require('./assets/fonts/Satoshi-Regular.otf'),
@@ -80,14 +193,22 @@ export default function App() {
   });
   const [authed, setAuthed] = useState(false);
   const [plansOpen, setPlansOpen] = useState(false);
+  // Which auth screen the password-reset flow is on, if any. Rendering this as
+  // a different set of stack screens — rather than navigating to them — is
+  // what makes a dead session unable to leave a stale trip screen behind.
+  const [authFlow, setAuthFlow] = useState<'forgot' | 'reset' | null>(null);
   // Shown when a recovery link is dead rather than valid — the same screen
   // handles both, because both arrive on the same URL.
   const [linkError, setLinkError] = useState<string | null>(null);
-
-  const goHome = () => { setHomeKey(k => k + 1); setRoute({ name: 'home' }); };
+  const [resetEmail, setResetEmail] = useState<string | undefined>();
+  // Above the boot early-return, deliberately: a hook called inside the JSX
+  // below runs on the ready render and not the booting one, which is a
+  // different hook count between renders and exactly the crash ESLint's
+  // rules-of-hooks exists to catch.
+  const openPlans = React.useCallback(() => setPlansOpen(true), []);
 
   useEffect(() => {
-    setAuthFailHandler(() => { setAuthed(false); setRoute({ name: 'login' }); });
+    setAuthFailHandler(() => { setAuthed(false); setAuthFlow(null); });
     // Assigned inside the async body below, torn down by the effect's cleanup.
     let cleanupLink: (() => void) | undefined;
     (async () => {
@@ -102,16 +223,16 @@ export default function App() {
         if (!link) return;                       // not ours; ignore quietly
         if (link.kind === 'error') {
           setLinkError(link.message);
-          setRoute({ name: 'forgot' });
+          setAuthFlow('forgot');
           return;
         }
         const ok = await adoptRecoverySession(link.accessToken, link.refreshToken);
         if (ok) {
           setAuthed(true);
-          setRoute({ name: 'reset' });
+          setAuthFlow('reset');
         } else {
           setLinkError('That reset link is no longer valid.');
-          setRoute({ name: 'forgot' });
+          setAuthFlow('forgot');
         }
       };
       Linking.getInitialURL().then(handleLink).catch(() => {});
@@ -125,7 +246,6 @@ export default function App() {
         // up the first render, and nothing on screen depends on it yet.
         configurePurchases(getUserId());
       }
-      if (s === 'anon') setRoute({ name: 'login' });
       setBooting(false);
     })();
     return () => { cleanupLink?.(); };
@@ -156,140 +276,203 @@ export default function App() {
     );
   }
 
-  // The identity bar belongs to Home only. Inner screens are hierarchical and
-  // keep their own `‹ Trip name` back links; a fixed logo bar cannot express
-  // "back one level", and stacking both would be two navigation systems.
-  const showTopBar = route.name === 'home' || route.name === 'profile';
-  // The + is reachable wherever a trip could be added from, but not over the
-  // login screen or a wizard that is already creating one.
-  const showAdd = route.name !== 'login' && route.name !== 'wizard';
-  // Home is reachable from everywhere the + is, except Home itself — a button
-  // that navigates to the screen you are on is just a dead target.
-  const showHome = showAdd && route.name !== 'home';
-  const showProfile = showAdd && route.name !== 'profile';
-
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: P.pageBg }}>
+    <SafeAreaProvider>
       <StatusBar barStyle="dark-content" />
-      {showTopBar && (
-        <TopBar
-          onTierPress={() => {
-            // Tier-dependent, deliberately. A free user is being invited to
-            // buy, so the badge opens the paywall. A paying one already owns
-            // it — selling them the same thing again is wrong; what they want
-            // is renewal date, restore and cancel, which live in Profile.
-            const tier = currentSubscription()?.tier ?? 'free';
-            if (tier === 'free') setPlansOpen(true);
-            else setRoute({ name: 'profile' });
-          }}
-        />
-      )}
-      <Paywall visible={plansOpen} onClose={() => setPlansOpen(false)} />
-      <View style={{ flex: 1 }}>
-      {route.name === 'forgot' && (
-        <ForgotPassword
-          email={route.email}
-          notice={linkError}
-          onBack={() => { setLinkError(null); setRoute({ name: 'login' }); }}
-        />
-      )}
-      {route.name === 'reset' && (
-        <ResetPassword
-          onDone={() => { setAuthed(true); configurePurchases(getUserId()); goHome(); }}
-          onStartOver={() => { setAuthed(false); setRoute({ name: 'forgot' }); }}
-        />
-      )}
-      {route.name === 'login' && (
-        <Login
-          onForgot={(email) => setRoute({ name: 'forgot', email })}
-          onDone={() => {
-          setAuthed(true);
-          // The mount effect above only runs once, so a sign-in during
-          // this app session reaches here instead. Without it, someone
-          // who signs in without relaunching has no RevenueCat identity
-          // and their purchase would be filed against nobody.
-          configurePurchases(getUserId());
-          goHome();
-        }} />
-      )}
-      {route.name === 'home' && (
-        <Home
-          key={homeKey}
-          authed={authed}
-          onSignOut={async () => { await signOut(); setAuthed(false); setRoute({ name: 'login' }); }}
-          onKits={() => setRoute({ name: 'kits' })}
-          onDocuments={() => setRoute({ name: 'documents' })}
-          onNewTrip={() => setRoute({ name: 'wizard' })}
-          onOpenTrip={(t: Trip) => setRoute({ name: 'hub', trip: t })}
-        />
-      )}
-      {route.name === 'wizard' && (
-        <Wizard
-          onCancel={goHome}
-          onDone={(trip) => setRoute({ name: 'hub', trip })}
-        />
-      )}
-      {route.name === 'hub' && (
-        <TripHub trip={route.trip} accent={screenAccent(route.trip)} onBack={goHome}
-          onPack={() => setRoute({ name: 'packing', trip: route.trip })}
-          onPlan={() => setRoute({ name: 'plan', trip: route.trip })}
-          onGuide={(section) => setRoute({ name: 'guide', trip: route.trip, section })}
-          onJournal={() => setRoute({ name: 'journal', trip: route.trip })}
-          onSOS={() => setRoute({ name: 'sos', trip: route.trip })}
-          onDebrief={() => setRoute({ name: 'debrief', trip: route.trip })}
-          onTripChanged={(t) => (t ? setRoute({ name: 'hub', trip: t }) : goHome())} />
-      )}
-      {route.name === 'packing' && (
-        <Packing tripId={route.trip.id} tripTitle={titleize(route.trip.title)}
-          accent={screenAccent(route.trip)}
-          onBack={() => setRoute({ name: 'hub', trip: route.trip })}
-          onDebrief={() => setRoute({ name: 'debrief', trip: route.trip })} />
-      )}
-      {route.name === 'guide' && (
-        <Guide trip={route.trip} tripId={route.trip.id} tripTitle={titleize(route.trip.title)} section={route.section}
-          onTripChanged={(t) => setRoute({ name: 'guide', trip: t, section: route.section })}
-          accent={screenAccent(route.trip)}
-          place={route.trip.place ?? route.trip.title.replace(/ trip$/i, '')}
-          country={route.trip.country_code ?? null}
-          onBack={() => setRoute({ name: 'hub', trip: route.trip })} />
-      )}
-      {route.name === 'journal' && (
-        <Journal tripId={route.trip.id} tripTitle={titleize(route.trip.title)}
-          accent={screenAccent(route.trip)}
-          startDate={route.trip.start_date} endDate={route.trip.end_date}
-          status={route.trip.status}
-          onBack={() => setRoute({ name: 'hub', trip: route.trip })} />
-      )}
-      {route.name === 'plan' && (
-        <Planner tripId={route.trip.id} tripTitle={titleize(route.trip.title)}
-          accent={screenAccent(route.trip)}
-          startDate={route.trip.start_date} endDate={route.trip.end_date}
-          onBack={() => setRoute({ name: 'hub', trip: route.trip })} />
-      )}
-      {route.name === 'sos' && (
-        <SOS tripId={route.trip.id} tripTitle={titleize(route.trip.title)}
-          place={route.trip.place ?? route.trip.title.replace(/ trip$/i, '')}
-          accent={screenAccent(route.trip)}
-          onBack={() => setRoute({ name: 'hub', trip: route.trip })} />
-      )}
-      {route.name === 'debrief' && (
-        <Debrief tripId={route.trip.id} tripTitle={titleize(route.trip.title)} onDone={goHome} />
-      )}
-      {route.name === 'kits' && <Kits onBack={goHome} />}
-      {route.name === 'documents' && (
-        <Documents onBack={() => setRoute(route.from === 'profile' ? { name: 'profile' } : { name: 'home' })} />
-      )}
-      {route.name === 'profile' && (
-        <Profile
-          onSignedOut={() => { setAuthed(false); setRoute({ name: 'login' }); }}
-          onDocuments={() => setRoute({ name: 'documents', from: 'profile' })}
-        />
-      )}
-      </View>
-      {showHome && <FloatingHome onPress={goHome} />}
-      {showProfile && <FloatingProfile onPress={() => setRoute({ name: 'profile' })} />}
-      {showAdd && <FloatingAdd onPress={() => setRoute({ name: 'wizard' })} />}
-    </SafeAreaView>
+      {/* The top inset, once, for every screen.
+          The old code got this from a SafeAreaView wrapping the whole app.
+          Replacing it with SafeAreaProvider provides the inset VALUES but
+          applies none of them, so the identity bar rendered under the clock
+          and the notch. Only the top edge is claimed here — the bottom belongs
+          to the tab bar, which insets itself, and claiming it twice would
+          float the bar above the home indicator on a gap of dead pixels. */}
+      <SafeArea style={{ flex: 1, backgroundColor: P.pageBg }} edges={['top']}>
+      <NavigationContainer
+        theme={{
+          dark: false,
+          colors: {
+            primary: P.brand, background: P.pageBg, card: P.card,
+            text: P.textPri, border: P.hairline, notification: P.brand,
+          },
+          fonts: {
+            regular: { fontFamily: F.reg, fontWeight: '400' },
+            medium: { fontFamily: F.med, fontWeight: '500' },
+            bold: { fontFamily: F.bold, fontWeight: '700' },
+            heavy: { fontFamily: F.bold, fontWeight: '700' },
+          },
+        }}>
+        <Paywall visible={plansOpen} onClose={() => setPlansOpen(false)} />
+        <PlansContext.Provider value={openPlans}>
+        <Root.Navigator screenOptions={{ headerShown: false }}>
+          {/* Auth screens and app screens are never both in the stack. Signing
+              out therefore cannot leave a trip screen underneath a login form,
+              which a navigate() would have. */}
+          {!authed || authFlow ? (
+            authFlow === 'reset' ? (
+              <Root.Screen name="Reset">
+                {() => (
+                  <ResetPassword
+                    onDone={() => {
+                      setAuthed(true); setAuthFlow(null);
+                      configurePurchases(getUserId());
+                    }}
+                    onStartOver={() => { setAuthed(false); setAuthFlow('forgot'); }}
+                  />
+                )}
+              </Root.Screen>
+            ) : authFlow === 'forgot' ? (
+              <Root.Screen name="Forgot">
+                {() => (
+                  <ForgotPassword
+                    email={resetEmail}
+                    notice={linkError}
+                    onBack={() => { setLinkError(null); setAuthFlow(null); }}
+                  />
+                )}
+              </Root.Screen>
+            ) : (
+              <Root.Screen name="Login">
+                {() => (
+                  <Login
+                    onForgot={(email) => { setResetEmail(email); setAuthFlow('forgot'); }}
+                    onDone={() => {
+                      setAuthed(true);
+                      // The mount effect above only runs once, so a sign-in
+                      // during this app session reaches here instead. Without
+                      // it, someone who signs in without relaunching has no
+                      // RevenueCat identity and their purchase would be filed
+                      // against nobody.
+                      configurePurchases(getUserId());
+                    }}
+                  />
+                )}
+              </Root.Screen>
+            )
+          ) : (
+            <>
+              <Root.Screen name="Tabs" component={TabsScreen} />
+
+              <Root.Screen name="Wizard">
+                {({ navigation }: any) => (
+                  <Wizard
+                    onCancel={() => navigation.goBack()}
+                    onDone={(trip) => navigation.replace('Hub', { trip })}
+                  />
+                )}
+              </Root.Screen>
+
+              <Root.Screen name="Profile">
+                {({ navigation }: any) => (
+                  <Profile
+                    onSignedOut={() => { setAuthed(false); setAuthFlow(null); }}
+                    // No `from` param any more: the stack remembers where this
+                    // was opened from, which is the whole reason it exists.
+                    // Addressed through the parent, because Docs is a tab
+                    // inside Tabs rather than a screen on this stack.
+                    onDocuments={() => navigation.navigate('Tabs', { screen: 'Docs' })}
+                    onBack={() => navigation.goBack()}
+                  />
+                )}
+              </Root.Screen>
+
+              <Root.Screen name="Hub">
+                {({ navigation, route }: any) => {
+                  const { trip } = route.params as TripParams;
+                  return (
+                    <TripHub trip={trip} accent={screenAccent(trip)}
+                      onBack={() => navigation.goBack()}
+                      onPack={() => navigation.navigate('Packing', { trip })}
+                      onPlan={() => navigation.navigate('Plan', { trip })}
+                      onGuide={(section: string) => navigation.navigate('Guide', { trip, section })}
+                      onJournal={() => navigation.navigate('Journal', { trip })}
+                      onSOS={() => navigation.navigate('SOS', { trip })}
+                      onDebrief={() => navigation.navigate('Debrief', { trip })}
+                      onTripChanged={(t: Trip | null) => (t
+                        ? navigation.setParams({ trip: t })
+                        : navigation.popToTop())} />
+                  );
+                }}
+              </Root.Screen>
+
+              <Root.Screen name="Packing">
+                {({ navigation, route }: any) => {
+                  const { trip } = route.params as TripParams;
+                  return (
+                    <Packing tripId={trip.id} tripTitle={titleize(trip.title)}
+                      accent={screenAccent(trip)}
+                      onBack={() => navigation.goBack()}
+                      onDebrief={() => navigation.navigate('Debrief', { trip })} />
+                  );
+                }}
+              </Root.Screen>
+
+              <Root.Screen name="Guide">
+                {({ navigation, route }: any) => {
+                  const { trip, section } = route.params;
+                  return (
+                    <Guide trip={trip} tripId={trip.id} tripTitle={titleize(trip.title)}
+                      section={section}
+                      onTripChanged={(t: Trip) => navigation.setParams({ trip: t })}
+                      accent={screenAccent(trip)}
+                      place={tripPlace(trip)}
+                      country={trip.country_code ?? null}
+                      onBack={() => navigation.goBack()} />
+                  );
+                }}
+              </Root.Screen>
+
+              <Root.Screen name="Journal">
+                {({ navigation, route }: any) => {
+                  const { trip } = route.params as TripParams;
+                  return (
+                    <Journal tripId={trip.id} tripTitle={titleize(trip.title)}
+                      accent={screenAccent(trip)}
+                      startDate={trip.start_date} endDate={trip.end_date}
+                      status={trip.status}
+                      onBack={() => navigation.goBack()} />
+                  );
+                }}
+              </Root.Screen>
+
+              <Root.Screen name="Plan">
+                {({ navigation, route }: any) => {
+                  const { trip } = route.params as TripParams;
+                  return (
+                    <Planner tripId={trip.id} tripTitle={titleize(trip.title)}
+                      accent={screenAccent(trip)}
+                      startDate={trip.start_date} endDate={trip.end_date}
+                      onBack={() => navigation.goBack()} />
+                  );
+                }}
+              </Root.Screen>
+
+              <Root.Screen name="SOS">
+                {({ navigation, route }: any) => {
+                  const { trip } = route.params as TripParams;
+                  return (
+                    <SOS tripId={trip.id} tripTitle={titleize(trip.title)}
+                      place={tripPlace(trip)}
+                      accent={screenAccent(trip)}
+                      onBack={() => navigation.goBack()} />
+                  );
+                }}
+              </Root.Screen>
+
+              <Root.Screen name="Debrief">
+                {({ navigation, route }: any) => {
+                  const { trip } = route.params as TripParams;
+                  return (
+                    <Debrief tripId={trip.id} tripTitle={titleize(trip.title)}
+                      onDone={() => navigation.popToTop()} />
+                  );
+                }}
+              </Root.Screen>
+            </>
+          )}
+        </Root.Navigator>
+        </PlansContext.Provider>
+      </NavigationContainer>
+      </SafeArea>
+    </SafeAreaProvider>
   );
 }
-

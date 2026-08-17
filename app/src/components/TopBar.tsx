@@ -15,16 +15,22 @@ import TierBadge from './TierBadge';
  * the page — no background, no divider — so the first thing below it reads as
  * the beginning of the content rather than as something under a header.
  *
- * Navigation left the bar entirely. Home and Profile are floating controls
- * beside the +, which also gives them something the bar never could: reach
- * from any screen, not just the two this renders on.
+ * Navigation used to live entirely outside this bar, in floating orbs. The
+ * tab bar took that job in Phase 3, and the bar took back one piece of it:
+ * the profile avatar, which is chrome rather than a destination and so has no
+ * business occupying one of three tab slots.
  */
 
 /** Measured from the artwork's alpha bounds — a wrong ratio stretches the mark. */
 const WORDMARK_ASPECT = 4.0025;
 const WORDMARK_H = 28;
 
-export default function TopBar({ onTierPress }: { onTierPress?: () => void } = {}) {
+export default function TopBar({ onTierPress, onProfile }: {
+  onTierPress?: () => void;
+  /** Present on the tab screens, where profile is chrome rather than a
+   *  destination in the bar. Absent leaves the bar exactly as it was. */
+  onProfile?: () => void;
+} = {}) {
   // Cached app-wide, so this does not fetch per screen. Null while the first
   // read is in flight — the badge simply is not there yet, which is quieter
   // than a placeholder that pops.
@@ -43,36 +49,58 @@ export default function TopBar({ onTierPress }: { onTierPress?: () => void } = {
           and the badge never crowds it on a narrow screen. */}
       <View style={{ flex: 1 }} />
       {!!sub && <TierBadge tier={sub.tier as any} onPress={onTierPress} />}
+      {/* The profile avatar replaces the floating profile orb. It sits in the
+          bar rather than the tab bar because profile is chrome — account,
+          billing, sign out — not one of the three things the app is FOR. */}
+      {!!onProfile && (
+        <Pressable onPress={onProfile} hitSlop={10} style={s.avatar}
+          accessibilityRole="button" accessibilityLabel="Profile">
+          <Svg width={19} height={19} viewBox="0 0 100 100">
+            <Circle cx="50" cy="34" r="18" fill={P.brand} />
+            <Path d="M18 88 q0 -28 32 -28 q32 0 32 28 Z" fill={P.brand} />
+          </Svg>
+        </Pressable>
+      )}
     </View>
   );
 }
 
-// ── floating controls ───────────────────────────────────────────────────────
+// ── tab bar icons ───────────────────────────────────────────────────────────
 //
-// Laid out right to left: +, profile, home. The + is brand-filled and larger
-// because it is the only primary action; the other two are white so they read
-// as navigation sitting behind it rather than as three equal buttons.
+// Drawn here rather than pulled from an icon set so they share the geometry
+// and weight of the marks already in this file. A tab bar in a second icon
+// language would read as a component borrowed from another app.
 
-const FAB = 54;
-const ORB = 46;
-const GAP = S[3];
-
-/** A circular floating control. Secondary by default — see above. */
-function Orb({ onPress, label, right, children }: {
-  onPress: () => void; label: string; right: number; children: React.ReactNode;
+export function TabIcon({ kind, color, size = 24 }: {
+  kind: 'trips' | 'kits' | 'docs'; color: string; size?: number;
 }) {
   return (
-    <Pressable
-      onPress={onPress}
-      hitSlop={8}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={({ pressed }) => [s.orb, { right }, E.mid, pressed && { opacity: 0.85 }]}
-    >
-      {children}
-    </Pressable>
+    <Svg width={size} height={size} viewBox="0 0 100 100">
+      {kind === 'trips' && (
+        // A paper plane, matching the ✈ the trip screens already use for mode.
+        <Path d="M92 8 L8 44 l32 12 l12 32 Z M40 56 L92 8" fill={color} />
+      )}
+      {kind === 'kits' && (
+        // A bag: handle over a soft-cornered body.
+        <>
+          <Path d="M36 30 v-6 a14 14 0 0 1 28 0 v6" fill="none" stroke={color} strokeWidth={9} />
+          <Path d="M18 34 h64 a6 6 0 0 1 6 6 v42 a6 6 0 0 1 -6 6 h-64 a6 6 0 0 1 -6 -6 v-42 a6 6 0 0 1 6 -6 Z" fill={color} />
+        </>
+      )}
+      {kind === 'docs' && (
+        // A sheet with its corner turned.
+        <Path d="M22 8 h40 l20 20 v64 a4 4 0 0 1 -4 4 h-56 a4 4 0 0 1 -4 -4 v-80 a4 4 0 0 1 4 -4 Z M62 8 v22 h20" fill={color} />
+      )}
+    </Svg>
   );
 }
+
+// ── the floating + ──────────────────────────────────────────────────────────
+//
+// One control now, not three. It is brand-filled and larger than the orbs that
+// used to flank it because it is the only primary action in the app.
+
+const FAB = 54;
 
 /**
  * The + moved out of a fixed deck and floats over the content instead. The
@@ -81,7 +109,7 @@ function Orb({ onPress, label, right, children }: {
  *
  * Bottom-right is the reachable corner for a right-handed thumb. It is a real
  * handedness trade — the old centred position was neutral — taken knowingly,
- * and it costs more now that three controls live there rather than one.
+ * and it costs less now that it is alone there rather than one of three.
  */
 export function FloatingAdd({ onPress }: { onPress: () => void }) {
   return (
@@ -99,37 +127,15 @@ export function FloatingAdd({ onPress }: { onPress: () => void }) {
   );
 }
 
-/**
- * Home from anywhere. The old bar could not express this — it rendered on two
- * routes, so from a trip screen the only way back to the root was walking up
- * the hierarchy one `‹` at a time. Hidden on Home itself, where it would be a
- * button that does nothing.
- */
-export function FloatingHome({ onPress }: { onPress: () => void }) {
-  return (
-    <Orb onPress={onPress} label="Home" right={S[5] + FAB + GAP + ORB + GAP}>
-      <Svg width={21} height={21} viewBox="0 0 100 100">
-        <Path d="M50 12 L90 46 h-10 V86 H60 V62 H40 V86 H20 V46 H10 Z" fill={P.brand} />
-      </Svg>
-    </Orb>
-  );
-}
-
-export function FloatingProfile({ onPress }: { onPress: () => void }) {
-  return (
-    <Orb onPress={onPress} label="Profile" right={S[5] + FAB + GAP}>
-      <Svg width={21} height={21} viewBox="0 0 100 100">
-        <Circle cx="50" cy="34" r="18" fill={P.brand} />
-        <Path d="M18 88 q0 -28 32 -28 q32 0 32 28 Z" fill={P.brand} />
-      </Svg>
-    </Orb>
-  );
-}
+// The Home and Profile orbs lived here. Both are gone: Home is the Trips tab
+// and Profile is the avatar in the identity bar. They existed because the old
+// bar rendered on two routes only, so from a trip screen the sole way to the
+// root was walking up one `‹` at a time — a gap a tab bar does not have.
 
 /**
- * Clearance a scrolling list needs so its last card clears the floating
- * controls. Derived rather than typed: this was a literal sized for one
- * button, and adding two more silently buried the last card behind them.
+ * Clearance a scrolling list needs so its last card clears the floating + AND
+ * the tab bar beneath it. Derived rather than typed: this was a literal sized
+ * for one button, and adding more silently buried the last card behind them.
  */
 export const FAB_CLEARANCE = FAB + S[6] + S[4];
 
@@ -139,10 +145,10 @@ const s = StyleSheet.create({
     backgroundColor: 'transparent',
     paddingHorizontal: S[5], paddingVertical: S[4] - 2,
   },
-  orb: {
-    position: 'absolute', bottom: S[6],
-    width: ORB, height: ORB, borderRadius: ORB / 2,
+  avatar: {
+    width: 34, height: 34, borderRadius: 17, marginLeft: S[3],
     backgroundColor: P.card, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: P.hairline,
   },
   fab: {
     position: 'absolute', right: S[5], bottom: S[6],

@@ -27,8 +27,8 @@ function summarise(p: PackingProfile | null): string {
   return `${n} clothing categor${n === 1 ? 'y' : 'ies'}`;
 }
 
-export default function Profile({ onSignedOut, onDocuments }: {
-  onSignedOut: () => void; onDocuments: () => void;
+export default function Profile({ onSignedOut, onDocuments, onBack }: {
+  onSignedOut: () => void; onDocuments: () => void; onBack: () => void;
 }) {
   const [loaded, setLoaded] = useState(false);
   const [plansOpen, setPlansOpen] = useState(false);
@@ -127,6 +127,12 @@ export default function Profile({ onSignedOut, onDocuments }: {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={{ padding: S[5], paddingTop: S[5], paddingBottom: FAB_CLEARANCE }}>
+      {/* Profile is pushed now rather than reached from a floating orb, so it
+          needs the way out every other pushed screen has. The orb could be
+          tapped from anywhere and so never needed one. */}
+      <Pressable onPress={onBack} hitSlop={10} style={{ marginBottom: S[3] }}>
+        <Text style={[T.title, { color: P.brand }]}>‹ Back</Text>
+      </Pressable>
       <Text style={s.h1}>Profile</Text>
       <Text style={s.email}>{getEmail() || 'Signed in'}</Text>
 

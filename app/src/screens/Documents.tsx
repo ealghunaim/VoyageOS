@@ -55,7 +55,7 @@ const EMPTY: Draft = {
 /** Types where a number is the point of storing the document at all. */
 const WANTS_NUMBER = new Set(['passport', 'visa', 'driving_license', 'insurance']);
 
-export default function Documents({ onBack }: { onBack: () => void }) {
+export default function Documents() {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [d, setD] = useState<Draft>(EMPTY);
   const [busy, setBusy] = useState(false);
@@ -155,10 +155,10 @@ export default function Documents({ onBack }: { onBack: () => void }) {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={s.wrap}>
+      {/* No back link: this is a tab root, and the tab bar is the way
+          between it and the others. A "‹ Home" here would point sideways. */}
       <View style={s.header}>
-        <Pressable onPress={onBack} hitSlop={10}><Text style={s.back}>‹ Home</Text></Pressable>
         <Text style={s.h2}>Documents</Text>
-        <View style={{ width: S[12] }} />
       </View>
 
       {docs.length === 0 && (

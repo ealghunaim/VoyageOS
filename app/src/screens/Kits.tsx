@@ -5,7 +5,7 @@ import { Btn, Card } from '../components/ui';
 import { P, RA, S, T } from '../theme';
 import { FAB_CLEARANCE } from '../components/TopBar';
 
-export default function Kits({ onBack }: { onBack: () => void }) {
+export default function Kits() {
   const [kits, setKits] = useState<Kit[]>([]);
   const [open, setOpen] = useState<(Kit & { items: { item_id: string; name: string; qty: number }[] }) | null>(null);
   const [newName, setNewName] = useState('');
@@ -56,10 +56,10 @@ export default function Kits({ onBack }: { onBack: () => void }) {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }} contentContainerStyle={s.wrap}>
+      {/* No back link: this is a tab root, and the tab bar is the way
+          between it and the others. A "‹ Home" here would point sideways. */}
       <View style={s.header}>
-        <Pressable onPress={onBack} hitSlop={10}><Text style={s.back}>‹ Home</Text></Pressable>
         <Text style={s.h2}>My Kits</Text>
-        <View style={{ width: 48 }} />
       </View>
       {kits.map(k => (
         <Pressable key={k.id} onPress={() => openKit(k.id)}>

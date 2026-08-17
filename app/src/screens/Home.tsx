@@ -16,10 +16,8 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'finished', label: 'Finished' },
 ];
 
-export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, authed, onSignOut }: {
+export default function Home({ onNewTrip, onOpenTrip }: {
   onNewTrip: () => void; onOpenTrip: (t: Trip) => void;
-  onKits: () => void; onDocuments: () => void;
-  authed?: boolean; onSignOut?: () => void;
 }) {
   const [all, setAll] = useState<Trip[] | null>(null);
   const [tab, setTab] = useState<Tab>('upcoming');
@@ -199,15 +197,10 @@ export default function Home({ onNewTrip, onOpenTrip, onKits, onDocuments, authe
         </>
       )}
 
-      {/* The "Past trips ›" link used to sit here. The Finished tab is the same
-          list with better cards, and two doors into one room is a choice the
-          reader has to make for no reason. */}
-      <View style={s.links}>
-        <Pressable onPress={onKits}><Text style={s.link}>My kits ›</Text></Pressable>
-        <Text style={s.linkSep}>{'    ·    '}</Text>
-        <Pressable onPress={onDocuments}><Text style={s.link}>Documents ›</Text></Pressable>
-      </View>
-      <Text style={s.footer}>v1.0-dev{authed ? '' : ' · local mode'}</Text>
+      {/* Kits and Documents used to be two 11pt text links down here, which
+          is where things go to be missed. They are tabs now. The "Past trips ›"
+          link that sat beside them became the Finished tab in 2b. */}
+      <Text style={s.footer}>v1.0-dev</Text>
     </ScrollView>
   );
 }
