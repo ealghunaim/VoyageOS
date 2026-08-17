@@ -148,6 +148,69 @@ export async function verifyPassword(password: string): Promise<boolean> {
   }
 }
 
+/** Ask Supabase to email a recovery link.
+ *
+ *  Answers nothing about whether the address exists — deliberately. The caller
+ *  shows the same message either way, because a reset form that distinguishes
+ *  "sent" from "no such account" is an account-enumeration oracle: anyone can
+ *  learn who has an account by typing addresses into it.
+ *
+ *  Throws only on transport or rate-limit failure, which the caller maps to a
+ *  retry message.
+ */
+export async function requestPasswordReset(email: string, redirectTo: string): Promise<void> {
+  const res = await fetch(
+    `${SB_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`,
+    { method: 'POST', headers: headers(), body: JSON.stringify({ email }) },
+  );
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try { const j = await res.json(); msg = j.error_description || j.msg || j.message || msg; } catch {}
+    throw new Error(msg);
+  }
+}
+
+/** Adopt the session a recovery link hands us.
+ *
+ *  The link has already proven the person controls the mailbox, so Supabase
+ *  returns a real session — this stores it exactly as sign-in would, which is
+ *  what lets the next call (setting the new password) authenticate.
+ *
+ *  Note this signs them IN before they have chosen a password. That is how
+ *  Supabase recovery works and is safe: the one-time token was the proof, and
+ *  it is spent.
+ */
+export async function adoptRecoverySession(accessToken: string, refreshToken: string): Promise<boolean> {
+  try {
+    // Fetch the user so the session is real rather than assumed, and so email
+    // and id are populated the way persist() would.
+    const res = await fetch(`${SB_URL}/auth/v1/user`, {
+      headers: { ...headers(), Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) return false;
+    const user = await res.json();
+    await persist({ access_token: accessToken, refresh_token: refreshToken,
+                    expires_in: 3600, user });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Set a new password for the currently-signed-in user. */
+export async function setPassword(password: string): Promise<void> {
+  const res = await fetch(`${SB_URL}/auth/v1/user`, {
+    method: 'PUT',
+    headers: { ...headers(), Authorization: `Bearer ${access}` },
+    body: JSON.stringify({ password }),
+  });
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try { const j = await res.json(); msg = j.error_description || j.msg || j.message || msg; } catch {}
+    throw new Error(msg);
+  }
+}
+
 export async function signOut(): Promise<void> {
   // Here rather than at the call sites. signOut() is reached three ways —
   // Profile, App's sign-out button, and refreshSession() when a refresh fails

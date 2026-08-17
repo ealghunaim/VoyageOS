@@ -51,7 +51,11 @@ function authMessage(raw: string, mode: 'signin' | 'signup'):
   return { text: 'Something went wrong. Please try again.' };
 }
 
-export default function Login({ onDone }: { onDone: () => void }) {
+export default function Login({ onDone, onForgot }: {
+  onDone: () => void;
+  /** Opens the reset-request screen, carrying whatever they have typed. */
+  onForgot: (email: string) => void;
+}) {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
@@ -110,6 +114,17 @@ export default function Login({ onDone }: { onDone: () => void }) {
             textContentType={mode === 'signup' ? 'newPassword' : 'password'}
             autoComplete={mode === 'signup' ? 'password-new' : 'password'} />
           {!!msg && <Text style={s.msg}>{msg}</Text>}
+          {/* Only on sign-in: offering a reset while someone is creating an
+              account is noise, and the field they are filling is not yet an
+              account to reset. */}
+          {mode === 'signin' && (
+            <Pressable onPress={() => onForgot(email.trim())} hitSlop={8}
+              style={{ alignSelf: 'flex-end', marginTop: -6, marginBottom: 10 }}>
+              <Text style={{ ...T.caption, color: P.brand, fontFamily: F.med }}>
+                Forgot password?
+              </Text>
+            </Pressable>
+          )}
           {offerSignIn && (
             <Pressable onPress={() => { setMode('signin'); setMsg(''); setOfferSignIn(false); }}>
               <Text style={[s.swap, { marginTop: 0, marginBottom: 8 }]}>Sign in instead ›</Text>

@@ -1,10 +1,14 @@
 import { useFonts } from 'expo-font';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Dimensions, Image, SafeAreaView, StatusBar, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Image, Linking, SafeAreaView, StatusBar, Text, TextInput, View } from 'react-native';
 import { setAuthFailHandler, Trip } from './src/api';
 import { getUserId, hasAuthKeys, loadSession, signOut } from './src/auth';
 import { configurePurchases } from './src/purchases';
+import ForgotPassword from './src/screens/ForgotPassword';
 import Paywall from './src/screens/Paywall';
+import ResetPassword from './src/screens/ResetPassword';
+import { parseAuthLink } from './src/deepLink';
+import { adoptRecoverySession } from './src/auth';
 import { currentSubscription } from './src/subscription';
 import { registerForPush } from './src/push';
 import Debrief from './src/screens/Debrief';
@@ -60,7 +64,9 @@ type Route =
   | { name: 'kits' }
   | { name: 'documents'; from?: 'profile' }  // remembers where to go back to
   | { name: 'profile' }
-  | { name: 'archive'; trips: Trip[] };
+  | { name: 'archive'; trips: Trip[] }
+  | { name: 'forgot'; email?: string }
+  | { name: 'reset' };
 
 export default function App() {
   const [route, setRoute] = useState<Route>({ name: 'home' });
@@ -76,14 +82,44 @@ export default function App() {
   });
   const [authed, setAuthed] = useState(false);
   const [plansOpen, setPlansOpen] = useState(false);
+  // Shown when a recovery link is dead rather than valid — the same screen
+  // handles both, because both arrive on the same URL.
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   const goHome = () => { setHomeKey(k => k + 1); setRoute({ name: 'home' }); };
 
   useEffect(() => {
     setAuthFailHandler(() => { setAuthed(false); setRoute({ name: 'login' }); });
+    // Assigned inside the async body below, torn down by the effect's cleanup.
+    let cleanupLink: (() => void) | undefined;
     (async () => {
       const s = await loadSession();
       setAuthed(s === 'authed');
+      // A recovery link can arrive two ways: cold, opening the app (the
+      // initial URL), or while it is already running (the event). Both are
+      // ordinary — tapping the email with the app backgrounded is the common
+      // case — so both are handled, and the same parser reads them.
+      const handleLink = async (url: string | null) => {
+        const link = parseAuthLink(url);
+        if (!link) return;                       // not ours; ignore quietly
+        if (link.kind === 'error') {
+          setLinkError(link.message);
+          setRoute({ name: 'forgot' });
+          return;
+        }
+        const ok = await adoptRecoverySession(link.accessToken, link.refreshToken);
+        if (ok) {
+          setAuthed(true);
+          setRoute({ name: 'reset' });
+        } else {
+          setLinkError('That reset link is no longer valid.');
+          setRoute({ name: 'forgot' });
+        }
+      };
+      Linking.getInitialURL().then(handleLink).catch(() => {});
+      const sub = Linking.addEventListener('url', e => { handleLink(e.url); });
+      cleanupLink = () => sub.remove();
+
       if (s === 'authed') {
         registerForPush();
         // Configured WITH the user id, never anonymously — see purchases.ts.
@@ -94,6 +130,7 @@ export default function App() {
       if (s === 'anon') setRoute({ name: 'login' });
       setBooting(false);
     })();
+    return () => { cleanupLink?.(); };
   }, []);
 
   if (booting || !fontsLoaded) {
@@ -151,8 +188,23 @@ export default function App() {
       )}
       <Paywall visible={plansOpen} onClose={() => setPlansOpen(false)} />
       <View style={{ flex: 1 }}>
+      {route.name === 'forgot' && (
+        <ForgotPassword
+          email={route.email}
+          notice={linkError}
+          onBack={() => { setLinkError(null); setRoute({ name: 'login' }); }}
+        />
+      )}
+      {route.name === 'reset' && (
+        <ResetPassword
+          onDone={() => { setAuthed(true); configurePurchases(getUserId()); goHome(); }}
+          onStartOver={() => { setAuthed(false); setRoute({ name: 'forgot' }); }}
+        />
+      )}
       {route.name === 'login' && (
-        <Login onDone={() => {
+        <Login
+          onForgot={(email) => setRoute({ name: 'forgot', email })}
+          onDone={() => {
           setAuthed(true);
           // The mount effect above only runs once, so a sign-in during
           // this app session reaches here instead. Without it, someone
