@@ -46,7 +46,7 @@ COMMONS_API = "https://commons.wikimedia.org/w/api.php"
 
 #: Wikimedia asks for a descriptive agent that identifies the caller. A generic
 #: client string is grounds for being blocked, and rightly so.
-USER_AGENT = "VoyageOS/1.0 (https://voyageos.app; contact via app store listing)"
+USER_AGENT = "VoyageOS/1.0 (https://ealghunaim.github.io/voyageos-legal/; contact via App Store listing)"
 
 MATCH_KM = 100                 # a landmark is in the city you are visiting
 MIN_SIMILARITY = 0.6
