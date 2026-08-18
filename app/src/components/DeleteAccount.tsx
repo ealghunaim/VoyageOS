@@ -17,10 +17,17 @@
 // API. Sessions persist for weeks, so a phone left unlocked should not be able
 // to erase someone's travel history without proving who it is.
 import React, { useState } from 'react';
+// SafeAreaView from react-native, NOT from react-native-safe-area-context.
+//
+// A Modal renders in its own native view hierarchy. React context still
+// reaches into it, so the context version renders and typechecks happily —
+// it just reports insets measured from a provider that lives OUTSIDE the
+// modal, which is to say zero at the top. It fails silently and looks right
+// in code review. JourneyEditor used the react-native one all along and was
+// the only one of the four modals that never had this bug.
 import {
-  ActivityIndicator, Linking, Modal, Pressable, ScrollView, Text, TextInput, View,
+  ActivityIndicator, Linking, Modal, Pressable, SafeAreaView, ScrollView, Text, TextInput, View,
 } from 'react-native';
-import { SafeAreaView as SafeArea } from 'react-native-safe-area-context';
 
 import { deleteAccount } from '../api';
 import { verifyPassword } from '../auth';
@@ -69,7 +76,7 @@ export default function DeleteAccount({ onDeleted }: { onDeleted: () => void }) 
       </Pressable>
 
       <Modal visible={open} animationType="slide" onRequestClose={close}>
-        <SafeArea style={{ flex: 1, backgroundColor: P.pageBg }} edges={['top']}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: P.pageBg }}>
         <ScrollView style={{ flex: 1 }}
           contentContainerStyle={{ padding: S[5], paddingTop: S[4] }}>
           <Text style={{ ...T.h1, color: P.textPri }}>Delete account</Text>
@@ -141,7 +148,7 @@ export default function DeleteAccount({ onDeleted }: { onDeleted: () => void }) 
             <Text style={{ ...T.body, color: P.brand }}>Keep my account</Text>
           </Pressable>
         </ScrollView>
-        </SafeArea>
+        </SafeAreaView>
       </Modal>
     </>
   );
