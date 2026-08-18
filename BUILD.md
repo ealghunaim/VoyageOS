@@ -1,5 +1,17 @@
 # Building VoyageOS
 
+## Ship v1.1 from the tag, not from main
+
+**The v1.1 ship afternoon builds from `v1.1-rc`, not from `main`.** v1.2 work
+proceeds on main from the moment v1.1 is tagged, so by the time the ship
+afternoon happens main will contain unshipped v1.2 changes — including, by
+design, a native module and a schema migration. Checking out the tag is what
+makes the thing you submit the thing that was tested.
+
+    git checkout v1.1-rc
+
+Then follow the flip and checklist below, from the tag.
+
 ## app.json defaults to DEV, deliberately
 
 A fresh clone points at `localhost:8000` and the dev Supabase project. That is
