@@ -19,6 +19,7 @@
 // why the sheet says so rather than nagging.
 import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { SafeAreaView as SafeArea } from 'react-native-safe-area-context';
 
 import { Btn, Card } from './ui';
 import { F, P, S, T } from '../theme';
@@ -83,8 +84,9 @@ export default function WardrobeSheet({ visible, who, value, onSave, onClose }: 
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }}
-        contentContainerStyle={{ padding: S[5], paddingTop: S[8] }}
+      <SafeArea style={{ flex: 1, backgroundColor: P.pageBg }} edges={['top']}>
+      <ScrollView style={{ flex: 1 }}
+        contentContainerStyle={{ padding: S[5], paddingTop: S[4] }}
         keyboardShouldPersistTaps="handled">
         <Text style={{ ...T.h1, color: P.textPri }}>Packing profile</Text>
         <Text style={{ ...T.body, color: P.textSec, marginTop: S[2], marginBottom: S[4] }}>
@@ -154,6 +156,7 @@ export default function WardrobeSheet({ visible, who, value, onSave, onClose }: 
           Leave everything unticked and packing works exactly as it does today.
         </Text>
       </ScrollView>
+      </SafeArea>
     </Modal>
   );
 }

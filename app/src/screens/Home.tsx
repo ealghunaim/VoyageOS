@@ -70,7 +70,7 @@ export default function Home({ onNewTrip, onOpenTrip }: {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: P.pageBg }}
-      contentContainerStyle={{ padding: S[5], paddingTop: S[5], paddingBottom: FAB_CLEARANCE }}
+      contentContainerStyle={{ padding: S[5], paddingTop: S[2], paddingBottom: FAB_CLEARANCE }}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={async () => {
           setRefreshing(true); await load(); setRefreshing(false);
@@ -207,7 +207,10 @@ export default function Home({ onNewTrip, onOpenTrip }: {
 
 const s = StyleSheet.create({
   center: { flex: 1, backgroundColor: P.pageBg, alignItems: 'center', justifyContent: 'center' },
-  greeting: { ...T.display, color: P.textPri, marginTop: S[4] + 2, marginBottom: S[4] + 2 },
+  // Three paddings used to stack between the identity bar and this line —
+  // the bar's own 14, the list's 20, and a further 18 here, for 52pt of gap
+  // that read as the greeting having drifted loose from the header.
+  greeting: { ...T.display, color: P.textPri, marginTop: 0, marginBottom: S[4] },
   h2: { ...T.h2, color: P.textPri, marginBottom: S[1] },
   sub: { ...T.body, color: P.textSec, lineHeight: 20 },
   // An error banner reports a state, so it keeps colour. The neutral-grey rule

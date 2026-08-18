@@ -20,6 +20,7 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator, Linking, Modal, Pressable, ScrollView, Text, TextInput, View,
 } from 'react-native';
+import { SafeAreaView as SafeArea } from 'react-native-safe-area-context';
 
 import { deleteAccount } from '../api';
 import { verifyPassword } from '../auth';
@@ -68,8 +69,9 @@ export default function DeleteAccount({ onDeleted }: { onDeleted: () => void }) 
       </Pressable>
 
       <Modal visible={open} animationType="slide" onRequestClose={close}>
-        <ScrollView style={{ flex: 1, backgroundColor: P.pageBg }}
-          contentContainerStyle={{ padding: S[5], paddingTop: S[8] }}>
+        <SafeArea style={{ flex: 1, backgroundColor: P.pageBg }} edges={['top']}>
+        <ScrollView style={{ flex: 1 }}
+          contentContainerStyle={{ padding: S[5], paddingTop: S[4] }}>
           <Text style={{ ...T.h1, color: P.textPri }}>Delete account</Text>
 
           <Text style={{ ...T.body, color: P.textPri, marginTop: S[4], fontFamily: F.med }}>
@@ -139,6 +141,7 @@ export default function DeleteAccount({ onDeleted }: { onDeleted: () => void }) 
             <Text style={{ ...T.body, color: P.brand }}>Keep my account</Text>
           </Pressable>
         </ScrollView>
+        </SafeArea>
       </Modal>
     </>
   );

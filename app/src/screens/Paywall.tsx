@@ -23,6 +23,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
+import { SafeAreaView as SafeArea } from 'react-native-safe-area-context';
 import type { PurchasesPackage } from 'react-native-purchases';
 
 import { PRIVACY_URL, TERMS_URL } from '../legal';
@@ -129,7 +130,7 @@ export default function Paywall({ visible, initialTier, onClose }: {
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={s.screen}>
+      <SafeArea style={s.screen} edges={['top']}>
         <View style={s.head}>
           <Text style={s.title}>Choose your plan</Text>
           <Pressable onPress={onClose} hitSlop={12} accessibilityLabel="Close">
@@ -237,13 +238,17 @@ export default function Paywall({ visible, initialTier, onClose }: {
             </Pressable>
           </View>
         </ScrollView>
-      </View>
+      </SafeArea>
     </Modal>
   );
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: P.pageBg, paddingHorizontal: S[5], paddingTop: S[8] },
+// A full-screen Modal renders outside the app's SafeArea wrapper, so it has to
+// claim the top inset itself. This used to be `paddingTop: S[8]` — 32pt, a
+// guess that cleared the status bar on the phones it was written on and put
+// the title under the notch on a Pro Max, where the inset is nearer 62.
+  screen: { flex: 1, backgroundColor: P.pageBg, paddingHorizontal: S[5], paddingTop: S[4] },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
           marginBottom: S[2] },
   title: { ...T.h1, color: P.textPri },
