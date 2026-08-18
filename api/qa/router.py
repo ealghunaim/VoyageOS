@@ -26,7 +26,7 @@ class Ask(BaseModel):
 @router.post("/{trip_id}/ask")
 def ask(trip_id: str, body: Ask, user_id: str = Depends(current_user_id)):
     db = get_db()
-    trip = owned_trip(db, trip_id, user_id)
+    trip = owned_trip(db, trip_id, user_id, writing=True)
     dests = db.table("destinations").select("place_name,country_code") \
         .eq("trip_id", trip_id).order("seq").limit(1).execute().data
     wx = db.table("weather_snapshots").select("forecast_date,temp_min,temp_max,precip_prob,provider") \

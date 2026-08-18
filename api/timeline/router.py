@@ -33,7 +33,7 @@ def patch_task(task_id: str, body: TaskPatch, user_id: str = Depends(current_use
     rows = db.table("tasks").select("id,trip_id").eq("id", task_id).execute().data
     if not rows:
         raise HTTPException(404, "Task not found")
-    owned_trip(db, rows[0]["trip_id"], user_id)
+    owned_trip(db, rows[0]["trip_id"], user_id, writing=True)
     task = db.table("tasks").update({"status": body.status}).eq("id", task_id).execute().data[0]
     # done early → the pending reminder is cancelled, never "do the thing you did" (Part 3)
     db.table("notification_schedule").update({"status": "cancelled"}) \

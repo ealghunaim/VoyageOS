@@ -17,7 +17,7 @@ items_router = APIRouter(prefix="/v1/packing-items", tags=["packing"])
 def generate_list(trip_id: str, regenerate: bool = False,
                   user_id: str = Depends(current_user_id)):
     db = get_db()
-    trip = owned_trip(db, trip_id, user_id)
+    trip = owned_trip(db, trip_id, user_id, writing=True)
     return service.generate(db, trip, user_id, regenerate=regenerate)
 
 
@@ -71,7 +71,7 @@ def _main_bag(db, trip_id: str) -> dict | None:
 def set_bag(trip_id: str, body: BagBody, user_id: str = Depends(current_user_id)):
     """Generic mode (v0.5): a user-picked target, plainly labeled — not an airline rule."""
     db = get_db()
-    owned_trip(db, trip_id, user_id)
+    owned_trip(db, trip_id, user_id, writing=True)
     bag = _main_bag(db, trip_id)
     if bag:
         return db.table("bags").update({"target_limit_g": body.limit_g})             .eq("id", bag["id"]).execute().data[0]

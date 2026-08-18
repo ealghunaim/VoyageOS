@@ -76,7 +76,8 @@ def place_photos(body: PlacePhotoRequest, user_id: str = Depends(current_user_id
     placeholder would only invite a caption over the wrong picture.
     """
     db = get_db()
-    dest, _trip = owned_trip_via_destination(db, str(body.destination_id), user_id)
+    dest, _trip = owned_trip_via_destination(
+        db, str(body.destination_id), user_id, writing=True)
 
     if dest.get("lat") is None or dest.get("lng") is None:
         # Without coordinates the distance gate cannot run, and the remaining

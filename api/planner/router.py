@@ -53,7 +53,7 @@ def list_plan(trip_id: str, user_id: str = Depends(current_user_id)):
 @router.post("/{trip_id}/plan", status_code=201)
 def add_plan_item(trip_id: str, body: PlanItemCreate, user_id: str = Depends(current_user_id)):
     db = get_db()
-    owned_trip(db, trip_id, user_id)
+    owned_trip(db, trip_id, user_id, writing=True)
     row = {"trip_id": trip_id, "day": body.day, "time": clean_time(body.time),
            "title": body.title.strip()[:140], "note": (body.note or None), "seq": body.seq}
     return db.table("trip_plan_items").insert(row).execute().data[0]
@@ -63,7 +63,7 @@ def add_plan_item(trip_id: str, body: PlanItemCreate, user_id: str = Depends(cur
 def patch_plan_item(trip_id: str, item_id: str, body: PlanItemPatch,
                     user_id: str = Depends(current_user_id)):
     db = get_db()
-    owned_trip(db, trip_id, user_id)
+    owned_trip(db, trip_id, user_id, writing=True)
     patch = body.model_dump(exclude_none=True)
     if not patch:
         raise HTTPException(400, "Nothing to update")
@@ -81,6 +81,6 @@ def patch_plan_item(trip_id: str, item_id: str, body: PlanItemPatch,
 @router.delete("/{trip_id}/plan/{item_id}", status_code=204)
 def delete_plan_item(trip_id: str, item_id: str, user_id: str = Depends(current_user_id)):
     db = get_db()
-    owned_trip(db, trip_id, user_id)
+    owned_trip(db, trip_id, user_id, writing=True)
     db.table("trip_plan_items").delete().eq("id", item_id).eq("trip_id", trip_id).execute()
     return None

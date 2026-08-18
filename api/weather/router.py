@@ -12,7 +12,7 @@ router = APIRouter(prefix="/v1/trips", tags=["weather"])
 @router.post("/{trip_id}/weather/refresh")
 def refresh(trip_id: str, user_id: str = Depends(current_user_id)):
     db = get_db()
-    trip = owned_trip(db, trip_id, user_id)
+    trip = owned_trip(db, trip_id, user_id, writing=True)
     return refresh_trip(db, trip, user_id)
 
 

@@ -102,7 +102,7 @@ def get_trip(trip_id: str, user_id: str = Depends(current_user_id)):
 @router.post("/{trip_id}/destinations", status_code=201)
 def add_destination(trip_id: str, body: DestinationCreate, user_id: str = Depends(current_user_id)):
     db = get_db()
-    owned_trip(db, trip_id, user_id)
+    owned_trip(db, trip_id, user_id, writing=True)
     row = {
         "trip_id": trip_id,
         "place_name": (body.place_name or "").strip()[:120] or "Trip",
@@ -160,7 +160,7 @@ def add_destination(trip_id: str, body: DestinationCreate, user_id: str = Depend
 @router.post("/{trip_id}/activities", status_code=201)
 def add_activity(trip_id: str, body: ActivityCreate, user_id: str = Depends(current_user_id)):
     db = get_db()
-    owned_trip(db, trip_id, user_id)
+    owned_trip(db, trip_id, user_id, writing=True)
     return (
         db.table("activities").insert({"trip_id": trip_id, **body.model_dump()}).execute()
     ).data[0]

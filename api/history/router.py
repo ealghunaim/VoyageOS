@@ -17,7 +17,7 @@ class DebriefBody(BaseModel):
 @router.post("/trips/{trip_id}/debrief", status_code=201)
 def debrief(trip_id: str, body: DebriefBody, user_id: str = Depends(current_user_id)):
     db = get_db()
-    rows = [owned_trip(db, trip_id, user_id)]
+    rows = [owned_trip(db, trip_id, user_id, writing=True)]
     return submit_debrief(db, rows[0], user_id, body.forgot, body.unused)
 
 
