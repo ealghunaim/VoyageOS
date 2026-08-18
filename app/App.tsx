@@ -1,7 +1,7 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { SafeAreaProvider, SafeAreaView as SafeArea } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView as SafeArea, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Dimensions, Image, Linking, SafeAreaView, StatusBar, Text, TextInput, View } from 'react-native';
@@ -88,6 +88,10 @@ defaultToSatoshi();
 const Root = createNativeStackNavigator();
 const Tabs = createBottomTabNavigator();
 
+/** Bar height above the home-indicator inset. 49 is the platform default and
+ *  is more than a 21pt icon and an 11pt label need. */
+const TAB_H = 46;
+
 /** Params carried by the trip screens. Trip objects are passed whole, as they
  *  were before — every screen wants several fields off them. */
 type TripParams = { trip: Trip };
@@ -137,16 +141,26 @@ function TabShell({ children, onProfile }: {
 
 function TabsScreen({ navigation }: any) {
   const onProfile = () => navigation.navigate('Profile');
+  // The bar is sized here rather than left to the default, which reserves
+  // 49pt for a 24pt icon over an 11pt label and reads heavy under a page
+  // this airy. Height is stated explicitly so the home-indicator inset is
+  // added to a known number instead of an assumed one.
+  const insets = useSafeAreaInsets();
   return (
     <Tabs.Navigator
       screenOptions={({ route: r }) => ({
         headerShown: false,
         tabBarActiveTintColor: P.brand,
         tabBarInactiveTintColor: P.textMuted,
-        tabBarStyle: { backgroundColor: P.card, borderTopColor: P.hairline },
-        tabBarLabelStyle: { ...T.caption, fontFamily: F.med },
+        tabBarStyle: {
+          backgroundColor: P.card, borderTopColor: P.hairline,
+          height: TAB_H + insets.bottom, paddingTop: 6, paddingBottom: insets.bottom,
+        },
+        tabBarItemStyle: { paddingVertical: 0 },
+        tabBarIconStyle: { marginBottom: -2 },
+        tabBarLabelStyle: { ...T.caption, fontFamily: F.med, fontSize: 11, marginTop: 1 },
         tabBarIcon: ({ color }) => (
-          <TabIcon color={color}
+          <TabIcon size={21} color={color}
             kind={r.name === 'Trips' ? 'trips' : r.name === 'Kits' ? 'kits' : 'docs'} />
         ),
       })}>

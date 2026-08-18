@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { F, P, S, RA, E, T } from '../theme';
 
 export function Btn({ label, onPress, kind = 'primary', disabled = false, color }: {
@@ -48,6 +49,36 @@ export function Chip({ label, selected, onPress, color }: {
   );
 }
 
+/** The password reveal toggle.
+ *
+ *  This was the emoji pair 👁 / 🙈 — a literal eyeball beside a monkey
+ *  covering its face, at whatever size and colour the system font decided.
+ *  Emoji cannot take the field's colour, cannot be sized against the text
+ *  beside them, and render differently on every OS version, so the control
+ *  never quite belonged to the form it sat in. Drawn, it inherits both.
+ *
+ *  Hidden state is the eye WITH the slash: the icon shows what tapping will
+ *  undo, which is the convention every password field uses.
+ */
+export function EyeIcon({ off, color, size = 22 }: {
+  off?: boolean; color: string; size?: number;
+}) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M1.5 12S5.5 5 12 5s10.5 7 10.5 7-4 7-10.5 7S1.5 12 1.5 12Z"
+        stroke={color} strokeWidth={1.9} strokeLinejoin="round"
+      />
+      <Circle cx={12} cy={12} r={3.4} stroke={color} strokeWidth={1.9} />
+      <Circle cx={12} cy={12} r={1.5} fill={color} />
+      {off && (
+        <Path d="M3.2 3.2 20.8 20.8" stroke={color} strokeWidth={1.9}
+          strokeLinecap="round" />
+      )}
+    </Svg>
+  );
+}
+
 export function Field({ label, value, onChange, placeholder, secure, keyboardType,
                         textContentType, autoComplete }: {
   label: string; value: string; onChange: (t: string) => void; placeholder?: string;
@@ -91,7 +122,7 @@ export function Field({ label, value, onChange, placeholder, secure, keyboardTyp
             accessibilityRole="button"
             accessibilityLabel={masked ? 'Show password' : 'Hide password'}
             style={{ position: 'absolute', right: 14 }}>
-            <Text style={{ fontSize: 16 }}>{masked ? '👁' : '🙈'}</Text>
+            <EyeIcon off={masked} color={P.textMuted} />
           </Pressable>
         )}
       </View>
