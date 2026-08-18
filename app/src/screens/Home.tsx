@@ -220,8 +220,13 @@ const s = StyleSheet.create({
   // 8x8 made circular needs exactly half its width; RA.sm would over-round it.
   dot: { width: 8, height: 8, borderRadius: 4, marginRight: S[2] },
   place: { ...T.label, letterSpacing: 1.2 },
+  // LEFT, not right. The floating + is fixed to the screen's bottom-right and
+  // cards scroll underneath it, so a right-hand pill was dragged through the
+  // one control on the screen every time the list moved. Nothing else on the
+  // card is readable text over artwork, so moving the pill leaves the + passing
+  // over flag colour instead of over words.
   pillFloat: {
-    position: 'absolute', top: S[3] - 2, right: S[3], paddingHorizontal: S[3], paddingVertical: 5,
+    position: 'absolute', top: S[3] - 2, left: S[3], paddingHorizontal: S[3], paddingVertical: 5,
     borderRadius: RA.pill,
     // A scrim over the flag hero — the palette has no translucent surface, and
     // P.card at full opacity would hide the artwork it floats on.
