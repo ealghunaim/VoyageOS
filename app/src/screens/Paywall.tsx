@@ -138,6 +138,11 @@ export default function Paywall({ visible, initialTier, onClose }: {
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={s.screen}>
+        {/* The horizontal padding CANNOT live on the SafeAreaView above:
+            react-native's implementation writes its own padding from the
+            insets and clobbers whatever the style set, so paddingHorizontal
+            there vanished and the cards and the ✕ ran to the screen edge. */}
+        <View style={s.pad}>
         <View style={s.head}>
           <Text style={s.title}>Choose your plan</Text>
           <Pressable onPress={onClose} hitSlop={12} accessibilityLabel="Close">
@@ -245,6 +250,7 @@ export default function Paywall({ visible, initialTier, onClose }: {
             </Pressable>
           </View>
         </ScrollView>
+        </View>
       </SafeAreaView>
     </Modal>
   );
@@ -255,7 +261,10 @@ const s = StyleSheet.create({
 // claim the top inset itself. This used to be `paddingTop: S[8]` — 32pt, a
 // guess that cleared the status bar on the phones it was written on and put
 // the title under the notch on a Pro Max, where the inset is nearer 62.
-  screen: { flex: 1, backgroundColor: P.pageBg, paddingHorizontal: S[5], paddingTop: S[4] },
+  // Insets only — see the note at the SafeAreaView. Anything set here that
+  // SafeAreaView also writes is discarded without warning.
+  screen: { flex: 1, backgroundColor: P.pageBg },
+  pad: { flex: 1, paddingHorizontal: S[5], paddingTop: S[4] },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
           marginBottom: S[2] },
   title: { ...T.h1, color: P.textPri },
