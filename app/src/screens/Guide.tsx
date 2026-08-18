@@ -7,6 +7,7 @@ import { indexTips, normName } from '../tipMatch';
 import { getFamilyPlay, FamilyActivity, addFoodTip, deleteFoodTip, dishPhoto, FoodTip, getGuidePart, getProfile, getTrip, Guide as GuideT, listFoodTips, patchTrip, placePhotos, PlacePhoto, TipCategory, Trip, TripDetail } from '../api';
 import { transitFor } from '../airlines';
 import DishRail from '../components/DishRail';
+import { confirmRewrite } from '../confirmRewrite';
 import JourneyLoader from '../components/JourneyLoader';
 import PlugArt from '../components/PlugArt';
 import { countryName, flagOf } from '../countries';
@@ -114,10 +115,17 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
       .finally(() => setFamilyBusy(false));
   }, [tab, hasParty, trip.id, familyPlay]);
 
+  /** Redo picks asked nothing before confirming, while the two other paths to
+   *  the same model call both did. Replacing what is on screen is the same
+   *  decision wherever it is taken from, so it is asked the same way. */
   const redoFamily = () => {
+    if (familyBusy) return;
+    confirmRewrite('picks', runRedoFamily);
+  };
+
+  const runRedoFamily = () => {
     // Guarded: each tap is a model call, and the button gave no sign it was
     // working, so it invited repeat taps that each cost money.
-    if (familyBusy) return;
     setFamilyBusy(true);
     setFamilyErr(null);
     getFamilyPlay(trip.id, true)
@@ -372,11 +380,8 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
           <Pressable onPress={onBack} hitSlop={10}>
             <Text style={[s.back, { color: accent }]}>‹ {tripTitle}</Text>
           </Pressable>
-          <Pressable hitSlop={10} onPress={() =>
-            Alert.alert('Rewrite guide?', 'Calls the model again (a few cents).', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Rewrite', onPress: () => { setG(null); load(true); } },
-            ])}>
+          <Pressable hitSlop={10}
+            onPress={() => confirmRewrite('guide', () => { setG(null); load(true); })}>
             <Text style={[s.regen, { color: accent }]}>↻</Text>
           </Pressable>
         </View>

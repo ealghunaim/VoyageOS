@@ -6,6 +6,8 @@ import {
 import { addKitItem, applyKit, confirmAddItems, createKit, ParsedItem, quickAddItems, generateList, getPackingList, getTimeline, getTripWeather, getWeight, Kit, listKits, PackItem, refreshTripWeather, setBagLimit, Task, updateItem, WeightInfo, WxDay } from '../api';
 import { deviceTz, permissionStatus, requestPermission, syncReminders, testPing } from '../notifications';
 import { Btn, Card, Progress } from '../components/ui';
+import { confirmRewrite } from '../confirmRewrite';
+import { formatStamp } from '../when';
 import JourneyLoader from '../components/JourneyLoader';
 import WeightSheet from '../components/WeightSheet';
 import { F, P, RA, S, T, tint } from '../theme';
@@ -93,7 +95,7 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
       <View style={s.center}>
         <JourneyLoader accent={ac} label="Packing your trip..." />
         <Text style={s.loading}>
-          {busy ? 'Asking Claude · Applying your quantities…' : 'Loading…'}
+          {busy ? 'Building your list…' : 'Loading…'}
         </Text>
       </View>
     );
@@ -159,12 +161,7 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
           title={tripTitle}
           accent={ac}
           onBack={onBack}
-          onRegen={() =>
-            Alert.alert('Regenerate list?', 'This calls the model again (a few cents).', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Regenerate', onPress: () => generate(true) },
-            ])
-          }
+          onRegen={() => confirmRewrite('list', () => generate(true))}
         />
         <Text style={s.progressText}>{packed} / {items.length} packed</Text>
         <Progress color={ac} value={items.length ? packed / items.length : 0} />
@@ -182,7 +179,7 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
           <View style={[s.primer, { backgroundColor: tint(ac, 0.06), borderColor: tint(ac, 0.18) }]}>
             <Text style={s.primerTitle}>Want reminders at the right moments?</Text>
             <Text style={s.reason}>
-              First up: {tasks[0].title} · {new Date(tasks[0].due_at).toLocaleString()}.{'\n'}
+              First up: {tasks[0].title} · {formatStamp(tasks[0].due_at)}.{'\n'}
               Never more than 3 a day. Quiet 22:00–08:00.
             </Text>
             <View style={{ height: S[3] }} />
@@ -201,7 +198,7 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
                 <Text style={s.taskGlyph}>⏰</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={s.name}>{t.title}</Text>
-                  <Text style={s.reason}>{new Date(t.due_at).toLocaleString()}</Text>
+                  <Text style={s.reason}>{formatStamp(t.due_at)}</Text>
                 </View>
               </View>
             ))}

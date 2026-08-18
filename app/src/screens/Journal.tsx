@@ -7,6 +7,7 @@ import {
 import { addNote, listNotes, Note, patchNote } from '../api';
 import { Btn, Card } from '../components/ui';
 import { clampDay, classify, dayLabel, isoDay } from '../tripStatus';
+import { formatStamp } from '../when';
 import { F, P, RA, S, T } from '../theme';
 import { FAB_CLEARANCE } from '../components/TopBar';
 
@@ -129,7 +130,7 @@ export default function Journal({ tripId, tripTitle, accent, startDate, endDate,
                   day. Tapping re-files. */}
               <Pressable onPress={() => setPicking({ kind: 'note', note: n })} hitSlop={6}>
                 <Text style={s.when}>
-                  {new Date(n.created_at).toLocaleString()}
+                  {formatStamp(n.created_at)}
                   <Text style={{ color: P.brand }}>   move ›</Text>
                 </Text>
               </Pressable>

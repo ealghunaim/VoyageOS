@@ -261,7 +261,7 @@ export default function Wizard({ onDone, onCancel }: {
       }
       for (const a of acts) await addActivity(trip.id, { type: a });
       if (segments.length) { setBusy('Saving your journey…'); await patchTrip(trip.id, { segments }); }
-      setBusy('Asking Claude to pack…');
+      setBusy('Building your list…');
       await generateList(trip.id);
       setBusy('');
       onDone({ ...trip, segments });

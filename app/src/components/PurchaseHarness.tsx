@@ -74,7 +74,7 @@ export default function PurchaseHarness() {
       // Deliberately NOT treated as "the tier is now active". The server
       // learns from the webhook, which is a separate round trip through
       // RevenueCat and may not have landed yet.
-      say('re-reading the server (the webhook may still be in flight)…');
+      say('checking with the server…');
       await refresh();
     }
     setBusy(false);

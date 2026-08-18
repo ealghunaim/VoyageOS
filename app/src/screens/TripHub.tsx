@@ -158,7 +158,7 @@ export default function TripHub({ trip, accent, onBack, onPack, onPlan, onGuide,
           )}
           {wx.length > 0 && wx.every(d => d.provider === 'climatology') && (
             <Text style={[T.label, { color: heroInk, opacity: 0.7, marginTop: S[3] }]}>
-              TYPICAL {new Date(trip.start_date).toLocaleString('en', { month: 'long' }).toUpperCase()} · LAST YEAR
+              TYPICAL {new Date(trip.start_date).toLocaleString(undefined, { month: 'long' }).toUpperCase()} · LAST YEAR
             </Text>
           )}
           {wx.length > 0 && (
