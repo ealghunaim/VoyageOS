@@ -8,7 +8,7 @@ import DepartureCard from './DepartureCard';
 import JourneyEditor from './JourneyEditor';
 import TripExtras from './TripExtras';
 import FlagField from '../components/FlagField';
-import { classify } from '../tripStatus';
+import { classify, isoDay } from '../tripStatus';
 import { accentForTrip, onColor, tint, titleize, P, S, RA, E, T, FOLD } from '../theme';
 import { FAB_CLEARANCE } from '../components/TopBar';
 
@@ -270,7 +270,7 @@ export default function TripHub({ trip, accent, onBack, onPack, onPlan, onGuide,
             mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             onChange={(_, d) => {
               if (!d) return;
-              const v = d.toISOString().slice(0, 10);
+              const v = isoDay(d);   // local, not UTC — see tripStatus.isoDay
               if (picking === 'start') { setEStart(v); if (eEnd < v) setEEnd(v); }
               else setEEnd(v);
             }} />

@@ -13,6 +13,7 @@ import WardrobeSheet, { PackingProfile } from '../components/WardrobeSheet';
 import SubscriptionCard from '../components/SubscriptionCard';
 import Paywall from './Paywall';
 import { FAB_CLEARANCE } from '../components/TopBar';
+import { isoDay } from '../tripStatus';
 import { COUNTRIES, countryName, flagOf } from '../countries';
 import { F, P, RA, S, T } from '../theme';
 
@@ -190,7 +191,9 @@ export default function Profile({ onSignedOut, onDocuments, onBack }: {
             mode="date" maximumDate={new Date()}
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             onChange={(_, d) => {
-              if (d) setDob(d.toISOString().slice(0, 10));
+              // A DOB shifted a day can cross an age band and change what
+              // gets packed for a child. Local, not UTC.
+              if (d) setDob(isoDay(d));
               if (Platform.OS !== 'ios') setPicking(false);
             }}
           />

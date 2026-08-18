@@ -77,7 +77,28 @@ check('sorting does not mutate the input', many[0].start_date, '2026-09-20');
 console.log('\n  ── journal days ──');
 check('a Date becomes a local ISO day', isoDay(NOW), '2026-08-17');
 check('single digits pad', isoDay(new Date(2026, 0, 5, 23, 59)), '2026-01-05');
-check('late evening does not roll forward', isoDay(new Date(2026, 7, 17, 23, 59)), '2026-08-17');
+
+// THE TIMEZONE TRAP, ASSERTED FROM BOTH SIDES.
+//
+// `toISOString().slice(0,10)` was used in three date pickers and shifted the
+// day for anyone west of Greenwich: New York, picking 18 August at 9pm, stored
+// the 19th. It survived because this project is developed at UTC+3, where the
+// wrong implementation happens to agree with the right one.
+//
+// So both ends of the day are asserted. A UTC implementation fails the late
+// case in any negative-offset zone and the early case in any positive-offset
+// one — which means this check catches the bug wherever it is run, instead of
+// only where someone thought to look.
+check('late evening does not roll FORWARD (catches UTC impl west of Greenwich)',
+  isoDay(new Date(2026, 7, 17, 23, 59)), '2026-08-17');
+check('early morning does not roll BACK (catches UTC impl east of Greenwich)',
+  isoDay(new Date(2026, 7, 17, 0, 1)), '2026-08-17');
+check('midnight exactly', isoDay(new Date(2026, 7, 17, 0, 0)), '2026-08-17');
+check('one minute to midnight', isoDay(new Date(2026, 11, 31, 23, 59)), '2026-12-31');
+// A picker hands back local midnight; storing then re-reading must be a no-op.
+check('a picked day round-trips through storage',
+  isoDay(new Date(2026, 7, 17, 0, 0)) === '2026-08-17'
+    && daysUntilDay(isoDay(new Date(2026, 7, 17, 0, 0)), NOW) === 0, true);
 
 check('a day inside the trip is kept', clampDay('2026-08-14', '2026-08-10', '2026-08-20'), '2026-08-14');
 check('the first day is inside', clampDay('2026-08-10', '2026-08-10', '2026-08-20'), '2026-08-10');

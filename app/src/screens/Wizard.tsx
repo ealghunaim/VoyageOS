@@ -13,6 +13,7 @@ import Paywall from './Paywall';
 import JourneyEditor from './JourneyEditor';
 import JourneyLoader from '../components/JourneyLoader';
 import TripArt from '../components/TripArt';
+import { isoDay } from '../tripStatus';
 import { accentForTrip, P, S, RA, E, T, titleize } from '../theme';
 
 const ACTIVITIES = [
@@ -26,9 +27,12 @@ const TRAVELER_TYPES: [string, string][] = [
   ['teens', '🧑 Teens'], ['elderly', '🧓 Elderly'], ['kids', '👶 Kids'],
 ];
 
-function iso(d: Date) { return d.toISOString().slice(0, 10); }
+// isoDay(), not toISOString().slice(0,10). A date picker hands back local
+// midnight; toISOString converts that to UTC, which is the PREVIOUS day
+// everywhere west of Greenwich. Someone in New York picking 18 August at 9pm
+// stored 19 August. Invisible from Kuwait (UTC+3), which is why it survived.
 function plusDays(base: string, n: number) {
-  const d = new Date(base + 'T00:00:00'); d.setDate(d.getDate() + n); return iso(d);
+  const d = new Date(base + 'T00:00:00'); d.setDate(d.getDate() + n); return isoDay(d);
 }
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 function pretty(d: string) {
@@ -53,7 +57,7 @@ export default function Wizard({ onDone, onCancel }: {
   onDone: (trip: Trip) => void; onCancel: () => void;
 }) {
   const today = new Date();
-  const defStart = iso(new Date(today.getTime() + 14 * 86400000));
+  const defStart = isoDay(new Date(today.getTime() + 14 * 86400000));
 
   const [place, setPlace] = useState('');
   const [country, setCountry] = useState('');
@@ -369,7 +373,7 @@ export default function Wizard({ onDone, onCancel }: {
             minimumDate={picking === 'end' ? new Date(start + 'T00:00:00') : new Date()}
             onChange={(_, d) => {
               if (!d) { setPicking(null); return; }
-              const v = iso(d);
+              const v = isoDay(d);
               if (picking === 'start') { setStart(v); if (end < v) setEnd(plusDays(v, 6)); } else setEnd(v);
               if (Platform.OS !== 'ios') setPicking(null);
             }}
