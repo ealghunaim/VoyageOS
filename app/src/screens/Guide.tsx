@@ -7,7 +7,7 @@ import { indexTips, normName } from '../tipMatch';
 import { getFamilyPlay, FamilyActivity, addFoodTip, deleteFoodTip, dishPhoto, FoodTip, getGuidePart, getProfile, getTrip, Guide as GuideT, listFoodTips, patchTrip, placePhotos, PlacePhoto, TipCategory, Trip, TripDetail } from '../api';
 import { transitFor } from '../airlines';
 import DishRail from '../components/DishRail';
-import { confirmRewrite } from '../confirmRewrite';
+import { confirmRewrite } from '../confirms';
 import JourneyLoader from '../components/JourneyLoader';
 import PlugArt from '../components/PlugArt';
 import { countryName, flagOf } from '../countries';

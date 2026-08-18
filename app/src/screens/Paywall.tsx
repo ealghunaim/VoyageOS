@@ -20,19 +20,12 @@
 // of ticks and crosses would be describing a product we have not built. The
 // tiers differ by trip count, which is what is actually true today.
 import React, { useEffect, useState } from 'react';
-// SafeAreaView from react-native, NOT from react-native-safe-area-context.
-//
-// A Modal renders in its own native view hierarchy. React context still
-// reaches into it, so the context version renders and typechecks happily —
-// it just reports insets measured from a provider that lives OUTSIDE the
-// modal, which is to say zero at the top. It fails silently and looks right
-// in code review. JourneyEditor used the react-native one all along and was
-// the only one of the four modals that never had this bug.
 import {
-  ActivityIndicator, Linking, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View,
+  ActivityIndicator, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import type { PurchasesPackage } from 'react-native-purchases';
 
+import ModalScreen from '../components/ModalScreen';
 import { PRIVACY_URL, TERMS_URL } from '../legal';
 import {
   BUY_COPY, buyState, isBuyable, POLL_COPY, pollDecision, Tier, TIER_RANK, tierForProduct,
@@ -137,12 +130,7 @@ export default function Paywall({ visible, initialTier, onClose }: {
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={s.screen}>
-        {/* The horizontal padding CANNOT live on the SafeAreaView above:
-            react-native's implementation writes its own padding from the
-            insets and clobbers whatever the style set, so paddingHorizontal
-            there vanished and the cards and the ✕ ran to the screen edge. */}
-        <View style={s.pad}>
+      <ModalScreen>
         <View style={s.head}>
           <Text style={s.title}>Choose your plan</Text>
           <Pressable onPress={onClose} hitSlop={12} accessibilityLabel="Close">
@@ -250,21 +238,12 @@ export default function Paywall({ visible, initialTier, onClose }: {
             </Pressable>
           </View>
         </ScrollView>
-        </View>
-      </SafeAreaView>
+      </ModalScreen>
     </Modal>
   );
 }
 
 const s = StyleSheet.create({
-// A full-screen Modal renders outside the app's SafeArea wrapper, so it has to
-// claim the top inset itself. This used to be `paddingTop: S[8]` — 32pt, a
-// guess that cleared the status bar on the phones it was written on and put
-// the title under the notch on a Pro Max, where the inset is nearer 62.
-  // Insets only — see the note at the SafeAreaView. Anything set here that
-  // SafeAreaView also writes is discarded without warning.
-  screen: { flex: 1, backgroundColor: P.pageBg },
-  pad: { flex: 1, paddingHorizontal: S[5], paddingTop: S[4] },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
           marginBottom: S[2] },
   title: { ...T.h1, color: P.textPri },

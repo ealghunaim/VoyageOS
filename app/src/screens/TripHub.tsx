@@ -310,6 +310,12 @@ export default function TripHub({ trip, accent, onBack, onPack, onPlan, onGuide,
           phrases and plan items with it. Nothing is recoverable, so the copy
           says so. */}
       <View style={s.dangerRow}>
+        {/* Deliberately NOT confirms.confirmDelete. That helper shows the
+            subject and nothing else, which is right for one document or one
+            plan item. Deleting a trip destroys the destinations, guide,
+            packing list, journal and reminders with it, and naming them is
+            the entire value of this dialog. Consistency is not worth flattening
+            a warning that is doing more work than the others. */}
         <Pressable hitSlop={10} onPress={() =>
           Alert.alert('Delete this trip?',
             'The destinations, guide, packing list, journal and reminders go with it. '

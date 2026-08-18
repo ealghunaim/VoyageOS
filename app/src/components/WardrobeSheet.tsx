@@ -18,18 +18,11 @@
 // falls back to exactly the behaviour that existed before profiles, which is
 // why the sheet says so rather than nagging.
 import React, { useState } from 'react';
-// SafeAreaView from react-native, NOT from react-native-safe-area-context.
-//
-// A Modal renders in its own native view hierarchy. React context still
-// reaches into it, so the context version renders and typechecks happily —
-// it just reports insets measured from a provider that lives OUTSIDE the
-// modal, which is to say zero at the top. It fails silently and looks right
-// in code review. JourneyEditor used the react-native one all along and was
-// the only one of the four modals that never had this bug.
 import {
-  Modal, Pressable, SafeAreaView, ScrollView, Text, TextInput, View,
+  Modal, Pressable, ScrollView, Text, TextInput, View,
 } from 'react-native';
 
+import ModalScreen from './ModalScreen';
 import { Btn, Card } from './ui';
 import { F, P, S, T } from '../theme';
 
@@ -93,7 +86,7 @@ export default function WardrobeSheet({ visible, who, value, onSave, onClose }: 
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: P.pageBg }}>
+      <ModalScreen padded={false}>
       <ScrollView style={{ flex: 1 }}
         contentContainerStyle={{ padding: S[5], paddingTop: S[4] }}
         keyboardShouldPersistTaps="handled">
@@ -165,7 +158,7 @@ export default function WardrobeSheet({ visible, who, value, onSave, onClose }: 
           Leave everything unticked and packing works exactly as it does today.
         </Text>
       </ScrollView>
-      </SafeAreaView>
+      </ModalScreen>
     </Modal>
   );
 }

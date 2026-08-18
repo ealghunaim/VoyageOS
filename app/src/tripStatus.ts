@@ -80,6 +80,33 @@ export function dayLabel(iso: string, now: Date = new Date()): string {
   });
 }
 
+/** The trip's days, in order: day 1 is the start date.
+ *
+ *  Walked with setDate(), NOT by adding 86400000ms. A day is not always
+ *  86400000ms long — the ones that end a DST period are an hour longer, and
+ *  ms-arithmetic drifts an hour per transition until it crosses midnight and
+ *  starts repeating dates. The planner did exactly this, and a week over the
+ *  US November transition showed Sunday 1 November twice and labelled every
+ *  following day one early.
+ *
+ *  Capped, because `days` drives a rendered list and a mistyped end date a
+ *  decade out should not try to draw four thousand cards.
+ */
+export function tripDays(startDate: string, endDate: string, cap = 60):
+    { k: number; iso: string; date: Date }[] {
+  const start = localDay(startDate);
+  const end = localDay(endDate);
+  if (isNaN(start)) return [];
+  const span = isNaN(end) ? 1 : Math.max(1, Math.round((end - start) / 86400000) + 1);
+  const out: { k: number; iso: string; date: Date }[] = [];
+  const d = new Date(start);
+  for (let k = 1; k <= Math.min(span, cap); k++) {
+    out.push({ k, iso: isoDay(d), date: new Date(d) });
+    d.setDate(d.getDate() + 1);   // calendar-aware; survives DST
+  }
+  return out;
+}
+
 export function classify(trip: TripLike, now: Date = new Date()): TripWhen {
   // An explicit completion wins over the calendar: someone who has debriefed a
   // trip has told us it is over, whatever the dates say.

@@ -22,6 +22,7 @@ import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { Btn, Card } from './ui';
+import { kg, kgWhole } from '../units';
 import { F, P, S, T } from '../theme';
 
 const MIN_G = 1;
@@ -46,9 +47,9 @@ export default function WeightSheet({ visible, itemName, grams, onSave, onClose 
 
   // Shown live rather than on submit: a number you cannot save should say so
   // while you are still looking at the keypad.
-  const hint = tooBig ? `That is over ${(MAX_G / 1000).toFixed(0)} kg — check the number.`
+  const hint = tooBig ? `That is over ${kgWhole(MAX_G)} — check the number.`
     : tooSmall ? 'Weight must be at least 1 gram.'
-    : value !== null && value >= 1000 ? `${(value / 1000).toFixed(value % 1000 ? 2 : 1)} kg`
+    : value !== null && value >= 1000 ? kg(value)
     : null;
 
   return (

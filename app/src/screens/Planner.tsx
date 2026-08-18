@@ -6,6 +6,8 @@ import {
 import { addPlanItem, deletePlanItem, listPlan, patchPlanItem, PlanItem } from '../api';
 import { Card } from '../components/ui';
 import { byTime, dateForMinutes, formatTime, parseTime, toStored } from '../planTime';
+import { tripDays } from '../tripStatus';
+import { confirmDelete as confirmDelete_ } from '../confirms';
 import { F, P, RA, S, T } from '../theme';
 import { FAB_CLEARANCE } from '../components/TopBar';
 
@@ -30,19 +32,14 @@ export default function Planner({ tripId, tripTitle, accent, startDate, endDate,
   }, [tripId]);
   useEffect(load, [load]);
 
-  const days = useMemo(() => {
-    const out: { k: number; label: string }[] = [];
-    const s = new Date(startDate + 'T00:00:00');
-    const e = new Date(endDate + 'T00:00:00');
-    const n = isNaN(s.getTime()) || isNaN(e.getTime())
-      ? 1 : Math.max(1, Math.round((e.getTime() - s.getTime()) / 86400000) + 1);
-    for (let k = 1; k <= Math.min(n, 60); k++) {
-      const d = new Date(s.getTime() + (k - 1) * 86400000);
-      const label = isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-      out.push({ k, label });
-    }
-    return out;
-  }, [startDate, endDate]);
+  // Walked by tripDays(), which steps with setDate rather than by adding
+  // 86400000ms. The old ms walk drifted an hour at every DST transition and
+  // then repeated a date: a week over the US November change showed Sunday
+  // 1 November as both day 3 and day 4.
+  const days = useMemo(() => tripDays(startDate, endDate).map(({ k, date }) => ({
+    k,
+    label: date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
+  })), [startDate, endDate]);
 
   const setDraft = (day: number, patch: Partial<{ title: string; time: string }>) =>
     setDrafts(prev => ({ ...prev, [day]: { title: '', time: '', ...prev[day], ...patch } }));
@@ -83,13 +80,10 @@ export default function Planner({ tripId, tripTitle, accent, startDate, endDate,
   }
 
   function confirmDelete(it: PlanItem) {
-    Alert.alert('Remove', `Remove "${it.title}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: async () => {
-        setItems(prev => prev.filter(x => x.id !== it.id));
-        try { await deletePlanItem(tripId, it.id); } catch { load(); }
-      } },
-    ]);
+    confirmDelete_(it.title, 'plan item', async () => {
+      setItems(prev => prev.filter(x => x.id !== it.id));
+      try { await deletePlanItem(tripId, it.id); } catch { load(); }
+    });
   }
 
   return (

@@ -28,3 +28,26 @@ export function confirmRewrite(what: string, onConfirm: () => void): void {
     ],
   );
 }
+
+/** Confirm destroying something the traveller made.
+ *
+ *  Six of these were written by hand and agreed on nothing: titles ranged
+ *  over "Remove", "Delete document?" and "Delete this trip?", and the
+ *  confirm button was sometimes the verb and sometimes the noun. A dialog is
+ *  the last thing between a person and losing work, so the one thing it must
+ *  never be is unfamiliar.
+ *
+ *  `subject` is what is being destroyed, shown as the body. iOS renders the
+ *  destructive style in red — that is the system's own affordance for
+ *  irreversibility and is the deliberate exception to the neutral-grey rule,
+ *  which governs buttons on our own surfaces.
+ */
+export function confirmDelete(
+  what: string, subject: string, onConfirm: () => void,
+  { verb = 'Delete' }: { verb?: string } = {},
+): void {
+  Alert.alert(`${verb} ${what}?`, subject, [
+    { text: 'Cancel', style: 'cancel' },
+    { text: verb, style: 'destructive', onPress: onConfirm },
+  ]);
+}

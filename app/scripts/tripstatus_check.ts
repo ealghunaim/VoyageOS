@@ -9,7 +9,7 @@
  *  you were physically on read "past".
  */
 import {
-  clampDay, classify, dayLabel, daysUntilDay, isoDay, needsDebrief, sortForTab, whenLabel,
+  clampDay, classify, dayLabel, daysUntilDay, isoDay, needsDebrief, sortForTab, tripDays, whenLabel,
 } from '../src/tripStatus';
 
 let bad = 0;
@@ -113,6 +113,31 @@ check('tomorrow', dayLabel('2026-08-18', NOW), 'Tomorrow');
 check('an ordinary day gets a real date', /\d/.test(dayLabel('2026-08-12', NOW)), true);
 check('an ordinary day is not "Today"', dayLabel('2026-08-12', NOW) === 'Today', false);
 check('garbage is echoed, not blanked', dayLabel('not-a-day', NOW), 'not-a-day');
+
+console.log('\n  ── the days of a trip ──');
+check('day 1 is the start date', tripDays('2026-08-10', '2026-08-14')[0].iso, '2026-08-10');
+check('inclusive of both ends', tripDays('2026-08-10', '2026-08-14').length, 5);
+check('a one-day trip is one day', tripDays('2026-08-10', '2026-08-10').length, 1);
+check('numbered from 1', tripDays('2026-08-10', '2026-08-12').map(d => d.k), [1, 2, 3]);
+
+// DST. The planner walked days by adding 86400000ms, which is an hour short
+// on the day a DST period ends — the drift accumulates until it crosses
+// midnight and starts REPEATING a date. Over the US November transition it
+// showed Sunday 1 November as both day 3 and day 4, then labelled everything
+// after it a day early. Run this file under TZ=America/New_York to exercise
+// it; the assertion holds in any zone because it asks for distinctness.
+const week = tripDays('2026-10-30', '2026-11-05');
+check('a week over a DST boundary has 7 days', week.length, 7);
+check('...and no date appears twice', new Set(week.map(d => d.iso)).size, 7);
+check('...and they are consecutive',
+  week.map(d => d.iso),
+  ['2026-10-30', '2026-10-31', '2026-11-01', '2026-11-02',
+   '2026-11-03', '2026-11-04', '2026-11-05']);
+check('...each sitting at local midnight',
+  week.every(d => d.date.getHours() === 0), true);
+
+check('a broken start date yields nothing', tripDays('', '2026-08-14'), []);
+check('the cap holds', tripDays('2026-01-01', '2099-01-01').length, 60);
 
 console.log(bad === 0 ? '\n  ✓ all cases behave\n' : `\n  ✗ ${bad} wrong\n`);
 process.exit(bad === 0 ? 0 : 1);

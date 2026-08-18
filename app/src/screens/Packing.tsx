@@ -6,8 +6,9 @@ import {
 import { addKitItem, applyKit, confirmAddItems, createKit, ParsedItem, quickAddItems, generateList, getPackingList, getTimeline, getTripWeather, getWeight, Kit, listKits, PackItem, refreshTripWeather, setBagLimit, Task, updateItem, WeightInfo, WxDay } from '../api';
 import { deviceTz, permissionStatus, requestPermission, syncReminders, testPing } from '../notifications';
 import { Btn, Card, Progress } from '../components/ui';
-import { confirmRewrite } from '../confirmRewrite';
+import { confirmRewrite } from '../confirms';
 import { formatStamp } from '../when';
+import { kg, kgWhole } from '../units';
 import JourneyLoader from '../components/JourneyLoader';
 import WeightSheet from '../components/WeightSheet';
 import { F, P, RA, S, T, tint } from '../theme';
@@ -382,8 +383,8 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
             color: weight.limit_g && weight.total_g > weight.limit_g ? P.danger
               : weight.limit_g && weight.total_g > weight.limit_g * 0.85 ? P.warningInk : P.textPri,
           }]}>
-            {(weight as any).approx ? '~' : ''}{(weight.total_g / 1000).toFixed(1)} kg
-            {weight.limit_g ? ` / ${(weight.limit_g / 1000).toFixed(0)} kg` : ' · set a target ›'}
+            {(weight as any).approx ? '~' : ''}{kg(weight.total_g)}
+            {weight.limit_g ? ` / ${kgWhole(weight.limit_g)}` : ' · set a target ›'}
             {weight.unweighed ? `  · ${weight.unweighed} estimated` : ''}
           </Text>
           {showLimits && (

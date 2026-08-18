@@ -12,6 +12,7 @@ import { deviceTz } from '../notifications';
 import { Btn, Card, Chip } from '../components/ui';
 import { F, P, RA, S, T } from '../theme';
 import { FAB_CLEARANCE } from '../components/TopBar';
+import { confirmDelete } from '../confirms';
 
 const TYPES = [
   ['passport', 'Passport'], ['visa', 'Visa'], ['insurance', 'Insurance'],
@@ -176,14 +177,10 @@ export default function Documents() {
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={s.name}>{title(doc)}</Text>
               <Pressable hitSlop={10} onPress={() =>
-                Alert.alert('Delete document?', title(doc), [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Delete', style: 'destructive',
-                    onPress: async () => {
-                      try { await deleteDocument(doc.id); if (d.id === doc.id) setD(EMPTY); load(); }
-                      catch (e: any) { Alert.alert('Error', e.message); }
-                    } },
-                ])}>
+                confirmDelete('document', title(doc), async () => {
+                  try { await deleteDocument(doc.id); if (d.id === doc.id) setD(EMPTY); load(); }
+                  catch (e: any) { Alert.alert('Error', e.message); }
+                })}>
                 <Text style={s.x}>✕</Text>
               </Pressable>
             </View>
@@ -226,13 +223,10 @@ export default function Documents() {
               </Pressable>
               {doc.has_photo && (
                 <Pressable hitSlop={8} onPress={() =>
-                  Alert.alert('Remove photo?', title(doc), [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Remove', style: 'destructive', onPress: async () => {
-                      try { await deleteDocumentPhoto(doc.id); load(); }
-                      catch (e: any) { Alert.alert('Photo', e.message); }
-                    } },
-                  ])}>
+                  confirmDelete('photo', title(doc), async () => {
+                    try { await deleteDocumentPhoto(doc.id); load(); }
+                    catch (e: any) { Alert.alert('Photo', e.message); }
+                  }, { verb: 'Remove' })}>
                   <Text style={s.removeLink}>Remove photo</Text>
                 </Pressable>
               )}

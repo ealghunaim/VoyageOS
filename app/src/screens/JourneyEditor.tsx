@@ -1,13 +1,14 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import React, { useEffect, useState } from 'react';
 import {
-  Alert, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View,
+  Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { lookupFlight, patchTrip, PlaceHit, RouteFlight, searchPlaces, searchRoute, Segment, Trip } from '../api';
 import { airlineFromRef } from '../airlines';
 import { Airport, searchAirports } from '../airports';
 import { Btn } from '../components/ui';
 import { F, P, RA, S, T, tint } from '../theme';
+import ModalScreen from '../components/ModalScreen';
 
 const MODES: [string, string][] = [['flight', '✈ Flight'], ['train', '🚆 Train'], ['ship', '🚢 Ship'], ['drive', '🚗 Drive']];
 const MODE_ICON: Record<string, string> = { flight: '✈', train: '🚆', ship: '🚢', drive: '🚗' };
@@ -149,7 +150,7 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved, onSaveLo
 
   return (
     <Modal visible animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: P.pageBg }}>
+      <ModalScreen padded={false}>
         <View style={s.top}>
           <Pressable onPress={onClose} hitSlop={10}><Text style={[s.close, { color: accent }]}>Close</Text></Pressable>
           <Text style={s.title}>Your journey</Text>
@@ -357,7 +358,7 @@ export default function JourneyEditor({ trip, accent, onClose, onSaved, onSaveLo
           <Btn label={saving ? 'Saving…' : 'Save journey'} color={accent} disabled={saving} onPress={save} />
           <Text style={s.note}>Times are what you enter — tap a flight number elsewhere to look it up. A live flight feed can fill these automatically later.</Text>
         </ScrollView>
-      </SafeAreaView>
+      </ModalScreen>
     </Modal>
   );
 }
