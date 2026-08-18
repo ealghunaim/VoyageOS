@@ -196,7 +196,11 @@ function TimePicker({ target, onPick, onClose }: {
           <Text style={s.sheetTitle}>
             {target.kind === 'item' ? target.item.title : 'What time?'}
           </Text>
+          {/* The iOS spinner reports an intrinsic width narrower than the
+              sheet and does NOT stretch to fill it the way a View would, so
+              without this it sits flush left with dead space to its right. */}
           <DateTimePicker value={value} mode="time" display="spinner"
+            style={{ alignSelf: 'center' }}
             onChange={(_, d) => d && setValue(d)} />
           <Pressable onPress={() => { onPick(target, toStored(value)); onClose(); }}
             style={s.sheetPrimary}>

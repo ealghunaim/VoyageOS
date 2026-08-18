@@ -191,7 +191,11 @@ function DayPicker({ value, startDate, endDate, onPick, onClose }: {
       <View style={s.sheetWrap}>
         <View style={s.sheet}>
           <Text style={s.sheetTitle}>Which day is this about?</Text>
+          {/* The iOS spinner reports an intrinsic width narrower than the
+              sheet and does NOT stretch to fill it the way a View would, so
+              without this it sits flush left with dead space to its right. */}
           <DateTimePicker value={picked} mode="date" display="spinner"
+            style={{ alignSelf: 'center' }}
             minimumDate={asDate(startDate)} maximumDate={asDate(endDate)}
             onChange={(_, d) => d && setPicked(d)} />
           <Pressable onPress={() => { onPick(isoDay(picked)); onClose(); }}
