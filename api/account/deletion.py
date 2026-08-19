@@ -206,6 +206,43 @@ def delete_auth_user(user_id: str) -> int:
 #: The durable fix is `on delete cascade` on these three foreign keys, which
 #: is a migration and a prod change; this list is correct either way and
 #: becomes a no-op once that lands.
+#: Rows that OUTLIVE the person, with the person removed from them.
+#:
+#: ai_runs records what was spent on whose behalf and notification_log records
+#: what was sent. Both carry a user_id with no foreign key — the same class as
+#: NON_CASCADING below — but the answer is the opposite one: a spend record
+#: that vanishes when an account closes makes the cost history wrong, and a
+#: send log that vanishes takes the evidence of what we did with it.
+#:
+#: webhook_events set the precedent, and the reasoning transfers exactly: keep
+#: the money trail, drop the person. Nulling rather than deleting is what makes
+#: this a retention decision rather than an oversight — before this, both
+#: tables simply kept the raw uuid forever because nothing swept them, which is
+#: the worst of both (personal linkage retained, and no one had decided to).
+PSEUDONYMIZE = (
+    ("ai_runs", "user_id"),
+    ("notification_log", "user_id"),
+)
+
+
+def pseudonymize_retained(db, user_id: str) -> int:
+    """Null the user_id on rows that stay. Returns how many were rewritten."""
+    n = 0
+    for table, col in PSEUDONYMIZE:
+        try:
+            rows = db.table(table).select(col, count="exact").eq(col, user_id).execute()
+            found = rows.count or 0
+            if found:
+                db.table(table).update({col: None}).eq(col, user_id).execute()
+                n += found
+        except Exception as e:                                   # noqa: BLE001
+            # Consistent with delete_non_cascading: report, do not abort. A
+            # failure here leaves a uuid behind, which is worse than nothing
+            # and better than a half-deleted account.
+            print(f"[delete] pseudonymize {table}: {type(e).__name__}: {e}")
+    return n
+
+
 NON_CASCADING = (
     ("device_tokens", "user_id"),
     ("food_tips", "user_id"),
@@ -246,6 +283,9 @@ def delete_account(db, user_id: str) -> dict:
         )
 
     audit = pseudonymize_audit(db, user_id)
+    # Before the cascade, for the same reason pseudonymize_audit runs early:
+    # these rows are found BY the user_id that is about to stop existing.
+    retained = pseudonymize_retained(db, user_id)
     orphans = delete_non_cascading(db, user_id)
     status = delete_auth_user(user_id)
     if status not in (200, 204, 404):
@@ -254,4 +294,5 @@ def delete_account(db, user_id: str) -> dict:
 
     return {"storage_objects_deleted": deleted,
             "audit_rows_pseudonymized": audit,
+            "retained_rows_pseudonymized": retained,
             "non_cascading_rows_deleted": orphans}

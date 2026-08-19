@@ -70,3 +70,30 @@ def test_the_audit_actually_sees_routes():
     found = list(_routes())
     assert len(found) > 30, f"only {len(found)} routes parsed — the AST walk is broken"
     assert any(m in MUTATING and owned for _f, _fn, m, owned, _w in found)
+
+
+# ── the user_id-without-a-foreign-key class ────────────────────────────────
+#
+# Five tables carry a user_id with no FK. Three are deleted with the user
+# (NON_CASCADING), two outlive them with the person removed (PSEUDONYMIZE).
+# The bug this guards against is a sixth appearing in neither, which is how
+# ai_runs and notification_log sat unswept until the constraint census.
+
+def test_the_two_retention_policies_are_disjoint():
+    """A table in both lists would be deleted AND nulled, and which happened
+    would depend on call order."""
+    from api.account.deletion import NON_CASCADING, PSEUDONYMIZE
+    overlap = {t for t, _ in NON_CASCADING} & {t for t, _ in PSEUDONYMIZE}
+    assert not overlap, f"tables in both policies: {overlap}"
+
+
+def test_every_fk_less_user_table_has_a_stated_policy():
+    """Names the five known members explicitly. A new table with an unreferenced
+    user_id must be added to one list or the other — and choosing is the point,
+    since the failure mode is not choosing."""
+    from api.account.deletion import NON_CASCADING, PSEUDONYMIZE
+    known = {"device_tokens", "food_tips", "flight_api_usage",   # deleted
+             "ai_runs", "notification_log"}                      # pseudonymized
+    covered = {t for t, _ in NON_CASCADING} | {t for t, _ in PSEUDONYMIZE}
+    assert known == covered, (
+        f"missing a policy: {known - covered};  unexpected: {covered - known}")
