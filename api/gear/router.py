@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from api.core.auth import current_user_id
 from api.core.db import get_db
 from api.core.trips import owned_trip
+from api.packing.limits import MAX_QTY, MIN_QTY
 
 router = APIRouter(prefix="/v1/gear-profiles", tags=["gear"])
 
@@ -15,7 +16,7 @@ class ProfileCreate(BaseModel):
 
 class ItemAdd(BaseModel):
     name: str = Field(min_length=1, max_length=60)
-    qty: int = Field(default=1, ge=1, le=14)
+    qty: int = Field(default=1, ge=MIN_QTY, le=MAX_QTY)
 
 
 def _owned(db, profile_id: str, user_id: str) -> dict:

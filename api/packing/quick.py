@@ -10,6 +10,7 @@ from api.core.auth import current_user_id
 from api.core.db import get_db
 from api.core.trips import owned_trip
 from api.packing import dupes
+from api.packing.limits import MAX_QTY, MIN_QTY, clamp_qty
 
 router = APIRouter(prefix="/v1/trips", tags=["packing"])
 
@@ -28,7 +29,7 @@ class QuickAdd(BaseModel):
 class ParsedItem(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     category: str = "misc"
-    qty: int = Field(default=1, ge=1, le=99)
+    qty: int = Field(default=1, ge=MIN_QTY, le=MAX_QTY)
     style_tag: str | None = None
 
 
@@ -54,7 +55,7 @@ def clamp_items(raw) -> list[dict]:
         cat = it.get("category") if it.get("category") in CATS else "misc"
         tag = it.get("style_tag") if it.get("style_tag") in TAGS else None
         try:
-            qty = max(1, min(int(it.get("qty") or 1), 99))
+            qty = clamp_qty(it.get("qty"))
         except (TypeError, ValueError):
             qty = 1
         out.append({"name": str(it["name"]).strip()[:80], "category": cat,

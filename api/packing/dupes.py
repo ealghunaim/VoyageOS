@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from api.packing.limits import MAX_QTY
 
 #: Leading articles carry no meaning in an item name — "The Adapter" and
 #: "Adapter" are one thing. Kept short on purpose: every entry here is a way
@@ -98,11 +99,13 @@ def find_duplicates(new_items: list[dict], existing: list[dict]) -> list[dict]:
     return hits
 
 
-def merged_qty(existing_qty, adding_qty, *, cap: int = 99) -> int:
+def merged_qty(existing_qty, adding_qty, *, cap: int = MAX_QTY) -> int:
     """What a merge should leave behind.
 
-    Capped at the same ceiling the quick-add parser clamps to, so merging
-    cannot produce a quantity the app would otherwise refuse to create.
+    Capped at MAX_QTY, which is the column's ceiling — not merely the parser's.
+    This docstring used to claim the two were the same and they were not: the
+    cap was 99 while the column refused anything over 14, so merging 10 socks
+    with 8 threw instead of capping.
     """
     def n(v):
         try:

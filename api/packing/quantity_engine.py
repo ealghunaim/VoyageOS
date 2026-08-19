@@ -72,6 +72,13 @@ def _base_qty(item_class: ItemClass, days_eff: int, model_qty: int | None) -> in
         case ItemClass.TOILETRY_KIT:
             return 1
         case ItemClass.MEDICATION:
+            # DETERMINISTIC, AND THE CODE OVERRIDES THE MODEL HERE.
+            #
+            # model_qty is not consulted for this class at all: the dose count
+            # follows the trip, so whatever the model proposed is discarded.
+            # That makes the result a pure function of trip length — a 24-day
+            # trip is always 27 — which is why it can exceed a column ceiling
+            # without anyone having typed a large number anywhere.
             return days_eff + 3                      # doses: days + 3 buffer
         case ItemClass.CHARGER:
             return 1                                 # per device class

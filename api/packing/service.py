@@ -13,6 +13,7 @@ from api.packing.context import build_context, context_hash
 from api.packing.fallback import template_items
 from api.packing.quantity_engine import ItemClass, compute_qty
 from api.packing.schemas import GenOutput, parse_model_json
+from api.packing.limits import clamp_qty
 
 CATEGORY_ORDER = ["clothing", "footwear", "toiletries", "medications", "electronics",
                   "documents", "activity_gear", "kids", "comfort", "misc"]
@@ -64,7 +65,7 @@ def _persist(db, trip_id: str, traveler_id: str, items: list[dict], *,
         rows.append({
             "list_id": plist["id"],
             "item_id": catalog.get(it["name"].lower()),
-            "name": it.get("name") or "item", "category": it.get("category") or "misc", "qty": max(1, min(int(it.get("qty") or 1), 99)),
+            "name": it.get("name") or "item", "category": it.get("category") or "misc", "qty": clamp_qty(it.get("qty")),
             "status": "suggested",
             "source": it["source_signal"] if it.get("source_signal") in ("history", "weather") else source,
             "style_tag": it.get("style_tag"),

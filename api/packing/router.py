@@ -7,6 +7,7 @@ from api.core.db import get_db
 from api.packing import service
 from api.packing.weight import sum_weight
 from api.core.trips import owned_trip
+from api.packing.limits import MAX_QTY, MIN_QTY
 
 router = APIRouter(prefix="/v1/trips", tags=["packing"])
 items_router = APIRouter(prefix="/v1/packing-items", tags=["packing"])
@@ -35,7 +36,7 @@ def get_list(trip_id: str, user_id: str = Depends(current_user_id)):
 
 class ItemPatch(BaseModel):
     status: Literal["suggested", "accepted", "packed", "rejected"] | None = None
-    qty: int | None = Field(default=None, ge=1, le=99)
+    qty: int | None = Field(default=None, ge=MIN_QTY, le=MAX_QTY)
     style_tag: str | None = Field(default=None, max_length=16)
     weight_g: int | None = Field(default=None, ge=1, le=50000)
 
