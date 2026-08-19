@@ -15,7 +15,10 @@ from api.packing.quantity_engine import ItemClass, compute_qty
     (ItemClass.BOTTOMS, 30, False, "standard", 4),     # ceil(30/4)=8 -> cap 4
     (ItemClass.SLEEPWEAR, 10, False, "standard", 2),
     (ItemClass.TOILETRY_KIT, 21, False, "thorough", 1),  # style-exempt, cap 1
-    (ItemClass.MEDICATION, 5, False, "light", 8),        # 5+3, style-exempt
+    # One package, whatever the trip length. Was 5+3=8, which counted doses in
+    # a column that counts objects; the day-count now travels in the reason.
+    (ItemClass.MEDICATION, 5, False, "light", 1),
+    (ItemClass.MEDICATION, 24, False, "thorough", 1),   # length changes nothing
     (ItemClass.CHARGER, 12, False, "standard", 1),
 ])
 def test_quantity_table(cls, days, laundry, style, expected):

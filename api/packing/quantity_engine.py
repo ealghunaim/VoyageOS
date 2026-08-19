@@ -45,6 +45,20 @@ HARD_CAP = {
 STYLE_EXEMPT = {ItemClass.MEDICATION, ItemClass.TOILETRY_KIT}
 
 
+def supply_days(item_class: ItemClass, days: int, laundry: bool) -> int | None:
+    """How long a consumable has to last, for the reason line.
+
+    Only medication has an answer: it is the one class where duration is a
+    property of the item rather than of the packing style. Returned separately
+    from qty so that "enough for 31 days" and "31 objects" stop being the same
+    number — conflating them is what put a dose count into a column that
+    counts things.
+    """
+    if item_class is not ItemClass.MEDICATION:
+        return None
+    return _effective_days(item_class, days, laundry) + 3     # days + buffer
+
+
 def _round_half_up(x: float) -> int:
     return int(math.floor(x + 0.5))
 
@@ -72,14 +86,22 @@ def _base_qty(item_class: ItemClass, days_eff: int, model_qty: int | None) -> in
         case ItemClass.TOILETRY_KIT:
             return 1
         case ItemClass.MEDICATION:
-            # DETERMINISTIC, AND THE CODE OVERRIDES THE MODEL HERE.
+            # ONE package. See supply_days() for the day-count, which is now
+            # carried as text rather than as a quantity.
             #
-            # model_qty is not consulted for this class at all: the dose count
-            # follows the trip, so whatever the model proposed is discarded.
-            # That makes the result a pure function of trip length — a 24-day
-            # trip is always 27 — which is why it can exceed a column ceiling
-            # without anyone having typed a large number anywhere.
-            return days_eff + 3                      # doses: days + 3 buffer
+            # This returned days_eff + 3 and ignored model_qty entirely, so the
+            # dose count was a pure function of trip length and nobody had to
+            # type a large number for one to appear. That was defensible for a
+            # blister pack and wrong for everything else in the class: prod
+            # holds "Basic first aid kit" at qty 8, "Blister plasters" at 9 and
+            # "Rehydration salts" at 8, beside an identical "Small first-aid
+            # kit" at 1 that the model happened to label `other`. Nobody packs
+            # eight first aid kits.
+            #
+            # qty answers "how many objects go in the bag". For this class the
+            # answer is one, whatever it contains. How long it has to last is a
+            # different question and belongs in the reason.
+            return 1
         case ItemClass.CHARGER:
             return 1                                 # per device class
         case ItemClass.OTHER:

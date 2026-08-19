@@ -11,7 +11,7 @@ from api.ai_gateway import gateway
 from api.ai_gateway.prompts import PACKING_SYSTEM_PROMPT, PROMPT_VERSION
 from api.packing.context import build_context, context_hash
 from api.packing.fallback import template_items
-from api.packing.quantity_engine import ItemClass, compute_qty
+from api.packing.quantity_engine import ItemClass, compute_qty, supply_days
 from api.packing.schemas import GenOutput, parse_model_json
 from api.packing.limits import clamp_qty
 
@@ -34,18 +34,39 @@ def _catalog_index(db) -> dict[str, str]:
     return {r["name"].lower(): r["id"] for r in rows}
 
 
+#: Words that mean the reason already says how long the supply must last.
+#: The model very often writes this itself — prod carries "13-day trip, daily
+#: supply of personal prescriptions" — and appending to that would produce
+#: "…daily supply of personal prescriptions · 16-day supply".
+_SAYS_DURATION = ("supply", "-day", " days", "day trip")
+
+
 def _apply_quantity_engine(items: list[dict], duration_days: int,
                            laundry: bool, style: str) -> int:
     """Law 2: the engine's number wins. Returns the divergence count for evals."""
     divergences = 0
     for it in items:
+        cls = ItemClass(it["item_class"])
         result = compute_qty(
-            ItemClass(it["item_class"]), duration_days,
+            cls, duration_days,
             laundry_available=laundry, packing_style=style, model_qty=it["qty"],
         )
         if result.diverged:
             divergences += 1
         it["qty"] = result.qty
+
+        # Medication is one package; how long it must last moves into the
+        # reason, where it reads as information rather than as a count of
+        # objects. Skipped when the model already said it, and when there is
+        # no room — the column caps reason at 120 and truncating a sentence to
+        # bolt on a suffix would be worse than omitting the suffix.
+        days = supply_days(cls, duration_days, laundry)
+        if days:
+            reason = (it.get("reason") or "").strip()
+            if not any(w in reason.lower() for w in _SAYS_DURATION):
+                suffix = f" · {days}-day supply"
+                if len(reason) + len(suffix) <= 120:
+                    it["reason"] = reason + suffix
     return divergences
 
 

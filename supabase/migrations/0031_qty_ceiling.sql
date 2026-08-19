@@ -3,11 +3,16 @@
 -- WHAT THIS TURNED OUT TO BE
 --
 -- Not a bug fix. A drift fix, pointing the opposite way to how it was first
--- written. Prod has always enforced `CHECK ((qty >= 1) AND (qty <= 99))` —
--- read from pg_constraint on 2026-08-19 — while 0001 describes 1..14 and dev,
--- built from the migration files, carried 1..14. So the migration FILES were
--- the outlier, and dev inherited their mistake; prod never carried 14 and was
--- never exposed.
+-- written. Prod enforces `CHECK ((qty >= 1) AND (qty <= 99))` — read from
+-- pg_constraint on 2026-08-19 — while 0001 describes 1..14, and dev, built
+-- from the migration files, carried 1..14.
+--
+-- Prod was widened at some point via the dashboard. WHEN AND BY WHOM IS
+-- UNRECORDED, which is the actual finding: there is no artefact of the change
+-- anywhere in this repository. The migration files describe dev, not prod, and
+-- nothing enforces that they ever agreed. What is certain is only what the
+-- constraint says today, and that prod therefore never rejected the rows it
+-- holds.
 --
 -- See 0012's header for the precedent: trip_notes was created in the Supabase
 -- dashboard and never given a migration, so a fresh database came up without

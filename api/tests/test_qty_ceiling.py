@@ -56,14 +56,29 @@ def test_no_stray_qty_literals_remain():
     assert not offenders, "qty bounds spelled as literals:\n  " + "\n  ".join(offenders)
 
 
-def test_the_quantity_engine_can_exceed_the_old_ceiling():
-    """The regression in one line: if this ever returns <= 14 again, either
-    medication got capped (which under-packs a prescription) or the engine
-    changed and this test should be revisited deliberately."""
-    from api.packing.quantity_engine import compute_qty
-    r = compute_qty(item_class="medication", days=21, laundry_available=False, model_qty=21)
-    assert r.qty > 14, "medication no longer produces a real day-count"
-    assert r.qty <= MAX_QTY, f"engine produced {r.qty}, above the column ceiling"
+def test_medication_is_one_package_and_the_days_travel_separately():
+    """This test used to assert the opposite — that medication qty exceeded 14 —
+    so that re-capping it would have to be a deliberate act rather than a quiet
+    one. This IS that act, made deliberately: qty answers how many objects go
+    in the bag, and for this class the answer is one however long the trip.
+
+    The day-count is not lost, it moved. Asserting both halves here is the
+    point: a future change that drops the duration entirely should fail."""
+    from api.packing.quantity_engine import ItemClass, compute_qty, supply_days
+    r = compute_qty(ItemClass.MEDICATION, 21, laundry_available=False, model_qty=21)
+    assert r.qty == 1, "medication should be one package"
+    assert supply_days(ItemClass.MEDICATION, 21, False) == 24, "the days must survive"
+    assert supply_days(ItemClass.TOPS, 21, False) is None, "only medication has a supply"
+
+
+def test_no_engine_class_can_now_exceed_the_column():
+    """Nothing the engine produces should be able to fail an insert. Checked
+    across the range rather than at one point, since the batch is all-or-nothing."""
+    from api.packing.quantity_engine import ItemClass, compute_qty
+    for cls in ItemClass:
+        for days in (1, 7, 21, 60, 365):
+            q = compute_qty(cls, days, laundry_available=False, model_qty=MAX_QTY).qty
+            assert MIN_QTY <= q <= MAX_QTY, f"{cls} at {days} days produced {q}"
 
 
 @pytest.mark.parametrize("raw,want", [
