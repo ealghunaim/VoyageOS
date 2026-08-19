@@ -3,7 +3,7 @@ import {
   ActivityIndicator, Alert, Pressable, RefreshControl,
   ScrollView, StyleSheet, Text, TextInput, View, Platform,
 } from 'react-native';
-import { addKitItem, applyKit, confirmAddItems, createKit, ParsedItem, quickAddItems, generateList, getPackingList, getTimeline, getTripWeather, getWeight, Kit, listKits, PackItem, refreshTripWeather, setBagLimit, Task, updateItem, WeightInfo, WxDay } from '../api';
+import { addKitItem, applyKit, KitApplied, confirmAddItems, createKit, ParsedItem, quickAddItems, generateList, getPackingList, getTimeline, getTripWeather, getWeight, Kit, listKits, PackItem, refreshTripWeather, setBagLimit, Task, updateItem, WeightInfo, WxDay } from '../api';
 import { deviceTz, permissionStatus, requestPermission, syncReminders, testPing } from '../notifications';
 import { Btn, Card, Progress } from '../components/ui';
 import { confirmRewrite } from '../confirms';
@@ -11,6 +11,8 @@ import { formatStamp } from '../when';
 import { kg, kgWhole } from '../units';
 import JourneyLoader from '../components/JourneyLoader';
 import WeightSheet from '../components/WeightSheet';
+import KitReviewSheet from '../components/KitReviewSheet';
+import { summarise } from '../kitSummary';
 import { F, P, RA, S, T, tint } from '../theme';
 import { FAB_CLEARANCE } from '../components/TopBar';
 
@@ -27,6 +29,10 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
   const [weight, setWeight] = useState<WeightInfo | null>(null);
   const [showLimits, setShowLimits] = useState(false);
   const [kits, setKits] = useState<Kit[] | null>(null);
+  // The receipt from the last kit apply. Held rather than shown immediately:
+  // the summary line is the default, and Review is a choice.
+  const [kitResult, setKitResult] = useState<KitApplied | null>(null);
+  const [kitReviewOpen, setKitReviewOpen] = useState(false);
   const [wx, setWx] = useState<WxDay[]>([]);
   const [wxPlace, setWxPlace] = useState<string | null>(null);
   const [quick, setQuick] = useState('');
@@ -144,6 +150,8 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
       {/* Remounts per item so the field seeds from that item's weight — the
           sheet reads `grams` on mount, and a single instance reused across
           rows would show the previous item's number. */}
+      <KitReviewSheet result={kitReviewOpen ? kitResult : null}
+        onClose={() => setKitReviewOpen(false)} />
       <WeightSheet
         key={weightFor?.id ?? 'none'}
         visible={weightFor !== null}

@@ -162,7 +162,23 @@ export const addKitItem = (id: string, name: string) =>
   req(`/v1/gear-profiles/${id}/items`, { method: 'POST', body: JSON.stringify({ name }) });
 export const removeKitItem = (id: string, itemId: string) =>
   req(`/v1/gear-profiles/${id}/items/${itemId}`, { method: 'DELETE' });
-export const applyKit = (id: string, tripId: string): Promise<{ added: number; already_there: number; kit: string }> =>
+/** What one kit item ran into on the way onto the list.
+ *
+ *  `already_there === merged + skipped`, and `capped` counts a SUBSET of
+ *  merged rather than a third sibling — nobody should be summing three
+ *  numbers to check they got them all.
+ */
+export type KitConflict = {
+  name: string;
+  action: 'merged' | 'skipped';
+  from_qty?: number; added_qty?: number; to_qty?: number; capped_at?: number;
+  existing_qty?: number; detail?: string;
+};
+export type KitApplied = {
+  added: number; already_there: number; merged: number; skipped: number;
+  capped: number; conflicts: KitConflict[]; kit: string;
+};
+export const applyKit = (id: string, tripId: string): Promise<KitApplied> =>
   req(`/v1/gear-profiles/${id}/apply/${tripId}`, { method: 'POST' });
 
 export type WeightInfo = { total_g: number; counted: number; unweighed: number; limit_g: number | null };
