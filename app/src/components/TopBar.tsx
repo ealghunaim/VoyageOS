@@ -72,7 +72,7 @@ export default function TopBar({ onTierPress, onProfile }: {
 // language would read as a component borrowed from another app.
 
 export function TabIcon({ kind, color, size = 24 }: {
-  kind: 'trips' | 'kits' | 'docs'; color: string; size?: number;
+  kind: 'trips' | 'kits' | 'docs' | 'journal'; color: string; size?: number;
 }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 100 100">
@@ -86,6 +86,13 @@ export function TabIcon({ kind, color, size = 24 }: {
           <Path d="M36 30 v-6 a14 14 0 0 1 28 0 v6" fill="none" stroke={color} strokeWidth={9} />
           <Path d="M18 34 h64 a6 6 0 0 1 6 6 v42 a6 6 0 0 1 -6 6 h-64 a6 6 0 0 1 -6 -6 v-42 a6 6 0 0 1 6 -6 Z" fill={color} />
         </>
+      )}
+      {kind === 'journal' && (
+        // An open book: two leaves from a centre fold. Deliberately not a pen —
+        // the hub is for re-reading, and a pen would promise writing it does
+        // not offer.
+        <Path d="M50 26 C38 16 22 16 10 20 v56 c12 -4 28 -4 40 6 c12 -10 28 -10 40 -6 V20 c-12 -4 -28 -4 -40 6 Z M50 26 v62"
+              fill="none" stroke={color} strokeWidth={8} strokeLinejoin="round" />
       )}
       {kind === 'docs' && (
         // A sheet with its corner turned.

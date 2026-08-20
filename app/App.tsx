@@ -5,7 +5,7 @@ import { SafeAreaProvider, SafeAreaView as SafeArea, useSafeAreaInsets } from 'r
 import { useFonts } from 'expo-font';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Dimensions, Image, Linking, SafeAreaView, StatusBar, Text, TextInput, View } from 'react-native';
-import { setAuthFailHandler, Trip } from './src/api';
+import { getTrip, setAuthFailHandler, Trip } from './src/api';
 import { configurePurchases } from './src/purchases';
 import ForgotPassword from './src/screens/ForgotPassword';
 import Paywall from './src/screens/Paywall';
@@ -24,6 +24,7 @@ import Guide from './src/screens/Guide';
 import Packing from './src/screens/Packing';
 import Profile from './src/screens/Profile';
 import Journal from './src/screens/Journal';
+import JournalHub from './src/screens/JournalHub';
 import Planner from './src/screens/Planner';
 import SOS from './src/screens/SOS';
 import TripHub from './src/screens/TripHub';
@@ -161,7 +162,9 @@ function TabsScreen({ navigation }: any) {
         tabBarLabelStyle: { ...T.caption, fontFamily: F.med, fontSize: 11, marginTop: 1 },
         tabBarIcon: ({ color }) => (
           <TabIcon size={21} color={color}
-            kind={r.name === 'Trips' ? 'trips' : r.name === 'Kits' ? 'kits' : 'docs'} />
+            kind={r.name === 'Trips' ? 'trips'
+              : r.name === 'Kits' ? 'kits'
+              : r.name === 'Journal' ? 'journal' : 'docs'} />
         ),
       })}>
       <Tabs.Screen name="Trips">
@@ -182,6 +185,24 @@ function TabsScreen({ navigation }: any) {
         {() => (
           <TabShell onProfile={onProfile}>
             <Kits />
+          </TabShell>
+        )}
+      </Tabs.Screen>
+      <Tabs.Screen name="Journal">
+        {() => (
+          <TabShell onProfile={onProfile}>
+            {/* A nav slot rather than a Home card. Journal is the same KIND of
+                thing Trips and Kits are — a place you go, with contents — and
+                it outlives any one trip, so filing it under the trips list
+                would make it a feature of something it is not. */}
+            <JournalHub onOpenTrip={async (tripId: string) => {
+              // Fetched on tap rather than cached. The hub knows a trip id; the
+              // Journal screen needs the whole trip — dates, status, locked_at —
+              // and a cache would be one more thing that can go stale between
+              // the list and the screen it opens.
+              try { navigation.navigate('Journal', { trip: await getTrip(tripId) }); }
+              catch { /* the trip is gone; staying put is the honest outcome */ }
+            }} />
           </TabShell>
         )}
       </Tabs.Screen>

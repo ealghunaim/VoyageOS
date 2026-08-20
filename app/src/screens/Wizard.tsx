@@ -274,6 +274,18 @@ export default function Wizard({ onDone, onCancel }: {
       // Hitting the trip limit is not an error to apologise for — it is the
       // moment the paywall exists for. Everything else stays a dialog.
       if (e instanceof PaywallError) {
+        // THE FREE FIX FIRST. Closing out a finished trip frees its slot, so
+        // someone at their limit can carry on for nothing. Opening the paywall
+        // straight away sells a fix for a problem they can solve themselves.
+        // The server's message already leads with the free option; this shows
+        // it and offers plans as the second door rather than the only one.
+        if (e.info.free_remedy) {
+          Alert.alert('You are at your trip limit', e.info.message, [
+            { text: 'Not now', style: 'cancel' },
+            { text: 'See plans', onPress: () => setPaywallFor(e.info.upgrade_to ?? null) },
+          ]);
+          return;
+        }
         setPaywallFor(e.info.upgrade_to ?? null);
         return;
       }

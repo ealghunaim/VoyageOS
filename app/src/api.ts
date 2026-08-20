@@ -36,6 +36,10 @@ export type LimitInfo = {
   tier: string; limit: number; trips_used: number;
   upgrade_to: string | null; upgrade_limit: number | null;
   upgrade_price: string | null;
+  /** The fix that costs nothing — closing out a finished trip frees its slot.
+   *  Its own field so a paywall can render it as an affordance rather than
+   *  parse it out of `message`. */
+  free_remedy?: string;
   message: string;
 };
 
@@ -380,6 +384,17 @@ export type Note = {
   id: string; body: string; created_at: string; entry_date?: string; photos?: string[];
 };
 export const listNotes = (tripId: string): Promise<Note[]> => req(`/v1/trips/${tripId}/notes`);
+
+/** One entry from the cross-trip hub — a Note plus the trip it belongs to.
+ *
+ *  country_code is DERIVED on the server from the trip's first destination,
+ *  not stored on trips. Selecting it directly returns 42703; the client's Trip
+ *  type carries the field because list_trips enriches it the same way.
+ */
+export type HubNote = Note & {
+  trips: { id: string; title: string; locked_at: string | null; country_code: string | null } | null;
+};
+export const listAllNotes = (): Promise<HubNote[]> => req('/v1/notes');
 export const addNote = (tripId: string, body: string, photos: { b64: string; mime: string }[] = [],
                         entryDate?: string): Promise<Note> =>
   req(`/v1/trips/${tripId}/notes`, {

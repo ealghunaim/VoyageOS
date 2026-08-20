@@ -77,11 +77,26 @@ def list_all_notes(user_id: str = Depends(current_user_id)):
     """
     db = get_db()
     rows = db.table("trip_notes") \
-        .select("*, trips(id,title,country_code,locked_at)") \
+        .select("*, trips(id,title,locked_at)") \
         .eq("user_id", user_id) \
         .order("entry_date", desc=True).order("created_at", desc=True) \
         .limit(500).execute().data
+
+    # country_code is NOT a column on trips — it is enriched from the trip's
+    # first destination, exactly as list_trips does. The client's Trip type
+    # carries the field, which is what made it look like one; selecting it
+    # directly returned 42703. Same derivation here so a flag on the hub
+    # matches the flag on the trip card.
+    trip_ids = {(r.get("trips") or {}).get("id") for r in rows} - {None}
+    country: dict[str, str] = {}
+    if trip_ids:
+        for d in (db.table("destinations").select("trip_id,country_code,seq")
+                  .in_("trip_id", list(trip_ids)).order("seq").execute().data):
+            country.setdefault(d["trip_id"], d.get("country_code"))
     for r in rows:
+        t = r.get("trips") or {}
+        if t:
+            t["country_code"] = country.get(t.get("id"))
         r["photos"] = photo_urls.sign(db, r.get("photos"))
     return rows
 
