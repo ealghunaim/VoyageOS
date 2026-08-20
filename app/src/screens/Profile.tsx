@@ -14,6 +14,7 @@ import SubscriptionCard from '../components/SubscriptionCard';
 import Paywall from './Paywall';
 import { FAB_CLEARANCE } from '../components/TopBar';
 import { isoDay } from '../tripStatus';
+import { BiometricCapability, capability, isEnabled as isBiometricEnabled, setEnabled as setBiometric } from '../biometric';
 import { COUNTRIES, countryName, flagOf } from '../countries';
 import { F, P, RA, S, T } from '../theme';
 
@@ -52,7 +53,15 @@ export default function Profile({ onSignedOut, onDocuments, onBack }: {
   const [homeHits, setHomeHits] = useState<PlaceHit[]>([]);
   const [homeChosen, setHomeChosen] = useState(false);
   const [picking, setPicking] = useState(false);
+  // Asked, not assumed — the answer decides whether the toggle exists at all.
+  const [bioCap, setBioCap] = useState<BiometricCapability>('unavailable');
+  const [bioOn, setBioOn] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    capability().then(setBioCap);
+    isBiometricEnabled().then(setBioOn);
+  }, []);
 
   // Read-only here: the summary earns the tap, the Documents screen owns editing.
   useEffect(() => { listDocuments().then(setDocs).catch(() => {}); }, []);
@@ -257,6 +266,43 @@ export default function Profile({ onSignedOut, onDocuments, onBack }: {
         </Card>
       </Pressable>
 
+      {/* NOT RENDERED AT ALL when the device has no sensor. A setting you
+          cannot use is clutter, and a greyed one invites a tap that can only
+          disappoint. */}
+      {bioCap !== 'unavailable' && (
+        <Card>
+          <Text style={s.section}>DOCUMENT PROTECTION</Text>
+          <Pressable
+            onPress={async () => {
+              if (bioCap === 'unenrolled') {
+                // EXPLAIN, DO NOT ARM. Switching this on with nothing enrolled
+                // would arm a lock with no key — and authenticateAsync would
+                // quietly fall through to the device passcode, which is not
+                // what the toggle says.
+                Alert.alert('Face ID not set up',
+                  'Set up Face ID in iOS Settings first, then turn this on.');
+                return;
+              }
+              const next = !bioOn;
+              await setBiometric(next);
+              setBioOn(next);
+            }}
+            style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.docSummary}>Require Face ID for documents</Text>
+              <Text style={s.hint}>
+                {bioCap === 'unenrolled'
+                  ? 'Face ID is not set up on this device yet.'
+                  : 'Asks before showing a passport or document number. This device only.'}
+              </Text>
+            </View>
+            <View style={[bioSwitch.track, bioOn && { backgroundColor: P.brand }]}>
+              <View style={[bioSwitch.knob, bioOn && { alignSelf: 'flex-end' }]} />
+            </View>
+          </Pressable>
+        </Card>
+      )}
+
       <Card>
         <Text style={s.section}>EMERGENCY CONTACT</Text>
         <Field label="NAME" value={ecName} onChange={setEcName} placeholder="Who to call" />
@@ -313,6 +359,12 @@ export default function Profile({ onSignedOut, onDocuments, onBack }: {
  * a separate "urgent" rule, because there the colour signals speed, not
  * consequence.
  */
+const bioSwitch = StyleSheet.create({
+  track: { width: 46, height: 28, borderRadius: 14, backgroundColor: P.hairlineStrong,
+           padding: 3, justifyContent: 'center' },
+  knob: { width: 22, height: 22, borderRadius: 11, backgroundColor: P.card },
+});
+
 const s = StyleSheet.create({
   center: { flex: 1, backgroundColor: P.pageBg, alignItems: 'center', justifyContent: 'center' },
   h1: { ...T.display, color: P.textPri },

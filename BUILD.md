@@ -70,6 +70,50 @@ Verify against the installed artifact rather than the build log:
 
 `voyageos` must appear alongside `com.ealghunaim.voyageos` and `exp+voyageos`.
 
+## GATE: Android hardware-back is unverified on a device
+
+**Before any Android build ships**, someone must test the hardware back button
+on a device or emulator. Deferred deliberately — there is no Android release in
+scope — but it is a gate, not a nicety.
+
+Most of it is structural and low risk: Phase 3 replaced eight hand-rolled back
+handlers with React Navigation, which owns `hardwareBackPress` once a stack
+exists, so that part works everywhere or nowhere.
+
+**The specific unverified piece is the wizard's innermost-first ordering.** That
+listener is ours, not the navigator's, and is argued only from reading it:
+
+    journey editor open  → back closes the editor
+    paywall open         → back closes the paywall
+    neither open         → back offers to discard the trip
+    the discard guard must stay SILENT while either modal is open
+
+Getting that wrong offers to throw away a half-filled trip because somebody
+dismissed a price sheet. See `app/src/screens/Wizard.tsx`.
+
+Standing it up needs a JDK plus the Android SDK and a system image (~4-6 GB),
+then an AVD. A physical Android device needs only `adb`.
+
+## Verify native modules in the DYLIB, not the executable
+
+The scheme lesson has a sibling. In a debug build the app's own code — and the
+Expo modules linked into it — lives in **`VoyageOS.debug.dylib`**, not in the
+`VoyageOS` executable beside it. Searching the executable finds nothing and
+looks exactly like a module that failed to link:
+
+    APP=$(xcrun simctl get_app_container <SIM_UDID> com.ealghunaim.voyageos)
+    strings "$APP/VoyageOS" | grep ExpoLocalAuthentication          # finds nothing
+    strings "$APP/VoyageOS.debug.dylib" | grep ExpoLocalAuthentication   # 3 hits
+
+A CONFIDENT FALSE NEGATIVE — the worst shape, because it reads as proof of
+absence. `otool -L` on the dylib is the conclusive check, since it names the
+Apple framework actually linked:
+
+    otool -L "$APP/VoyageOS.debug.dylib" | grep LocalAuthentication
+
+Same principle as the scheme entry: verify against the installed artifact, and
+make sure you are looking at the part of it that carries the answer.
+
 ## Pre-submission checklist
 
 - [ ] `app.json` flipped to **prod** values (three fields above)
@@ -91,12 +135,16 @@ Each is additive and safe to apply ahead of the code that uses it.
   explicitly either way, so this is the second belt, not the first.
 - **0032** `trip_locked_at` — the trip lock's own column. Sets nothing.
 - **0033** `notes_by_user` — index for the journal hub's cross-trip read.
-
-Also owed, and NOT yet written: a migration dropping `NOT NULL` from
-`notification_log.user_id`. Until it lands, half the account-deletion
-pseudonymisation is inert — ai_runs is nulled, notification_log throws and is
-caught. It fails safe (the row keeps its uuid, as before) but the policy is
-only half in force.
+  **Dev status unconfirmed.** The catalog is not readable through PostgREST and
+  the endpoint returns correct results without the index, so a working
+  `/v1/notes` proves nothing. Run `scripts/verify_0033_index.sql` on dev before
+  applying to prod, or prod gets an index dev does not have.
+- **0034** `notification_log_nullable_user` — drops `NOT NULL` from
+  `notification_log.user_id` so account deletion can pseudonymise it. Until it
+  lands, half that policy is inert: ai_runs is nulled, notification_log throws
+  and is caught. It fails safe — the row keeps the uuid it already had — but a
+  stated policy that is not in force is worse than an unstated one, because it
+  reads as done.
 
 ## Owed with the next build
 

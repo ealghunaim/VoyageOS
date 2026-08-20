@@ -13,6 +13,7 @@ import { Btn, Card, Chip } from '../components/ui';
 import { F, P, RA, S, T } from '../theme';
 import { FAB_CLEARANCE } from '../components/TopBar';
 import { confirmDelete } from '../confirms';
+import { isEnabled, unlock } from '../biometric';
 
 const TYPES = [
   ['passport', 'Passport'], ['visa', 'Visa'], ['insurance', 'Insurance'],
@@ -118,6 +119,25 @@ export default function Documents() {
 
   async function reveal(doc: Doc) {
     if (revealed?.id === doc.id) { setRevealed(null); return; }   // tap again to hide
+
+    // FACE ID GATES THE NUMBER, not the screen. The list is expiry dates and
+    // labels — useful, and not what anyone is protecting. The passport number
+    // is the sensitive surface, so the gate sits at the moment it would be
+    // shown rather than at the door to the room.
+    if (await isEnabled()) {
+      const r = await unlock();
+      if (r === 'cancelled') return;          // a decision, not a failure: say nothing
+      if (r === 'unavailable') {
+        // Biometrics vanished after this was switched on — re-enrolment, or a
+        // restore onto another phone. unlock() has already turned the toggle
+        // off; insisting here would lock someone out of their own passport
+        // number with no way back short of reinstalling.
+        Alert.alert('Face ID unavailable',
+          'Face ID is no longer set up on this device, so document protection has '
+          + 'been switched off. You can turn it back on in Profile.');
+      }
+    }
+
     try {
       const r = await revealDocumentNumber(doc.id);
       setRevealed({ id: doc.id, number: r.number });

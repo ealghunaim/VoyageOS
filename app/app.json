@@ -28,7 +28,13 @@
     },
     "plugins": [
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "VoyageOS uses Face ID to unlock your saved documents."
+        }
+      ]
     ],
     "_LOCAL_DEV_OVERRIDE": "CURRENTLY POINTED AT DEV (localhost:8000 + phrimm\u2026 supabase). skip-worktree, so `git checkout app/app.json` does NOTHING \u2014 flip by hand. Change ONLY apiUrl/supabaseUrl/supabaseAnonKey; revenueCatIosKey, appKey, scheme and eas must survive. Both value sets live in ~/.config/voyageos/app-extra-record.json.",
     "extra": {
