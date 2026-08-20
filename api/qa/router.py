@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from api.ai_gateway import gateway
 from api.core.auth import current_user_id
 from api.core.db import get_db
-from api.core.trips import owned_trip
+from api.core.trips import owned_trip, PLAN, RECORD
 
 router = APIRouter(prefix="/v1/trips", tags=["qa"])
 
@@ -26,7 +26,7 @@ class Ask(BaseModel):
 @router.post("/{trip_id}/ask")
 def ask(trip_id: str, body: Ask, user_id: str = Depends(current_user_id)):
     db = get_db()
-    trip = owned_trip(db, trip_id, user_id, writing=True)
+    trip = owned_trip(db, trip_id, user_id, writing=True, scope=PLAN)
     dests = db.table("destinations").select("place_name,country_code") \
         .eq("trip_id", trip_id).order("seq").limit(1).execute().data
     wx = db.table("weather_snapshots").select("forecast_date,temp_min,temp_max,precip_prob,provider") \

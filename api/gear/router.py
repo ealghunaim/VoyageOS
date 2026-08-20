@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from api.core.auth import current_user_id
 from api.core.db import get_db
-from api.core.trips import owned_trip
+from api.core.trips import owned_trip, PLAN, RECORD
 from api.packing import dupes
 from api.packing.limits import MAX_QTY, MIN_QTY, clamp_qty
 
@@ -117,7 +117,7 @@ def apply_to_trip(profile_id: str, trip_id: str, user_id: str = Depends(current_
     """
     db = get_db()
     p = _owned(db, profile_id, user_id)
-    owned_trip(db, trip_id, user_id, writing=True)
+    owned_trip(db, trip_id, user_id, writing=True, scope=PLAN)
 
     lists = db.table("packing_lists").select("id").eq("trip_id", trip_id) \
         .order("generated_at", desc=True).limit(1).execute().data

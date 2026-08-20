@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from api.ai_gateway import gateway
 from api.core.auth import current_user_id
 from api.core.db import get_db
-from api.core.trips import owned_trip
+from api.core.trips import owned_trip, PLAN, RECORD
 from api.packing import dupes
 from api.packing.limits import MAX_QTY, MIN_QTY, clamp_qty
 
@@ -66,7 +66,7 @@ def clamp_items(raw) -> list[dict]:
 @router.post("/{trip_id}/items/quick-add")
 def quick_add(trip_id: str, body: QuickAdd, user_id: str = Depends(current_user_id)):
     db = get_db()
-    owned_trip(db, trip_id, user_id, writing=True)
+    owned_trip(db, trip_id, user_id, writing=True, scope=PLAN)
     lists = db.table("packing_lists").select("id").eq("trip_id", trip_id) \
         .order("generated_at", desc=True).limit(1).execute().data
     if not lists:
@@ -109,7 +109,7 @@ def _insert(db, list_id: str, items: list[dict]) -> list[dict]:
 def confirm_add(trip_id: str, body: ConfirmAdd, user_id: str = Depends(current_user_id)):
     """Finish an add that hit a duplicate. No model call — see ConfirmAdd."""
     db = get_db()
-    owned_trip(db, trip_id, user_id, writing=True)
+    owned_trip(db, trip_id, user_id, writing=True, scope=PLAN)
     lists = db.table("packing_lists").select("id").eq("trip_id", trip_id) \
         .order("generated_at", desc=True).limit(1).execute().data
     if not lists:

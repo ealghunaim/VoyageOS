@@ -6,7 +6,7 @@ from api.core.auth import current_user_id
 from api.core.db import get_db
 from api.packing import service
 from api.packing.weight import sum_weight
-from api.core.trips import owned_trip
+from api.core.trips import owned_trip, PLAN, RECORD
 from api.packing.limits import MAX_QTY, MIN_QTY
 
 router = APIRouter(prefix="/v1/trips", tags=["packing"])
@@ -18,7 +18,7 @@ items_router = APIRouter(prefix="/v1/packing-items", tags=["packing"])
 def generate_list(trip_id: str, regenerate: bool = False,
                   user_id: str = Depends(current_user_id)):
     db = get_db()
-    trip = owned_trip(db, trip_id, user_id, writing=True)
+    trip = owned_trip(db, trip_id, user_id, writing=True, scope=PLAN)
     return service.generate(db, trip, user_id, regenerate=regenerate)
 
 
@@ -48,7 +48,23 @@ def update_item(item_id: str, body: ItemPatch, user_id: str = Depends(current_us
     if not rows:
         raise HTTPException(404, "Item not found")
     plist = db.table("packing_lists").select("trip_id").eq("id", rows[0]["list_id"]).execute().data
-    owned_trip(db, plist[0]["trip_id"], user_id)  # 404 if not the owner's
+
+    # A MIXED ROUTE, SPLIT BY WHAT THE PATCH CONTAINS.
+    #
+    # `status` is a record: ticking an item as actually packed is something you
+    # do about a trip that happened, and it is the input submit_debrief reads.
+    # Gating it would break the ordinary sequence — get home, tick off what you
+    # packed, then debrief — by making the lock land in the middle of it.
+    #
+    # qty, style_tag and weight_g are edits to the plan, and a closed trip
+    # refuses them.
+    #
+    # A patch carrying both is treated as PLAN. The client never sends one, but
+    # the API permits it, and half-applying an edit on a locked trip is worse
+    # than refusing the whole thing.
+    proposed = {k for k, v in body.model_dump().items() if v is not None}
+    scope = RECORD if proposed == {"status"} else PLAN
+    owned_trip(db, plist[0]["trip_id"], user_id, writing=True, scope=scope)
 
     changes = {k: v for k, v in body.model_dump().items() if v is not None}
     if not changes:
@@ -72,7 +88,7 @@ def _main_bag(db, trip_id: str) -> dict | None:
 def set_bag(trip_id: str, body: BagBody, user_id: str = Depends(current_user_id)):
     """Generic mode (v0.5): a user-picked target, plainly labeled — not an airline rule."""
     db = get_db()
-    owned_trip(db, trip_id, user_id, writing=True)
+    owned_trip(db, trip_id, user_id, writing=True, scope=PLAN)
     bag = _main_bag(db, trip_id)
     if bag:
         return db.table("bags").update({"target_limit_g": body.limit_g})             .eq("id", bag["id"]).execute().data[0]

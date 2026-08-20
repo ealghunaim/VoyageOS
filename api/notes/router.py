@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from api.core.auth import current_user_id
 from api.core.db import get_db
 from api.core import photo_urls
-from api.core.trips import owned_trip
+from api.core.trips import owned_trip, PLAN, RECORD
 
 router = APIRouter(prefix="/v1/trips", tags=["journal"])
 
@@ -71,7 +71,7 @@ def list_notes(trip_id: str, user_id: str = Depends(current_user_id)):
 @router.post("/{trip_id}/notes", status_code=201)
 def add_note(trip_id: str, body: NoteCreate, user_id: str = Depends(current_user_id)):
     db = get_db()
-    trip = owned_trip(db, trip_id, user_id, writing=True)
+    trip = owned_trip(db, trip_id, user_id, writing=True, scope=RECORD)
     keys = []
     for p in body.photos[:2]:
         try:
@@ -99,7 +99,7 @@ def patch_note(trip_id: str, note_id: str, body: NotePatch,
     still a log — and this endpoint should not quietly decide it.
     """
     db = get_db()
-    trip = owned_trip(db, trip_id, user_id, writing=True)
+    trip = owned_trip(db, trip_id, user_id, writing=True, scope=RECORD)
     if body.entry_date is None:
         raise HTTPException(400, "Nothing to update")
     rows = db.table("trip_notes") \

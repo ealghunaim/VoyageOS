@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from api.core.auth import current_user_id
 from api.core.db import get_db
 from api.history.service import submit_debrief
-from api.core.trips import owned_trip
+from api.core.trips import owned_trip, PLAN, RECORD
 
 router = APIRouter(prefix="/v1", tags=["history"])
 
@@ -45,7 +45,7 @@ def debrief(trip_id: str, body: DebriefBody, user_id: str = Depends(current_user
     say how early without computing it and risking a different answer.
     """
     db = get_db()
-    trip = owned_trip(db, trip_id, user_id, writing=True)
+    trip = owned_trip(db, trip_id, user_id, writing=True, scope=RECORD)
 
     remaining = _ends_in_future(trip)
     if remaining and not body.confirm_early:

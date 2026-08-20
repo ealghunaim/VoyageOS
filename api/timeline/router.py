@@ -5,7 +5,7 @@ from typing import Literal
 from api.core.auth import current_user_id
 from api.core.db import get_db
 from api.timeline.materializer import materialize
-from api.core.trips import owned_trip
+from api.core.trips import owned_trip, PLAN, RECORD
 
 router = APIRouter(prefix="/v1", tags=["timeline"])
 
@@ -33,7 +33,7 @@ def patch_task(task_id: str, body: TaskPatch, user_id: str = Depends(current_use
     rows = db.table("tasks").select("id,trip_id").eq("id", task_id).execute().data
     if not rows:
         raise HTTPException(404, "Task not found")
-    owned_trip(db, rows[0]["trip_id"], user_id, writing=True)
+    owned_trip(db, rows[0]["trip_id"], user_id, writing=True, scope=PLAN)
     task = db.table("tasks").update({"status": body.status}).eq("id", task_id).execute().data[0]
     # done early → the pending reminder is cancelled, never "do the thing you did" (Part 3)
     db.table("notification_schedule").update({"status": "cancelled"}) \

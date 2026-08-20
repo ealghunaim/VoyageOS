@@ -1,11 +1,14 @@
 """Trip CRUD — the week-2 slice. Create a trip, add destinations & activities, read it back."""
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from api.core.auth import current_user_id
 from api.core.db import get_db
 from api.subscriptions import service as subscriptions
 from api.subscriptions.tiers import limit_for
 from api.trips.models import TripPatch, ActivityCreate, DestinationCreate, TripCreate
-from api.core.trips import owned_trip
+from api.core.trips import owned_trip, PLAN, RECORD
 
 router = APIRouter(prefix="/v1/trips", tags=["trips"])
 
@@ -102,7 +105,7 @@ def get_trip(trip_id: str, user_id: str = Depends(current_user_id)):
 @router.post("/{trip_id}/destinations", status_code=201)
 def add_destination(trip_id: str, body: DestinationCreate, user_id: str = Depends(current_user_id)):
     db = get_db()
-    owned_trip(db, trip_id, user_id, writing=True)
+    owned_trip(db, trip_id, user_id, writing=True, scope=PLAN)
     row = {
         "trip_id": trip_id,
         "place_name": (body.place_name or "").strip()[:120] or "Trip",
@@ -160,7 +163,7 @@ def add_destination(trip_id: str, body: DestinationCreate, user_id: str = Depend
 @router.post("/{trip_id}/activities", status_code=201)
 def add_activity(trip_id: str, body: ActivityCreate, user_id: str = Depends(current_user_id)):
     db = get_db()
-    owned_trip(db, trip_id, user_id, writing=True)
+    owned_trip(db, trip_id, user_id, writing=True, scope=PLAN)
     return (
         db.table("activities").insert({"trip_id": trip_id, **body.model_dump()}).execute()
     ).data[0]
@@ -169,7 +172,7 @@ def add_activity(trip_id: str, body: ActivityCreate, user_id: str = Depends(curr
 @router.patch("/{trip_id}")
 def patch_trip(trip_id: str, body: TripPatch, user_id: str = Depends(current_user_id)):
     db = get_db()
-    rows = [owned_trip(db, trip_id, user_id, writing=True)]
+    rows = [owned_trip(db, trip_id, user_id, writing=True, scope=PLAN)]
     changes = body.model_dump(mode="json", exclude_none=True)
     if not changes:
         return rows[0]
@@ -186,10 +189,45 @@ def patch_trip(trip_id: str, body: TripPatch, user_id: str = Depends(current_use
     return updated
 
 
+class LockBody(BaseModel):
+    locked: bool
+
+
+@router.post("/{trip_id}/lock")
+def set_lock(trip_id: str, body: LockBody, user_id: str = Depends(current_user_id)):
+    """Close out a trip, or reopen it.
+
+    NOT gated by may_write, and that is not an oversight. Locking is the act of
+    changing the lock; routing it through the thing it controls would make
+    unlock impossible the moment lock succeeded — the classic door that locks
+    from the inside with the key on the outside.
+
+    UNLOCK IS PERMANENT AND FREE. It is never a purchase and never a tier
+    boundary. Somebody who closes a trip by mistake must be able to undo it
+    without paying, or a data-integrity feature becomes a hostage.
+
+    Unlocking does NOT undo a debrief. item_events record something that
+    actually happened and stay; re-debriefing afterwards replaces cleanly
+    (9d079a8), so reopening is safe rather than merely permitted.
+    """
+    db = get_db()
+    # RECORD, so it passes through the seam rather than around it. Changing the
+    # lock is an act on the trip's lifecycle, not on its plan — and routing it
+    # as PLAN would make unlock impossible the instant lock succeeded, which is
+    # a door that locks from the inside with the key left outside.
+    owned_trip(db, trip_id, user_id, writing=True, scope=RECORD)
+    patch = {"locked_at": datetime.now(timezone.utc).isoformat() if body.locked else None}
+    rows = db.table("trips").update(patch).eq("id", trip_id) \
+        .eq("owner_id", user_id).execute().data
+    if not rows:
+        raise HTTPException(404, "Trip not found")
+    return rows[0]
+
+
 @router.delete("/{trip_id}", status_code=204)
 def delete_trip(trip_id: str, user_id: str = Depends(current_user_id)):
     db = get_db()
-    owned_trip(db, trip_id, user_id, writing=True)
+    owned_trip(db, trip_id, user_id, writing=True, scope=RECORD)
     # notification_log has no trip_id — it reaches a trip only via schedule_id,
     # so collect those ids BEFORE the schedules they point at are deleted.
     sched_ids = [r["id"] for r in db.table("notification_schedule").select("id")

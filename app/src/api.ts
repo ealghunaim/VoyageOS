@@ -17,6 +17,8 @@ export type Trip = {
   origin?: string | null; origin_country?: string | null; origin_lat?: number | null; origin_lng?: number | null;
   id: string; title: string; start_date: string; end_date: string;
   trip_type?: string | null; status: string;
+  /** When the owner closed this trip out. Null = still open. */
+  locked_at?: string | null;
   /** every stop, in seq order — list_trips attaches this so the trip list can
    *  render the same multi-country hero as the trip screen */
   destinations?: TripStop[] | null;
@@ -111,6 +113,11 @@ export async function req(path: string, options: RequestInit = {}, _retried = fa
     // question, not a failure. Typed so the caller can ask it.
     if (res.status === 409 && (detail as any)?.code === 'trip_not_ended') {
       throw new TripNotEndedError(detail as any);
+    }
+    // 423 Locked: the caller is permitted, the trip is closed. Not 403 —
+    // nothing about who they are needs to change for this to succeed.
+    if (res.status === 423 && (detail as any)?.code === 'locked') {
+      throw new TripLockedError(detail as any);
     }
     throw new Error(readableDetail(detail, res.status));
   }
@@ -385,6 +392,27 @@ export const patchNote = (tripId: string, noteId: string, entryDate: string): Pr
 
 export const patchTrip = (id: string, b: { title?: string; start_date?: string; end_date?: string; airline?: string; visa_status?: string; cabin_class?: string; depart_time?: string; segments?: Segment[]; with_kids?: boolean; traveler_types?: string[]; origin?: string; origin_country?: string; origin_lat?: number; origin_lng?: number }): Promise<Trip> =>
   req(`/v1/trips/${id}`, { method: 'PATCH', body: JSON.stringify(b) });
+/** A write refused because the trip is closed out.
+ *
+ *  Typed, like PaywallError and TripNotEndedError, because the remedy is
+ *  specific: offer Unlock. The reason is a CODE from the server — the client
+ *  turns it into words, because only the client knows what it is showing.
+ *
+ *  Phase D and H add reasons to this same seam ('tier', 'role'). When they do,
+ *  this class gains cases rather than gaining siblings.
+ */
+export class TripLockedError extends Error {
+  lockedAt: string;
+  constructor(d: { message?: string; locked_at?: string }) {
+    super(d.message || 'This trip is closed out.');
+    this.name = 'TripLockedError';
+    this.lockedAt = d.locked_at ?? '';
+  }
+}
+
+export const setTripLock = (id: string, locked: boolean): Promise<Trip> =>
+  req(`/v1/trips/${id}/lock`, { method: 'POST', body: JSON.stringify({ locked }) });
+
 export const deleteTrip = (id: string): Promise<void> =>
   req(`/v1/trips/${id}`, { method: 'DELETE' });
 

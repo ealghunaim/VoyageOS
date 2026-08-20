@@ -157,7 +157,13 @@ export default function Home({ onNewTrip, onOpenTrip }: {
                     : [{ place_name: t.place ?? t.title, country_code: t.country_code ?? null }])}
                   style="wash" height={imminent ? 156 : 104} />
                 <View style={s.pillFloat}>
-                  <Text style={[s.pillText, { color: accent }]}>{done ? 'debriefed ✓' : when}</Text>
+                  {/* A closed-out trip is a distinct state from merely past,
+                      and the Finished tab could not previously draw that line.
+                      The glyph is on the pill rather than beside the title so
+                      it reads as part of the trip's status, not its name. */}
+                  <Text style={[s.pillText, { color: accent }]}>
+                    {t.locked_at ? '🔒 ' : ''}{done ? 'debriefed ✓' : when}
+                  </Text>
                 </View>
               </View>
               <View style={{ padding: S[4] + 2, paddingTop: S[3] }}>

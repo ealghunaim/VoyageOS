@@ -2,14 +2,14 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, LayoutAnimation, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, UIManager, View } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
-import { askTrip, deleteTrip, getTrip, getTripWeather, patchTrip, Trip, TripDetail, WxDay } from '../api';
+import { askTrip, deleteTrip, getTrip, getTripWeather, patchTrip, setTripLock, Trip, TripDetail, WxDay } from '../api';
 import TileIcon from '../components/icons';
 import DepartureCard from './DepartureCard';
 import JourneyEditor from './JourneyEditor';
 import TripExtras from './TripExtras';
 import FlagField from '../components/FlagField';
-import { classify, isoDay } from '../tripStatus';
-import { accentForTrip, onColor, tint, titleize, P, S, RA, E, T, FOLD } from '../theme';
+import { classify, dayLabel, isoDay } from '../tripStatus';
+import { accentForTrip, onColor, tint, titleize, F, P, S, RA, E, T, FOLD } from '../theme';
 import { FAB_CLEARANCE } from '../components/TopBar';
 
 // Ordered by when a traveller reaches for them: pack and plan before leaving,
@@ -93,6 +93,21 @@ export default function TripHub({ trip, accent, onBack, onPack, onPlan, onGuide,
   const plateBg = tint(chrome, 0.10);
 
   const [editing, setEditing] = useState(false);
+  // Held locally as well as on the trip so lock/unlock updates the screen
+  // without a round trip through the parent's route params.
+  const [lockedAt, setLockedAt] = useState<string | null>(trip.locked_at ?? null);
+  const locked = !!lockedAt;
+  const [lockBusy, setLockBusy] = useState(false);
+
+  async function toggleLock(next: boolean) {
+    setLockBusy(true);
+    try {
+      const t = await setTripLock(trip.id, next);
+      setLockedAt(t.locked_at ?? null);
+      onTripChanged(t);
+    } catch (e: any) { Alert.alert('Trip', e.message); }
+    finally { setLockBusy(false); }
+  }
   const [eStart, setEStart] = useState(trip.start_date);
   const [eEnd, setEEnd] = useState(trip.end_date);
   const [picking, setPicking] = useState<'start' | 'end'>('start');
@@ -139,6 +154,21 @@ export default function TripHub({ trip, accent, onBack, onPack, onPlan, onGuide,
       <Pressable onPress={onBack} hitSlop={10} style={{ marginBottom: S[3] }}>
         <Text style={[T.title, { color: chrome }]}>‹  Trips</Text>
       </Pressable>
+
+      {locked && (
+        // Says WHEN, not merely that. "Closed out" is a state someone chose,
+        // and the date is how they recognise the choice as their own.
+        <View style={s.lockBar}>
+          <Text style={[T.caption, { color: P.textSec, flex: 1 }]}>
+            Closed out {dayLabel(String(lockedAt).slice(0, 10))} · edits are off
+          </Text>
+          <Pressable onPress={() => toggleLock(false)} hitSlop={8} disabled={lockBusy}>
+            <Text style={[T.caption, { color: chrome, fontFamily: F.bold }]}>
+              {lockBusy ? '…' : 'Unlock'}
+            </Text>
+          </Pressable>
+        </View>
+      )}
 
       <Panel style={{ padding: 0, overflow: 'hidden', marginBottom: S[5], ...E.mid,
         backgroundColor: dest }}>
@@ -293,9 +323,14 @@ export default function TripHub({ trip, accent, onBack, onPack, onPlan, onGuide,
       </Pressable>
 
       <View style={s.footRow}>
-        <Pressable onPress={() => setEditing(v => !v)} hitSlop={8}>
-          <Text style={[T.caption, { color: P.textSec }]}>{editing ? 'Cancel' : 'Edit dates'}</Text>
-        </Pressable>
+        {/* Absent, not disabled. A greyed control that explains itself only
+            when tapped invites the tap; one that is not there says the same
+            thing for free, and the lock bar above already gave the reason. */}
+        {!locked && (
+          <Pressable onPress={() => setEditing(v => !v)} hitSlop={8}>
+            <Text style={[T.caption, { color: P.textSec }]}>{editing ? 'Cancel' : 'Edit dates'}</Text>
+          </Pressable>
+        )}
       </View>
 
       {/* Delete sits on its own row, hard left, clear of the floating orbs in
@@ -338,10 +373,20 @@ export default function TripHub({ trip, accent, onBack, onPack, onPlan, onGuide,
         <JourneyEditor trip={trip} accent={chrome}
           onClose={() => setJourneyOpen(false)} onSaved={onTripChanged} />
       )}
-      {past && trip.status !== 'completed' && (
+      {past && trip.status !== 'completed' && !locked && (
         <Pressable onPress={onDebrief}>
           <Text style={[T.title, { color: chrome, textAlign: 'center', marginTop: S[3] }]}>
             Close out this trip — 60-second debrief  ›
+          </Text>
+        </Pressable>
+      )}
+      {past && !locked && (
+        // For someone who will not debrief. Closing out without one is a
+        // legitimate choice, and the lock should not be reachable only through
+        // a form they have already declined to fill in.
+        <Pressable onPress={() => toggleLock(true)} disabled={lockBusy}>
+          <Text style={[T.caption, { color: P.textSec, textAlign: 'center', marginTop: S[3] }]}>
+            {lockBusy ? 'Closing…' : 'Close out without a debrief'}
           </Text>
         </Pressable>
       )}
@@ -390,5 +435,10 @@ const s = StyleSheet.create({
   footRow: { flexDirection: 'row', justifyContent: 'flex-start', marginTop: S[4] },
   // Hard left and set apart: the one irreversible control on the screen is now
   // nowhere near the orbs, and not adjacent to 'Edit dates' either.
+  lockBar: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: P.sunken, borderRadius: RA.sm,
+    paddingHorizontal: S[3], paddingVertical: S[2] + 2, marginBottom: S[4],
+  },
   dangerRow: { flexDirection: 'row', justifyContent: 'flex-start', marginTop: S[6] },
 });

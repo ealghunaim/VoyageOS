@@ -7,6 +7,7 @@ import { addKitItem, applyKit, KitApplied, confirmAddItems, createKit, ParsedIte
 import { deviceTz, permissionStatus, requestPermission, syncReminders, testPing } from '../notifications';
 import { Btn, Card, Progress } from '../components/ui';
 import { confirmRewrite } from '../confirms';
+import { TripLockedError } from '../api';
 import { formatStamp } from '../when';
 import { kg, kgWhole } from '../units';
 import JourneyLoader from '../components/JourneyLoader';
@@ -387,7 +388,16 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
                     const r = await applyKit(k.id, tripId);
                     setKitResult(r);
                     setKits(null); await load(); loadWeight();
-                  } catch (e: any) { Alert.alert('Error', e.message); }
+                  } catch (e: any) {
+                    // A client can still be holding a trip that has since been
+                    // closed out. The server's reason is a CODE; the sentence
+                    // and the remedy belong here, because only the client
+                    // knows what it is showing and where Unlock lives.
+                    if (e instanceof TripLockedError) {
+                      Alert.alert('Trip closed out',
+                        'This trip is closed. Reopen it from the trip screen to make changes.');
+                    } else { Alert.alert('Error', e.message); }
+                  }
                 }}>
                   <Text style={[s.kitChipText, { color: ac }]}>{k.name}</Text>
                 </Pressable>
