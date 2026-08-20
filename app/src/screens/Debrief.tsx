@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { getPackingList, PackItem, searchItems, submitDebrief } from '../api';
+import { getPackingList, PackItem, searchItems, submitDebrief, TripNotEndedError } from '../api';
 import { Btn, Card, Chip } from '../components/ui';
 import { P, S, RA, T } from '../theme';
 import { FAB_CLEARANCE } from '../components/TopBar';
@@ -42,16 +42,30 @@ export default function Debrief({ tripId, tripTitle, onDone }: {
     setUnused(next);
   };
 
-  async function submit() {
+  async function submit(confirmEarly = false) {
     setState('saving');
     try {
-      const r = await submitDebrief(tripId, forgot, Array.from(unused));
+      const r = await submitDebrief(tripId, forgot, Array.from(unused), confirmEarly);
       setSummary(
         `${r.forgot} forgotten · ${r.unused} unused · ${r.packed_recorded} packed items remembered.`
+        // Said out loud when it happens. Redoing a debrief is allowed — it
+        // replaces the previous one rather than adding to it — but a silent
+        // replacement would leave someone unsure which version counted.
+        + (r.replaced_previous ? '\n\nThis replaced your earlier debrief.' : '')
       );
       setState('done');
     } catch (e: any) {
       setState('edit');
+      // A trip that has not ended is a question, not a failure. Closing one
+      // out early is legitimate — a trip cut short — and the defect was doing
+      // it without asking, since a completed trip drops out of Upcoming.
+      if (e instanceof TripNotEndedError) {
+        Alert.alert('This trip hasn’t ended', e.message, [
+          { text: 'Not yet', style: 'cancel' },
+          { text: 'Close it out', onPress: () => submit(true) },
+        ]);
+        return;
+      }
       Alert.alert('Could not save', e.message);
     }
   }
@@ -125,7 +139,10 @@ export default function Debrief({ tripId, tripTitle, onDone }: {
       <Btn
         label={state === 'saving' ? 'Saving…' : 'Save & close out trip'}
         disabled={state === 'saving'}
-        onPress={submit}
+        // NOT `onPress={submit}` — Pressable passes the press event as the
+        // first argument, which would arrive as confirmEarly=<event>, a truthy
+        // value that skips the confirmation this whole change exists to add.
+        onPress={() => submit()}
       />
       <Text style={s.footnote}>
         This writes to your personal travel memory — the thing that makes trip #5 better than trip #1.

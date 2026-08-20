@@ -107,6 +107,11 @@ export async function req(path: string, options: RequestInit = {}, _retried = fa
     if (res.status === 402 && detail && typeof detail === 'object') {
       throw new PaywallError(detail as LimitInfo);
     }
+    // 409 from debrief means "this trip hasn't ended — confirm?", which is a
+    // question, not a failure. Typed so the caller can ask it.
+    if (res.status === 409 && (detail as any)?.code === 'trip_not_ended') {
+      throw new TripNotEndedError(detail as any);
+    }
     throw new Error(readableDetail(detail, res.status));
   }
   return res.json();
@@ -144,11 +149,32 @@ export const getTimeline = (
 
 export const searchItems = (q: string): Promise<{ id: string; name: string; category: string }[]> =>
   req(`/v1/items/search?q=${encodeURIComponent(q)}`);
+/** The trip has not ended yet — ask, then resend with confirm.
+ *
+ *  Modelled on PaywallError: a distinct type rather than a string, because the
+ *  caller needs to open a confirmation instead of showing an error. A trip cut
+ *  short is a real thing; what was wrong before was closing it silently.
+ */
+export class TripNotEndedError extends Error {
+  daysRemaining: number;
+  endDate: string;
+  constructor(d: { message?: string; days_remaining?: number; end_date?: string }) {
+    super(d.message || 'This trip has not ended yet.');
+    this.name = 'TripNotEndedError';
+    this.daysRemaining = d.days_remaining ?? 0;
+    this.endDate = d.end_date ?? '';
+  }
+}
+
 export const submitDebrief = (
-  tripId: string, forgot: string[], unused: string[]
-): Promise<{ forgot: number; unused: number; packed_recorded: number; promise: string }> =>
+  tripId: string, forgot: string[], unused: string[], confirmEarly = false
+): Promise<{
+  forgot: number; unused: number; packed_recorded: number;
+  /** How many events the previous debrief left behind, now replaced. */
+  replaced_previous: number; promise: string;
+}> =>
   req(`/v1/trips/${tripId}/debrief`, {
-    method: 'POST', body: JSON.stringify({ forgot, unused }),
+    method: 'POST', body: JSON.stringify({ forgot, unused, confirm_early: confirmEarly }),
   });
 
 

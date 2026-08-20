@@ -34,8 +34,34 @@ def _catalog_id(db, name: str) -> str | None:
     return rows[0]["id"] if rows else None
 
 
+#: Events this flow owns. Scoped deliberately: `lost`, `bought` and `saved_me`
+#: are in the column's CHECK but nothing writes them, and a replacement that
+#: cleared everything would quietly become wrong the day something does.
+DEBRIEF_EVENTS = ("forgot", "unused", "packed")
+
+
+def already_debriefed(db, trip_id: str, user_id: str) -> int:
+    """How many debrief events this trip already has from this user."""
+    return db.table("item_events").select("id", count="exact") \
+        .eq("trip_id", trip_id).eq("user_id", user_id) \
+        .in_("event", list(DEBRIEF_EVENTS)).execute().count or 0
+
+
 def submit_debrief(db, trip: dict, user_id: str,
                    forgot: list[str], unused: list[str]) -> dict:
+    """Record what a trip taught, and mark it closed.
+
+    IDEMPOTENT BY REPLACEMENT, NOT BY REFUSAL. Submitting again replaces the
+    previous debrief for this trip rather than erroring. "Let me redo that" is
+    a legitimate thing to want, and a hard "already debriefed" would trade one
+    bug for a dead end.
+
+    Before this there was no guard at all: a second submit inserted a second
+    full set of events — every forgot, unused and packed name duplicated. Those
+    feed times_packed and the "you forgot this last time" signal, so a double
+    tap silently DOUBLED an item's weight in every future suggestion. Nothing
+    surfaced it, because more history looks like more history.
+    """
     events = []
     for name in forgot:
         events.append({"user_id": user_id, "trip_id": trip["id"], "event": "forgot",
@@ -56,9 +82,19 @@ def submit_debrief(db, trip: dict, user_id: str,
                            "item_name": p["name"], "item_id": p.get("item_id")})
         packed_count = len(packed)
 
+    # Replacement, in this order: clear this trip's previous debrief before
+    # writing the new one. Scoped to this trip AND this user AND the three
+    # events this flow owns, so nothing else's rows are collateral.
+    replaced = already_debriefed(db, trip["id"], user_id)
+    if replaced:
+        db.table("item_events").delete() \
+            .eq("trip_id", trip["id"]).eq("user_id", user_id) \
+            .in_("event", list(DEBRIEF_EVENTS)).execute()
+
     if events:
         db.table("item_events").insert(events).execute()
     db.table("trips").update({"status": "completed"}).eq("id", trip["id"]).execute()
 
     return {"forgot": len(forgot), "unused": len(unused), "packed_recorded": packed_count,
+            "replaced_previous": replaced,
             "promise": "Noted — your next trip will flag these."}
