@@ -135,10 +135,10 @@ Each is additive and safe to apply ahead of the code that uses it.
   explicitly either way, so this is the second belt, not the first.
 - **0032** `trip_locked_at` — the trip lock's own column. Sets nothing.
 - **0033** `notes_by_user` — index for the journal hub's cross-trip read.
-  **Dev status unconfirmed.** The catalog is not readable through PostgREST and
-  the endpoint returns correct results without the index, so a working
-  `/v1/notes` proves nothing. Run `scripts/verify_0033_index.sql` on dev before
-  applying to prod, or prod gets an index dev does not have.
+  Verified on dev 2026-08-20: `trip_notes_user_entry_date` present.
+- **0035** `destination_airport` — `destinations.airport_iata`, the airport a
+  stop is reached through. NULL means "not chosen": the app falls back to the
+  nearest large airport, so existing rows behave exactly as before.
 - **0034** `notification_log_nullable_user` — drops `NOT NULL` from
   `notification_log.user_id` so account deletion can pseudonymise it. Until it
   lands, half that policy is inert: ai_runs is nulled, notification_log throws

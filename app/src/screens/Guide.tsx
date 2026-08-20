@@ -4,8 +4,10 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { indexTips, normName } from '../tipMatch';
-import { getFamilyPlay, FamilyActivity, addFoodTip, deleteFoodTip, dishPhoto, FoodTip, getGuidePart, getProfile, getTrip, Guide as GuideT, listFoodTips, patchTrip, placePhotos, PlacePhoto, TipCategory, Trip, TripDetail } from '../api';
+import { setDestinationAirport, getFamilyPlay, FamilyActivity, addFoodTip, deleteFoodTip, dishPhoto, FoodTip, getGuidePart, getProfile, getTrip, Guide as GuideT, listFoodTips, patchTrip, placePhotos, PlacePhoto, TipCategory, Trip, TripDetail } from '../api';
 import { transitFor } from '../airlines';
+import { nearbyAirports } from '../airports';
+import AirportPicker from '../components/AirportPicker';
 import DishRail from '../components/DishRail';
 import { confirmRewrite } from '../confirms';
 import JourneyLoader from '../components/JourneyLoader';
@@ -78,6 +80,31 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
   const selectedDest = destinations.find(d => d.id === activeDestId);
   const place = selectedDest?.place_name ?? placeProp;
   const country = selectedDest?.country_code ?? countryProp;
+
+  // Which airports plausibly serve this stop, from the destination's own
+  // coordinates against the bundled table — no request, no metering.
+  //
+  // Up here with the other hooks, like tipByName above and for the same
+  // reason: this component returns early while the guide loads, and a useMemo
+  // below that point would run on some renders and not others.
+  // Pulled out as plain locals first. With `selectedDest?.lat` in the dependency
+  // array the React Compiler refuses the memo outright — "existing memoization
+  // could not be preserved" — and eslint treats that as an error rather than a
+  // warning, which is the right call: a memo the compiler discards is a memo
+  // that is not there.
+  const destLat = selectedDest?.lat ?? null;
+  const destLng = selectedDest?.lng ?? null;
+  const destCc = selectedDest?.country_code ?? null;
+  const airportOptions = React.useMemo(() => (
+    destLat != null && destLng != null ? nearbyAirports(destLat, destLng, destCc) : []
+  ), [destLat, destLng, destCc]);
+
+  // NULL means NOT CHOSEN, so the effective airport is the stored one or the
+  // top-ranked nearby. Resolving it here rather than storing the default keeps
+  // old trips improving as the airport data does.
+  const chosenAirport = selectedDest?.airport_iata ?? null;
+  const effectiveAirport = chosenAirport ?? airportOptions[0]?.iata ?? null;
+  const [airportPickerOpen, setAirportPickerOpen] = useState(false);
 
   useEffect(() => {
     getTrip(tripId).then(t => setDestinations(t.destinations ?? [])).catch(() => {});
@@ -393,7 +420,27 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                 <Text style={[sx.vChipText, d.id === activeDestId && { color: P.textOnDark }]}>{d.place_name}</Text>
               </Pressable>
             ))}
-          </ScrollView>
+            {airportPickerOpen && selectedDest && (
+        <AirportPicker
+          options={airportOptions}
+          chosen={chosenAirport}
+          place={place}
+          onPick={async (iata) => {
+            try {
+              await setDestinationAirport(tripId, selectedDest.id, iata);
+              const t = await getTrip(tripId);
+              setDestinations(t.destinations ?? []);
+              // The guide's arrival guidance is written for a specific
+              // airport, so a change invalidates it. Cleared rather than
+              // silently stale — a Narita write-up under a Haneda heading is
+              // worse than an empty section with a refresh button.
+              setG(null); setAReady(false); setBReady(false);
+              load(true);
+            } catch (e: any) { Alert.alert('Airport', e.message); }
+          }}
+          onClose={() => setAirportPickerOpen(false)} />
+      )}
+    </ScrollView>
         )}
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {SECTIONS.map(k => (
@@ -516,6 +563,18 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
               const [ic, lb] = KINDS[gw.kind] ?? KINDS.airport;
               return (
                 <Card>
+                  {/* Only when there is genuinely a choice. One airport needs
+                      no picker, and a row that opens a sheet with a single
+                      option in it promises an agency that is not there. */}
+                  {airportOptions.length > 1 && (
+                    <Pressable onPress={() => setAirportPickerOpen(true)} style={s.airportRow}>
+                      <Text style={s.airportText}>
+                        Flying into <Text style={{ fontFamily: F.bold }}>{effectiveAirport}</Text>
+                        {!chosenAirport && <Text style={s.airportHint}> · nearest</Text>}
+                      </Text>
+                      <Text style={[s.airportChange, { color: accent }]}>Change ›</Text>
+                    </Pressable>
+                  )}
                   {list.length > 1 && (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 }}>
                       {list.map(x => {
@@ -770,6 +829,15 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
 }
 
 const s = StyleSheet.create({
+  airportRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: P.sunken, borderRadius: RA.sm,
+    paddingHorizontal: S[3], paddingVertical: S[2] + 2, marginBottom: S[3],
+  },
+  airportText: { ...T.caption, color: P.textSec, flex: 1 },
+  airportHint: { ...T.caption, color: P.textMuted },
+  airportChange: { ...T.caption, fontFamily: F.bold },
+
   center: { flex: 1, backgroundColor: P.pageBg, alignItems: 'center', justifyContent: 'center' },
   loading: { ...T.body, color: P.textSec, marginTop: S[3] },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: S[3] },

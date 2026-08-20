@@ -2,7 +2,7 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from api.core.auth import current_user_id
 from api.core.db import get_db
 from api.subscriptions import service as subscriptions
@@ -102,6 +102,33 @@ def get_trip(trip_id: str, user_id: str = Depends(current_user_id)):
     return trip
 
 
+class DestinationPatch(BaseModel):
+    airport_iata: str | None = Field(default=None, min_length=3, max_length=3)
+
+
+@router.patch("/{trip_id}/destinations/{destination_id}")
+def patch_destination(trip_id: str, destination_id: str, body: DestinationPatch,
+                      user_id: str = Depends(current_user_id)):
+    """Change which airport a stop is reached through.
+
+    PLAN scope: it changes what the trip WILL BE — the Know and Go tabs answer
+    a different question for Narita than for Haneda — so a closed-out trip
+    refuses it like any other edit.
+
+    Clearing it (null) is a real choice, not a no-op: it returns the stop to
+    "whatever is nearest", which is how it behaves before anyone picks and how
+    it should behave if someone changes their mind rather than re-picking.
+    """
+    db = get_db()
+    owned_trip(db, trip_id, user_id, writing=True, scope=PLAN)
+    rows = db.table("destinations") \
+        .update({"airport_iata": (body.airport_iata or "").upper() or None}) \
+        .eq("id", destination_id).eq("trip_id", trip_id).execute().data
+    if not rows:
+        raise HTTPException(404, "Destination not found")
+    return rows[0]
+
+
 @router.post("/{trip_id}/destinations", status_code=201)
 def add_destination(trip_id: str, body: DestinationCreate, user_id: str = Depends(current_user_id)):
     db = get_db()
@@ -114,6 +141,18 @@ def add_destination(trip_id: str, body: DestinationCreate, user_id: str = Depend
         "accommodation": body.accommodation if isinstance(body.accommodation, dict) else None,
         "seq": body.seq or 1,
     }
+    # OMITTED WHEN UNSET, not sent as null. This code deploys on push; 0035
+    # reaches prod on a ship afternoon. In the window between, a payload
+    # carrying an unknown column fails with 42703 — and the retry below sheds
+    # accommodation first, then falls all the way to `minimal`, which drops lat
+    # and lng. A stop would silently lose its coordinates because of a field
+    # nobody had filled in.
+    #
+    # Omitted, the payload is byte-identical to today's for every existing
+    # flow, and only an actual airport CHOICE can meet the missing column —
+    # which cannot happen until a client with the picker ships.
+    if body.airport_iata:
+        row["airport_iata"] = body.airport_iata.upper()
     # Three attempts, shedding as little as possible at each step. The wizard
     # wraps a whole trip build in one try/catch, so an insert that escapes here
     # costs the traveller their stops and their packing list — the retry must
@@ -131,9 +170,18 @@ def add_destination(trip_id: str, body: DestinationCreate, user_id: str = Depend
     # So coordinates are surrendered last, and only to keep a trip build alive.
     minimal = {"trip_id": trip_id, "place_name": row["place_name"],
                "country_code": row["country_code"], "seq": row["seq"]}
+    #
+    # airport_iata sheds BEFORE coordinates for the same reason. Verified on
+    # dev with 0035 unapplied: a create carrying an airport fell past both
+    # earlier rungs, landed on `minimal`, and stored the stop with lat and lng
+    # NULL — returning 201, so it read as success. Losing an airport choice
+    # costs a picker default the traveller can set again; losing coordinates
+    # costs the weather silently and forever.
     attempts = [
         ("full", row),
         ("without accommodation", {k: v for k, v in row.items() if k != "accommodation"}),
+        ("without airport", {k: v for k, v in row.items()
+                             if k not in ("accommodation", "airport_iata")}),
         ("minimal", minimal),
     ]
     last: Exception | None = None

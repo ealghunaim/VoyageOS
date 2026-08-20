@@ -6,7 +6,14 @@ const APP_KEY: string = (CFG as any).APP_KEY ?? '';
 let onAuthFail: (() => void) | null = null;
 export function setAuthFailHandler(fn: () => void) { onAuthFail = fn; }
 
-export type TripStop = { id: string; place_name: string; country_code: string | null; seq?: number };
+export type TripStop = {
+  id: string; place_name: string; country_code: string | null; seq?: number;
+  lat?: number | null; lng?: number | null;
+  /** The airport this stop is reached through. NULL means NOT CHOSEN, not
+   *  "none" — the app falls back to the nearest large airport, which is also
+   *  what the picker offers as its default. */
+  airport_iata?: string | null;
+};
 export type Segment = { mode: string; ref?: string | null; origin?: string | null; dest?: string | null; depart?: string | null; arrive?: string | null };
 export type Trip = {
   place?: string | null; country_code?: string | null; travel_mode?: string | null;
@@ -139,6 +146,14 @@ export const deleteAccount = (): Promise<{ storage_objects_deleted: number }> =>
 export const listTrips = (): Promise<Trip[]> => req('/v1/trips');
 export const createTrip = (b: object): Promise<Trip> =>
   req('/v1/trips', { method: 'POST', body: JSON.stringify(b) });
+/** Change (or clear) which airport a stop is reached through. */
+export const setDestinationAirport = (
+  tripId: string, destinationId: string, iata: string | null,
+): Promise<TripStop> =>
+  req(`/v1/trips/${tripId}/destinations/${destinationId}`, {
+    method: 'PATCH', body: JSON.stringify({ airport_iata: iata }),
+  });
+
 export const addDestination = (tripId: string, b: object) =>
   req(`/v1/trips/${tripId}/destinations`, { method: 'POST', body: JSON.stringify(b) });
 export const addActivity = (tripId: string, b: object) =>

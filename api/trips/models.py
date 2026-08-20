@@ -49,6 +49,11 @@ class DestinationCreate(BaseModel):
     lat: float | None = None   # from autocomplete — stored at creation, geocoding retired
     lng: float | None = None
     accommodation: dict | None = None   # {'name': ...} — tailors the guide by proximity
+    #: Which airport this stop is reached through. Three characters, or absent.
+    #: NOT validated against a code list here: the authoritative table ships in
+    #: the app bundle, and a second list in this file would be one more thing to
+    #: keep in step. The client picks from a fixed set.
+    airport_iata: str | None = Field(default=None, min_length=3, max_length=3)
     seq: int = 1
 
 
