@@ -21,6 +21,8 @@ type TripLike = {
   start_date: string;
   end_date: string;
   status?: string | null;
+  /** When the owner closed the trip out. Null = still open. See classify(). */
+  locked_at?: string | null;
 };
 
 /** Local midnight for a YYYY-MM-DD string.
@@ -108,9 +110,19 @@ export function tripDays(startDate: string, endDate: string, cap = 60):
 }
 
 export function classify(trip: TripLike, now: Date = new Date()): TripWhen {
-  // An explicit completion wins over the calendar: someone who has debriefed a
-  // trip has told us it is over, whatever the dates say.
-  if (trip.status === 'completed') return 'finished';
+  // An explicit completion wins over the calendar — and closing out is the most
+  // explicit completion of all.
+  //
+  // locked_at was added two phases after this function was written, and until
+  // now classify() had never been told about it. That left the client and the
+  // SERVER disagreeing about what "active" means: active_trip_count excludes
+  // locked trips from the tier limit, so closing one out freed a slot, while
+  // Home still filed it under Upcoming. A free user got the slot and saw
+  // nothing on screen that explained why.
+  //
+  // Immediate, regardless of dates. Closing out is deliberate, confirmed, has a
+  // visible destination and a free undo one tap inside the trip.
+  if (trip.locked_at || trip.status === 'completed') return 'finished';
   const end = daysUntilDay(trip.end_date, now);
   if (!isNaN(end) && end < 0) return 'finished';
   const start = daysUntilDay(trip.start_date, now);

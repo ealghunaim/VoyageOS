@@ -13,6 +13,7 @@ Creates its own trip and removes it afterwards.
 """
 import json
 import os
+import pathlib
 import sys
 import urllib.error
 import urllib.request
@@ -130,6 +131,37 @@ try:
     st, b2 = call("POST", f"/v1/trips/{tid}/lock", {"locked": True})
     check("relocked", st, 200)
     check("locked_at moved forward", (b2 or {}).get("locked_at") != first_lock, True)
+
+    print("\n  ── client and server AGREE on what 'active' means ──")
+    #
+    # The drift test, applied across the wire. These are two codebases in two
+    # languages answering one question, and they disagreed for two phases:
+    # active_trip_count excluded locked trips from the tier limit while
+    # classify() had never heard of locked_at, so closing a trip out freed a
+    # slot and left it sitting under Upcoming.
+    #
+    # Asserted from BOTH ends: the server's count is measured by calling it,
+    # and the client's rule is read out of its source — there is no way to
+    # execute TypeScript from here, and asserting the predicate is still
+    # stronger than assuming it.
+    call("POST", f"/v1/trips/{tid}/lock", {"locked": True})
+    sub = call("GET", "/v1/subscription")[1] or {}
+    locked_counted = sub.get("trips_used", 0)
+    call("POST", f"/v1/trips/{tid}/lock", {"locked": False})
+    sub2 = call("GET", "/v1/subscription")[1] or {}
+    check("server: locking removes the trip from trips_used",
+          sub2.get("trips_used", 0) - locked_counted, 1)
+
+    ts = (pathlib.Path(__file__).resolve().parents[1]
+          / "app" / "src" / "tripStatus.ts").read_text()
+    classify_src = ts[ts.index("export function classify"):]
+    classify_src = classify_src[:classify_src.index("\n}")]
+    check("client: classify() treats locked_at as finished",
+          "trip.locked_at" in classify_src, True)
+    check("client: it does so BEFORE consulting the calendar",
+          classify_src.index("trip.locked_at") < classify_src.index("daysUntilDay"), True)
+
+    call("POST", f"/v1/trips/{tid}/lock", {"locked": True})
 
     print("\n  ── delete is never trapped by a lock ──")
     check("delete on a locked trip allowed", call("DELETE", f"/v1/trips/{tid}")[0], 204)

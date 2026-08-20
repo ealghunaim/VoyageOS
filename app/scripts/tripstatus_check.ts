@@ -32,6 +32,18 @@ check('THE BUG: started, not ended', classify(trip('2026-08-14', '2026-08-24'), 
 check('ends today — still on it', classify(trip('2026-08-10', '2026-08-17'), NOW), 'in_progress');
 check('ended yesterday', classify(trip('2026-08-01', '2026-08-16'), NOW), 'finished');
 check('one-day trip, today', classify(trip('2026-08-17', '2026-08-17'), NOW), 'in_progress');
+check('closed out beats the calendar, even for a future trip',
+  classify({ start_date: '2099-01-01', end_date: '2099-01-08',
+             status: 'upcoming', locked_at: '2026-08-20T10:00:00Z' }, NOW), 'finished');
+check('closed out beats in-progress',
+  classify({ start_date: '2026-08-14', end_date: '2026-08-24',
+             status: 'upcoming', locked_at: '2026-08-20T10:00:00Z' }, NOW), 'finished');
+check('an open trip is unaffected',
+  classify({ start_date: '2026-09-01', end_date: '2026-09-08',
+             status: 'upcoming', locked_at: null }, NOW), 'upcoming');
+check('a closed-out trip with no debrief still needs one',
+  needsDebrief({ start_date: '2099-01-01', end_date: '2099-01-08',
+                 status: 'upcoming', locked_at: '2026-08-20T10:00:00Z' }, NOW), true);
 check('completed beats the calendar',
   classify(trip('2026-09-01', '2026-09-08', 'completed'), NOW), 'finished');
 
