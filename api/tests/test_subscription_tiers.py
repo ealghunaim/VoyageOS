@@ -47,8 +47,20 @@ def test_402_body_carries_what_a_paywall_needs():
 
 
 def test_402_singular_and_plural_read_correctly():
-    assert "1 trip." in limit_body("free", 1, 1)["message"]
-    assert "3 trips." in limit_body("explorer", 3, 3)["message"]
+    """Rewritten when the limit became a CONCURRENCY cap rather than a lifetime
+    one. It used to assert "1 trip." and "3 trips." — the pluralisation switch
+    that produced "You're using all 1 of your Free active trip", which is
+    grammatical and reads like a form letter. The free tier now gets its own
+    sentence; the plural branch keeps the switch.
+
+    Still the same property: neither reading is ungrammatical."""
+    free = limit_body("free", 1, 1)["message"]
+    assert "covers one active trip" in free
+    assert "all 1 of" not in free
+
+    plural = limit_body("explorer", 3, 3)["message"]
+    assert "all 3 of your Explorer active trips" in plural
+    assert "active trips" in plural and "active trip." not in plural
 
 
 def test_top_of_the_ladder_offers_no_upgrade():
