@@ -7,6 +7,7 @@ import { indexTips, normName } from '../tipMatch';
 import { setDestinationAirport, getFamilyPlay, FamilyActivity, addFoodTip, deleteFoodTip, dishPhoto, FoodTip, getGuidePart, getProfile, getTrip, Guide as GuideT, listFoodTips, patchTrip, placePhotos, PlacePhoto, TipCategory, Trip, TripDetail } from '../api';
 import { transitFor } from '../airlines';
 import { nearbyAirports } from '../airports';
+import { anchorFor, within } from '../nearby';
 import AirportPicker from '../components/AirportPicker';
 import DishRail from '../components/DishRail';
 import { confirmRewrite } from '../confirms';
@@ -105,6 +106,13 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
   const chosenAirport = selectedDest?.airport_iata ?? null;
   const effectiveAirport = chosenAirport ?? airportOptions[0]?.iata ?? null;
   const [airportPickerOpen, setAirportPickerOpen] = useState(false);
+
+  // Distance filter over the guide's own recommendations. null = off, which is
+  // the default: the list is useful without it, and a filter that starts on
+  // hides things the traveller never asked to hide.
+  const [radiusKm, setRadiusKm] = useState<number | null>(null);
+  const located = g2?.located ?? null;
+  const anchor = React.useMemo(() => anchorFor(selectedDest as any), [selectedDest]);
 
   useEffect(() => {
     getTrip(tripId).then(t => setDestinations(t.destinations ?? [])).catch(() => {});
@@ -657,9 +665,17 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
               const cuisines = [...counts.entries()]
                 .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
                 .map(([c]) => c);
-              const restaurants = cuisine
+              const byCuisine = cuisine
                 ? all.filter(r => ((r as any).cuisine ?? '').trim() === cuisine)
                 : all;
+              // Distance applies AFTER cuisine, and drops rows it could not
+              // measure rather than passing them through. A filter that
+              // silently keeps everything it does not understand is not a
+              // filter — the "N of M located" line beside the control is what
+              // makes that omission visible instead of mysterious.
+              const restaurants = radiusKm === null
+                ? byCuisine
+                : within(byCuisine, anchor, radiusKm);
               return (
                 <>
                   {dishes.length === 0 && restaurants.length === 0 &&
@@ -672,6 +688,30 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
                   )}
                   <DishRail dishes={dishes} photos={dishPhotos} accent={accent} />
                   {all.length > 0 && <Text style={sx.tipHead}>RESTAURANTS</Text>}
+                  {all.length > 0 && !!anchor && (
+                    <View style={s.nearRow}>
+                      {[null, 1, 2, 5].map(km => {
+                        const on = radiusKm === km;
+                        return (
+                          <Pressable key={String(km)} onPress={() => setRadiusKm(km)}
+                            style={[sx.cuisineChip, on && { backgroundColor: accent, borderColor: accent }]}>
+                            <Text style={[sx.cuisineChipText, on && { color: P.card, fontFamily: F.med }]}>
+                              {km === null ? 'Anywhere' : `Within ${km}km`}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  )}
+                  {radiusKm !== null && !!anchor && (
+                    // The anchor is NAMED. "Within 2km" is meaningless without
+                    // saying of what, and a hotel across town gives a very
+                    // different answer from the city centre.
+                    <Text style={s.nearNote}>
+                      From {anchor.label}
+                      {located ? ` · ${located.found} of ${located.total} located` : ''}
+                    </Text>
+                  )}
                   {cuisines.length > 1 && (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}
                       style={{ marginBottom: S[3] }} contentContainerStyle={{ paddingRight: S[4] }}>
@@ -829,6 +869,8 @@ export default function Guide({ trip, tripId, tripTitle, section, accent, countr
 }
 
 const s = StyleSheet.create({
+  nearRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: S[2] },
+  nearNote: { ...T.caption, color: P.textMuted, marginBottom: S[3] },
   airportRow: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: P.sunken, borderRadius: RA.sm,

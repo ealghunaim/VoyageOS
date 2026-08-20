@@ -343,7 +343,17 @@ export type Guide = {
   etiquette: string[]; customs_flags: string[];
   eat: { name: string; note: string; order?: string; when?: string; area?: string; price?: number }[];
   dishes?: { name: string; note: string }[];
-  restaurants?: { name: string; note: string; area?: string; price?: number }[];
+  /** How many recommended places carry coordinates. Shown rather than hidden:
+   *  the geocoder is a real one and misses real places, and "6 of 12 located"
+   *  is honest where a silent partial filter is not. */
+  located?: { found: number; total: number } | null;
+  /** `coords` is filled in by a background task after the guide is stored, so
+   *  a freshly generated guide has none and acquires them on a later read.
+   *  null means the geocoder tried and could not find the place. */
+  restaurants?: {
+    name: string; note: string; area?: string; price?: number;
+    coords?: { lat: number; lng: number } | null;
+  }[];
   play: { name: string; note: string }[];
   visit: { name: string; note: string; rating?: number | null; fee?: string; access?: string }[];
   go: { from_origin?: string[]; from_airport: string[]; around: string[] };

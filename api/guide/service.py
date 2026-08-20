@@ -7,6 +7,7 @@ import json
 from fastapi import HTTPException
 
 from api.ai_gateway import gateway
+from api.guide import geocode
 from api.guide.prompts import GUIDE_PROMPT_VERSION, GUIDE_SYSTEM_PROMPT
 
 #: Twelve is a ceiling the prompt is told not to treat as a target. Six was
@@ -267,6 +268,51 @@ _PART_TASK = {"a": "guide_a", "b": "guide_b"}
 _PART_MAX_TOKENS = {"a": 3000, "b": 8000}
 
 
+def locate_part(db, trip_id: str, destination_id, phase: str,
+                city: str, cc: str | None) -> dict:
+    """Fill in coordinates for a stored guide part. Safe to run again.
+
+    Re-reads the payload rather than taking it as an argument, so a run that
+    starts after another has already written picks up that work instead of
+    overwriting it — the difference between idempotent and merely repeatable.
+    """
+    q = db.table("trip_guide_parts").select("payload") \
+        .eq("trip_id", trip_id).eq("phase", phase)
+    q = q.is_("destination_id", "null") if destination_id is None \
+        else q.eq("destination_id", destination_id)
+    rows = q.execute().data
+    if not rows:
+        return {"found": 0, "total": 0}
+
+    payload = rows[0]["payload"] or {}
+    if not geocode.pending(payload):
+        return payload.get("located") or {"found": 0, "total": 0}
+
+    payload = geocode.locate(payload, city, cc)
+    upd = db.table("trip_guide_parts").update({"payload": payload}) \
+        .eq("trip_id", trip_id).eq("phase", phase)
+    upd = upd.is_("destination_id", "null") if destination_id is None \
+        else upd.eq("destination_id", destination_id)
+    upd.execute()
+    return payload["located"]
+
+
+def locate_part_safely(db, trip_id: str, destination_id, phase: str,
+                       city: str, cc: str | None) -> None:
+    """The background entry point. Swallows everything.
+
+    A geocoding failure must never surface anywhere: the guide is already
+    generated, paid for, stored and returned. The worst outcome available here
+    is a guide with fewer coordinates than it might have had, and the next
+    read of it will try again.
+    """
+    try:
+        got = locate_part(db, trip_id, destination_id, phase, city, cc)
+        print(f"[guide/{phase}] located {got.get('found')}/{got.get('total')}")
+    except Exception as e:                                   # noqa: BLE001
+        print(f"[guide/{phase}] geocode task failed: {type(e).__name__}: {e}")
+
+
 def get_guide_part(db, trip: dict, user_id: str, phase: str, *,
                     destination_id: str | None = None, regenerate: bool = False) -> dict:
     from api.guide.prompts import GUIDE_PROMPT_A, GUIDE_PROMPT_B
@@ -298,6 +344,11 @@ def get_guide_part(db, trip: dict, user_id: str, phase: str, *,
                else f"{type(e).__name__}: {e}")
         print(f"[guide/{phase}] parse failed: {why} · tail {result.text[-120:]!r}")
         raise HTTPException(502, "The guide didn't generate cleanly — tap ↻ to retry.")
+    # The guide is stored and returned FIRST. Coordinates arrive afterwards, in
+    # the background: Nominatim's policy caps us at one request a second, so
+    # locating sixteen places is sixteen seconds, and a generation that already
+    # takes ten or twenty should not double to add a filter. A guide is cached
+    # and read many times; the coordinates are there from the second read.
     db.table("trip_guide_parts").upsert(
         {"trip_id": tid, "destination_id": did, "phase": phase, "payload": part,
          "model": f"{result.model}·{GUIDE_PROMPT_VERSION}"},
