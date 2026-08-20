@@ -362,14 +362,30 @@ export default function Packing({ tripId, tripTitle, accent, onBack, onDebrief }
           }}>
             <Text style={[s.closeout, { color: ac }]}>Save packed as kit ›</Text>
           </Pressable>
+          {!!kitResult && (
+            // The receipt from the last apply. One line by default; the detail
+            // is a tap away rather than a dialog in the way.
+            <Pressable onPress={() => setKitReviewOpen(true)} style={{ paddingVertical: S[2] }}>
+              <Text style={[s.reason, { textAlign: 'center' }]}>
+                {summarise(kitResult)}
+                {kitResult.conflicts.length > 0 && (
+                  <Text style={{ color: ac, fontFamily: F.bold }}>{'   Review ›'}</Text>
+                )}
+              </Text>
+            </Pressable>
+          )}
           {kits !== null && (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' }}>
               {kits.length === 0 && <Text style={s.reason}>No kits yet — create one from Home.</Text>}
               {kits.map(k => (
                 <Pressable key={k.id} style={s.kitChip} onPress={async () => {
                   try {
+                    // Was an Alert reading "N added · M already on the list",
+                    // which asserted nothing had happened to the matched
+                    // items — true when a match meant skip, and false the
+                    // moment it means the quantity changed.
                     const r = await applyKit(k.id, tripId);
-                    Alert.alert(`${r.kit} applied`, `${r.added} added · ${r.already_there} already on the list`);
+                    setKitResult(r);
                     setKits(null); await load(); loadWeight();
                   } catch (e: any) { Alert.alert('Error', e.message); }
                 }}>
