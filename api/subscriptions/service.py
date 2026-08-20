@@ -101,10 +101,35 @@ def _period_over(renews_at) -> bool:
         return False
 
 
-def trip_count(db, user_id: str) -> int:
-    """Trips owned. Deletes are hard, so this is a true count with no
-    tombstones to exclude."""
-    return len(db.table("trips").select("id").eq("owner_id", user_id).execute().data)
+def active_trip_count(db, user_id: str) -> int:
+    """Trips that still occupy a slot: owned AND not closed out.
+
+    This counted every trip ever owned, which turned the ladder's own promise
+    inside out. tiers.py says a tier buys "a number of trips"; with a lifetime
+    count, free meant one trip EVER — take it, close it, and the only ways to
+    plan another were to delete your history or to pay. That is a lifetime cap
+    wearing a concurrency cap's name.
+
+    A closed-out trip is a record, not a workspace (Phase C), so it stops
+    consuming a slot. Closing out is therefore a reward rather than a toll,
+    which is the whole shape of the ruling behind this.
+
+    NOTHING IS DELETED, and nothing becomes unreadable. Locked trips stay
+    readable, their journals stay writable (RECORD scope), and unlock stays
+    free. "Removed" means removed from this COUNT and nowhere else.
+
+    Unlocking can put someone over their limit, and that is allowed. Over-limit
+    is a state, not an error: it blocks the next POST /v1/trips and nothing
+    else. Refusing an unlock to protect a count would make undo a purchase,
+    which is the one thing the lock design rules out.
+    """
+    return len(db.table("trips").select("id")
+               .eq("owner_id", user_id).is_("locked_at", "null").execute().data)
+
+
+#: Old name, kept pointing at the new meaning so nothing calls a count that no
+#: longer exists. Remove once nothing imports it.
+trip_count = active_trip_count
 
 
 def has_used_demo(db, user_id: str, sub: dict | None = None) -> bool:
@@ -154,16 +179,32 @@ def limit_body(tier: str, limit: int, used: int) -> dict:
         "upgrade_limit": limit_for(nxt) if nxt else None,
         "upgrade_price": TIER_PRICES.get(nxt) if nxt else None,
     }
-    trips = "trip" if limit == 1 else "trips"
+    # ACTIVE trips, and the word matters: closing a trip out frees its slot, so
+    # the limit is a concurrency cap and the copy has to read like one. The old
+    # wording ("limit of 1 trip") described a lifetime cap, which is what this
+    # actually was before active_trip_count.
+    # The singular gets its own sentence rather than a pluralisation switch.
+    # "You're using all 1 of your Free active trip" is grammatical and reads
+    # like a form letter; the free tier is the one most people meet first.
+    at_limit = (f"Your {label_for(tier)} plan covers one active trip, and it's in use."
+                if limit == 1 else
+                f"You're using all {limit} of your {label_for(tier)} active trips.")
+
+    # THE FREE REMEDY FIRST. Someone at their limit can always close out a
+    # finished trip and carry on for nothing. Leading with the paid option
+    # would be selling a fix for a problem they can solve themselves, and a
+    # paywall that mentions the free path first is the one worth defending.
+    free_remedy = "Close out a finished trip to free a slot, or delete one."
+    body["free_remedy"] = free_remedy
+
     if nxt:
         body["message"] = (
-            f"You've hit your {label_for(tier)} limit of {limit} {trips}. "
-            f"{label_for(nxt)} adds {limit_for(nxt)} for {TIER_PRICES[nxt]}."
+            f"{at_limit} {free_remedy} "
+            f"{label_for(nxt)} raises it to {limit_for(nxt)} for {TIER_PRICES[nxt]}."
         )
     else:
         body["message"] = (
-            f"You've hit your {label_for(tier)} limit of {limit} {trips} — "
-            "our largest plan. Delete a trip to add another."
+            f"{at_limit} It is our largest plan. {free_remedy}"
         )
     return body
 
@@ -177,7 +218,7 @@ def summary(db, user_id: str) -> dict:
         "tier": tier,
         "tier_label": label_for(tier),
         "limit": limit_for(tier),
-        "trips_used": trip_count(db, user_id),
+        "trips_used": active_trip_count(db, user_id),
         "premium_trip_used": has_used_demo(db, user_id, sub),
         "premium_trip_id": (sub or {}).get("premium_trip_id"),
         "status": (sub or {}).get("status") or "active",

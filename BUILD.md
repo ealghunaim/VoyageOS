@@ -81,6 +81,23 @@ Verify against the installed artifact rather than the build log:
 - [ ] Migrations applied to prod **before** deploying code that reads them
 - [ ] Flip `app.json` back to dev afterwards
 
+## Migrations applied to dev, still owed on prod
+
+Run these on prod during the ship afternoon, before deploying from the tag.
+Each is additive and safe to apply ahead of the code that uses it.
+
+- **0030** `cascade_user_tables` — foreign keys so device_tokens, food_tips and
+  flight_api_usage follow a deleted user out. `deletion.py` sweeps them
+  explicitly either way, so this is the second belt, not the first.
+- **0032** `trip_locked_at` — the trip lock's own column. Sets nothing.
+- **0033** `notes_by_user` — index for the journal hub's cross-trip read.
+
+Also owed, and NOT yet written: a migration dropping `NOT NULL` from
+`notification_log.user_id`. Until it lands, half the account-deletion
+pseudonymisation is inert — ai_runs is nulled, notification_log throws and is
+caught. It fails safe (the row keeps its uuid, as before) but the policy is
+only half in force.
+
 ## Owed with the next build
 
 **Rotate `appKey`.** The current value has been public in this repository since

@@ -64,6 +64,13 @@ def may_write(trip: dict, user_id: str, scope: str) -> dict:
     if scope == RECORD:
         return {"allowed": True, "reason": None, "detail": {}}
 
+    # RESERVED: "tier". Phase D's limit is enforced at trip CREATION, which has
+    # no trip to ask about and therefore no seam to ask at. The case that does
+    # belong here arrives with Phase H — a trip you hold no slot for, shared
+    # with you after a downgrade. The code is named now, with no branch behind
+    # it, so the client's rendering path exists before the case does and the
+    # first person to need it adds a branch rather than a second system.
+
     locked_at = trip.get("locked_at")
     if locked_at:
         return {"allowed": False, "reason": "locked",

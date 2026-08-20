@@ -11,6 +11,9 @@ from api.core import photo_urls
 from api.core.trips import owned_trip, PLAN, RECORD
 
 router = APIRouter(prefix="/v1/trips", tags=["journal"])
+#: The cross-trip hub. Separate prefix, same tag — it is the same
+#: feature read from the other end.
+hub_router = APIRouter(prefix="/v1/notes", tags=["journal"])
 
 
 class NotePhoto(BaseModel):
@@ -53,6 +56,34 @@ def entry_date_for(trip: dict, requested):
         return str(end)
     return str(d)
 
+
+
+@hub_router.get("")
+def list_all_notes(user_id: str = Depends(current_user_id)):
+    """Every entry this person has written, across every trip.
+
+    A READ VIEW over data 2d already shaped. entry_date exists, is backfilled
+    and is what "when did this happen" means — created_at only breaks ties
+    within a day, which is the right tiebreak and the wrong sort key.
+
+    Grouped by trip on the client rather than here: the server returns a flat,
+    ordered list plus the trip fields needed to group it, because the grouping
+    is a presentation choice and a second endpoint shape would freeze it.
+
+    Trips are joined for title, country and locked_at — locked_at so a closed
+    trip's entries can carry the glyph. The entries stay WRITABLE: journal is
+    RECORD scope, and the glyph says "this trip is closed", not "this entry is
+    frozen".
+    """
+    db = get_db()
+    rows = db.table("trip_notes") \
+        .select("*, trips(id,title,country_code,locked_at)") \
+        .eq("user_id", user_id) \
+        .order("entry_date", desc=True).order("created_at", desc=True) \
+        .limit(500).execute().data
+    for r in rows:
+        r["photos"] = photo_urls.sign(db, r.get("photos"))
+    return rows
 
 
 @router.get("/{trip_id}/notes")

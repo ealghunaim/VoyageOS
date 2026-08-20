@@ -34,7 +34,7 @@ def create_trip(body: TripCreate, user_id: str = Depends(current_user_id)):
     sub = subscriptions.get(db, user_id)
     tier = subscriptions.tier_for(db, user_id, sub)
     limit = limit_for(tier)
-    used = subscriptions.trip_count(db, user_id)
+    used = subscriptions.active_trip_count(db, user_id)
     if used >= limit:
         raise HTTPException(402, subscriptions.limit_body(tier, limit, used))
 
